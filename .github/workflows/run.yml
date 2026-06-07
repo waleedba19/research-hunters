@@ -211,10 +211,17 @@ jobs:
           python-version: '3.12'
           cache: 'pip'
 
+      - name: Setup Node.js (for DOCX reports)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install requests rich openpyxl
+          npm install docx
 
       - name: Build command arguments
         id: args
