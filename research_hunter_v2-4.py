@@ -6457,15 +6457,24 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="Research Hunter v6 — run on GitHub Actions 24/7")
     parser.add_argument("--title",         help="Research topic / title (required)")
-    parser.add_argument("--year-from",     help="Start year (e.g. 2015)")
-    parser.add_argument("--year-to",       help="End year (default: current)")
-    parser.add_argument("--mode",          choices=["quick","field","deep"], default="deep",
+    parser.add_argument("--rq1", "--rq-1", help="Research Question 1")
+    parser.add_argument("--rq2", "--rq-2", help="Research Question 2")
+    parser.add_argument("--rq3", "--rq-3", help="Research Question 3")
+    parser.add_argument("--rq4", "--rq-4", help="Research Question 4")
+    parser.add_argument("--rq5", "--rq-5", help="Research Question 5")
+    parser.add_argument("--field",        help="Field number (1-48) or 'auto'")
+    parser.add_argument("--study-type",   help="Study type(s) (e.g. 6,7,8 or 30=all)")
+    parser.add_argument("--year-from",    help="Start year (e.g. 2015)")
+    parser.add_argument("--year-to",      help="End year (default: current)")
+    parser.add_argument("--mode",         choices=["quick","field","deep"], default="deep",
                         help="Search mode (default: deep)")
-    parser.add_argument("--language",      choices=["1","2","3","4","5","6","7","8"], default="1",
+    parser.add_argument("--language",     choices=["1","2","3","4","5","6","7","8"], default="1",
                         help="Search language (default: 1=English)")
-    parser.add_argument("--scihub",        action="store_true", help="Enable Sci-Hub")
+    parser.add_argument("--scihub",       action="store_true", help="Enable Sci-Hub")
     parser.add_argument("--single-folder", action="store_true", help="Single folder mode")
-    parser.add_argument("--keywords",      help="Comma-separated custom keywords")
+    parser.add_argument("--keywords",     help="Comma-separated custom keywords")
+    parser.add_argument("--proxy",        choices=["y","p","n"], default="n",
+                        help="Proxy (y=auto qoder, p=custom URL, n=skip)")
     args, _ = parser.parse_known_args()
 
     if args.title:
@@ -6475,15 +6484,34 @@ if __name__ == "__main__":
         print("║  Running on GitHub Actions (24/7 cloud)            ║")
         print("╚══════════════════════════════════════════════════════╝")
         title = args.title
-        rqs   = []
+        # Collect research questions
+        rqs = []
+        for rq_val in [args.rq1, args.rq2, args.rq3, args.rq4, args.rq5]:
+            if rq_val and rq_val.strip():
+                rqs.append(rq_val.strip())
+
+        # Auto-detect from title
         suggested_field = auto_detect_field(title, rqs)
         suggested_types = auto_detect_study_type(title, rqs)
         suggested_kws   = extract_study_keywords(title, rqs, suggested_field, count=30)
         country_context = detect_country_context(title, rqs)
 
-        field = suggested_field
+        # Field: use user-specified or auto-detect
+        if args.field and args.field != "auto":
+            field = FIELDS.get(args.field, suggested_field)
+        else:
+            field = suggested_field
 
-        study_types = suggested_types or ["Qualitative Study"]
+        # Study types: use user-specified or auto-detect
+        if args.study_type and args.study_type != "auto":
+            study_types = []
+            if "30" in args.study_type:
+                study_types = [v for k, v in STUDY_TYPES.items() if k != "30"]
+            else:
+                study_types = [STUDY_TYPES[k.strip()] for k in args.study_type.split(",")
+                               if k.strip() in STUDY_TYPES]
+        else:
+            study_types = suggested_types or ["Qualitative Study"]
 
         SEARCH_LANGUAGES = {
             "1": ("English",              ["en"]),
@@ -6515,6 +6543,17 @@ if __name__ == "__main__":
         single_folder = args.single_folder
         if use_scihub:
             os.environ["SCIHUB_ENABLED"] = "1"
+
+        # Proxy
+        proxy_ans = args.proxy.lower()
+        if proxy_ans == "y":
+            _academic_proxy.enable()
+        elif proxy_ans == "p":
+            # Custom proxy URL would need to be set via env var
+            proxy_url = os.environ.get("PROXY_URL", "")
+            if proxy_url:
+                _academic_proxy.external = [proxy_url]
+                _academic_proxy.enable()
 
         params = {
             "title":              title,

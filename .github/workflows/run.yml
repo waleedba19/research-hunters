@@ -1,52 +1,122 @@
-name: Research Hunter — 24/7 Cloud Search
+name: 🔬 Research Hunter — 24/7 Cloud Search
 
 on:
-  # Run manually from GitHub UI
   workflow_dispatch:
     inputs:
+      # ── STEP 1: Research Title ────────────────────────────────────────────
       title:
-        description: 'Research topic / title'
+        description: '📌 Research topic / title (required)'
         required: true
-        default: 'The impact of AI on language learning'
+        default: ''
+      
+      # ── STEP 2: Research Questions ────────────────────────────────────────
+      rq1:
+        description: '📝 Research Question 1 (optional)'
+        required: false
+        default: ''
+      rq2:
+        description: '📝 Research Question 2 (optional)'
+        required: false
+        default: ''
+      rq3:
+        description: '📝 Research Question 3 (optional)'
+        required: false
+        default: ''
+      rq4:
+        description: '📝 Research Question 4 (optional)'
+        required: false
+        default: ''
+      rq5:
+        description: '📝 Research Question 5 (optional)'
+        required: false
+        default: ''
+      
+      # ── STEP 5: Field Selection ───────────────────────────────────────────
+      field:
+        description: '🎓 Field number (Enter=auto, see list below)'
+        required: false
+        default: 'auto'
+      
+      # ── STEP 6: Study Type ────────────────────────────────────────────────
+      study_type:
+        description: '📋 Study type(s) (Enter=auto, e.g. 6,7,8 or 30=all)'
+        required: false
+        default: 'auto'
+      
+      # ── STEP 7: Language ──────────────────────────────────────────────────
+      language:
+        description: '🌍 Language (1=EN, 2=AR, 3=FR, 4=ES, 5=EN+AR, 6=EN+FR, 7=EN+AR+FR, 8=All)'
+        required: true
+        default: '1'
+      
+      # ── STEP 8: Year Range ────────────────────────────────────────────────
       year_from:
-        description: 'Start year (e.g. 2015)'
+        description: '📅 Year from (e.g. 2015, leave blank = all years)'
         required: false
         default: ''
       year_to:
-        description: 'End year'
+        description: '📅 Year to (default = current year)'
         required: false
         default: ''
+      
+      # ── STEP 9: Search Mode ───────────────────────────────────────────────
       mode:
-        description: 'Search mode'
+        description: '🔎 Search mode'
         required: true
         default: 'deep'
         type: choice
         options:
-          - quick
-          - field
-          - deep
-      language:
-        description: 'Search language (1=EN, 2=AR, 3=FR, 4=ES, 8=All)'
-        required: true
-        default: '1'
+          - quick   (8 core APIs, ~2 min)
+          - field   (best for auto-detected field, ~5 min)
+          - deep    (ALL 70+ platforms, ~25 min, recommended)
+      
+      # ── STEP 10a: Sci-Hub ─────────────────────────────────────────────────
       scihub:
-        description: 'Enable Sci-Hub?'
-        required: false
+        description: '⚡ Enable Sci-Hub / shadow libraries?'
+        required: true
         default: false
         type: boolean
+      
+      # ── STEP 10b: Folder Mode ─────────────────────────────────────────────
+      folder_mode:
+        description: '📁 Output folder mode'
+        required: true
+        default: 'hierarchy'
+        type: choice
+        options:
+          - hierarchy  (16-folder: Q1-Q4, MA/PhD, Books, Conference, Libya/MENA)
+          - single     (all PDFs in one folder)
+      
+      # ── STEP 4: Keywords ──────────────────────────────────────────────────
       keywords:
-        description: 'Optional comma-separated keywords'
+        description: '🔑 Custom keywords (comma-separated, or leave blank for auto-extraction)'
+        required: false
+        default: ''
+      
+      # ── STEP 11: Proxy ────────────────────────────────────────────────────
+      proxy:
+        description: '🌐 Proxy (y=auto qoder, p=custom URL, n=skip)'
+        required: true
+        default: 'n'
+        type: choice
+        options:
+          - n  (skip)
+          - y  (auto qoder:8082)
+          - p  (custom URL)
+
+      # ── Notification Email ────────────────────────────────────────────────
+      email:
+        description: '📧 Email for completion notification (optional)'
         required: false
         default: ''
 
-  # Or run on a schedule (e.g. weekly)
   schedule:
-    - cron: '0 0 * * 0'  # Every Sunday at midnight
+    - cron: '0 0 * * 0'
 
 jobs:
   research:
     runs-on: ubuntu-latest
-    timeout-minutes: 360  # 6 hours max
+    timeout-minutes: 360  # 6 hours max (GitHub max for free)
 
     steps:
       - name: Checkout repository
@@ -63,34 +133,196 @@ jobs:
           python -m pip install --upgrade pip
           pip install requests rich openpyxl
 
-      - name: Run Research Hunter
+      - name: Build command arguments
+        id: args
+        shell: bash
+        run: |
+          ARGS="--title \"${{ github.event.inputs.title }}\""
+          
+          # Research Questions
+          if [ -n "${{ github.event.inputs.rq1 }}" ]; then ARGS="$ARGS --rq1 \"${{ github.event.inputs.rq1 }}\""; fi
+          if [ -n "${{ github.event.inputs.rq2 }}" ]; then ARGS="$ARGS --rq2 \"${{ github.event.inputs.rq2 }}\""; fi
+          if [ -n "${{ github.event.inputs.rq3 }}" ]; then ARGS="$ARGS --rq3 \"${{ github.event.inputs.rq3 }}\""; fi
+          if [ -n "${{ github.event.inputs.rq4 }}" ]; then ARGS="$ARGS --rq4 \"${{ github.event.inputs.rq4 }}\""; fi
+          if [ -n "${{ github.event.inputs.rq5 }}" ]; then ARGS="$ARGS --rq5 \"${{ github.event.inputs.rq5 }}\""; fi
+          
+          # Field
+          if [ "${{ github.event.inputs.field }}" != "auto" ] && [ -n "${{ github.event.inputs.field }}" ]; then
+            ARGS="$ARGS --field \"${{ github.event.inputs.field }}\""
+          fi
+          
+          # Study Type
+          if [ "${{ github.event.inputs.study_type }}" != "auto" ] && [ -n "${{ github.event.inputs.study_type }}" ]; then
+            ARGS="$ARGS --study-type \"${{ github.event.inputs.study_type }}\""
+          fi
+          
+          # Language
+          ARGS="$ARGS --language ${{ github.event.inputs.language }}"
+          
+          # Year range
+          if [ -n "${{ github.event.inputs.year_from }}" ]; then ARGS="$ARGS --year-from ${{ github.event.inputs.year_from }}"; fi
+          if [ -n "${{ github.event.inputs.year_to }}" ]; then ARGS="$ARGS --year-to ${{ github.event.inputs.year_to }}"; fi
+          
+          # Mode
+          MODE="${{ github.event.inputs.mode }}"
+          MODE="${MODE%% *}"  # Take first word (quick/field/deep)
+          ARGS="$ARGS --mode $MODE"
+          
+          # Sci-Hub
+          if [ "${{ github.event.inputs.scihub }}" == "true" ]; then
+            ARGS="$ARGS --scihub"
+          fi
+          
+          # Folder mode
+          if [ "${{ github.event.inputs.folder_mode }}" == "single" ]; then
+            ARGS="$ARGS --single-folder"
+          fi
+          
+          # Custom keywords
+          if [ -n "${{ github.event.inputs.keywords }}" ]; then
+            ARGS="$ARGS --keywords \"${{ github.event.inputs.keywords }}\""
+          fi
+          
+          # Proxy
+          if [ "${{ github.event.inputs.proxy }}" == "y" ] || [ "${{ github.event.inputs.proxy }}" == "p" ]; then
+            ARGS="$ARGS --proxy ${{ github.event.inputs.proxy }}"
+          fi
+          
+          echo "args=$ARGS" >> $GITHUB_OUTPUT
+
+      - name: Run Research Hunter (Full Wizard Mode)
         env:
           PYTHONIOENCODING: utf-8
         run: |
-          python research_hunter_v2-4.py \
-            --title "${{ github.event.inputs.title || 'The impact of AI on language learning' }}" \
-            ${{ github.event.inputs.year_from && format('--year-from {0}', github.event.inputs.year_from) || '' }} \
-            ${{ github.event.inputs.year_to && format('--year-to {0}', github.event.inputs.year_to) || '' }} \
-            --mode ${{ github.event.inputs.mode || 'deep' }} \
-            --language ${{ github.event.inputs.language || '1' }} \
-            ${{ github.event.inputs.scihub == 'true' && '--scihub' || '' }} \
-            ${{ github.event.inputs.keywords && format('--keywords "{0}"', github.event.inputs.keywords) || '' }}
+          echo "╔══════════════════════════════════════════════════════════════╗"
+          echo "║  🔬 Research Hunter v6 — SUPER LOADED GOD MODE             ║"
+          echo "║  Running on GitHub Actions Cloud (24/7)                    ║"
+          echo "╚══════════════════════════════════════════════════════════════╝"
+          echo ""
+          echo "📋 Search Parameters:"
+          python research_hunter_v2-4.py ${{ steps.args.outputs.args }}
 
-      - name: Upload results (PDFs + reports)
+      - name: Check results
+        id: check_results
+        shell: bash
+        run: |
+          echo "=== Results Summary ==="
+          echo "Title: ${{ github.event.inputs.title }}"
+          echo "Mode: ${{ github.event.inputs.mode }}"
+          
+          # Count results
+          PDF_COUNT=$(find pdf_files/ -name "*.pdf" 2>/dev/null | wc -l)
+          JSON_COUNT=$(find pdf_files/ -name "results.json" 2>/dev/null | wc -l)
+          MD_COUNT=$(find pdf_files/ -name "research_report.md" 2>/dev/null | wc -l)
+          CSV_COUNT=$(find pdf_files/ -name "master_database.csv" -o -name "master_database.xlsx" 2>/dev/null | wc -l)
+          REDLIST_COUNT=$(find pdf_files/ -name "RED_LIST_view.html" 2>/dev/null | wc -l)
+          
+          echo "PDFs downloaded: $PDF_COUNT"
+          echo "Results JSON: $JSON_COUNT"
+          echo "Reports: $MD_COUNT MD, $CSV_COUNT database, $REDLIST_COUNT redlist"
+          
+          echo "pdf_count=$PDF_COUNT" >> $GITHUB_OUTPUT
+          
+          if [ "$PDF_COUNT" -gt 0 ] || [ "$JSON_COUNT" -gt 0 ]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+          else
+            echo "status=no_results" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Zip all results (16-folder hierarchy preserved)
+        if: always()
+        shell: bash
+        run: |
+          echo "📦 Creating ZIP archive..."
+          if [ -d "pdf_files" ] && [ "$(find pdf_files/ -type f 2>/dev/null | wc -l)" -gt 0 ]; then
+            # Install zip if needed
+            sudo apt-get update -qq && sudo apt-get install -y -qq zip unzip
+            
+            # Create timestamped zip with full folder structure
+            TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+            SAFE_TITLE=$(echo "${{ github.event.inputs.title }}" | sed 's/[^a-zA-Z0-9_\-]/_/g' | cut -c1-40)
+            ZIP_NAME="research_${SAFE_TITLE}_${TIMESTAMP}.zip"
+            
+            cd pdf_files
+            zip -r -9 "../${ZIP_NAME}" ./
+            cd ..
+            
+            echo "✅ ZIP created: ${ZIP_NAME}"
+            ls -lh "${ZIP_NAME}"
+            echo "zip_name=${ZIP_NAME}" >> $GITHUB_OUTPUT
+          else
+            echo "⚠ No results to zip"
+            echo "zip_name=" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload full results (ZIP + individual files)
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: research-results
-          path: pdf_files/
+          name: research-hunt-results
+          path: |
+            pdf_files/
+            *.zip
           retention-days: 90
           compression-level: 9
 
-      - name: Upload log
+      - name: Upload cache/logs (for resume capability)
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: logs
+          name: cache-data
           path: |
             search_cache.json
             ghost_credentials.json
+            g4f_locked_config.json
           retention-days: 30
+
+      # ── Email notification ────────────────────────────────────────────────
+      - name: Send email notification
+        if: always() && github.event.inputs.email != ''
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          subject: >-
+            ${{ job.status == 'success' && '✅' || '❌' }}
+            Research Hunt Complete: ${{ github.event.inputs.title }}
+          to: ${{ github.event.inputs.email }}
+          from: Research Hunter Bot
+          body: |
+            🔬 Research Hunter v6 — SUPER LOADED GOD MODE
+            
+            ───────────────────────────────────────
+            📋 SEARCH COMPLETED
+            ───────────────────────────────────────
+            
+            Status: ${{ job.status }}
+            Title: ${{ github.event.inputs.title }}
+            
+            📊 Results Summary:
+            • PDFs Downloaded: ${{ steps.check_results.outputs.pdf_count || '0' }}
+            • Topic: ${{ github.event.inputs.title }}
+            • Search Mode: ${{ github.event.inputs.mode }}
+            
+            📂 Your results are available as ZIP download:
+            https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            
+            ───────────────────────────────────────
+            Generated by Research Hunter v6 on GitHub Actions
+            🔗 ${{ github.server_url }}/${{ github.repository }}
+
+      # ── Alternative: Send via curl (no SMTP setup needed) ─────────────────
+      - name: Send notification via Pushover / email fallback
+        if: always() && github.event.inputs.email != ''
+        shell: bash
+        run: |
+          echo "📧 To get email notifications, set these GitHub Secrets:"
+          echo "   - MAIL_USERNAME (your Gmail address)"
+          echo "   - MAIL_PASSWORD (Google App Password)"
+          echo ""
+          echo "📎 Or configure in Settings → Secrets and variables → Actions"
+          echo ""
+          echo "Download your results from:"
+          echo "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
