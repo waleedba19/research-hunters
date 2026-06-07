@@ -1,0 +1,96 @@
+name: Research Hunter — 24/7 Cloud Search
+
+on:
+  # Run manually from GitHub UI
+  workflow_dispatch:
+    inputs:
+      title:
+        description: 'Research topic / title'
+        required: true
+        default: 'The impact of AI on language learning'
+      year_from:
+        description: 'Start year (e.g. 2015)'
+        required: false
+        default: ''
+      year_to:
+        description: 'End year'
+        required: false
+        default: ''
+      mode:
+        description: 'Search mode'
+        required: true
+        default: 'deep'
+        type: choice
+        options:
+          - quick
+          - field
+          - deep
+      language:
+        description: 'Search language (1=EN, 2=AR, 3=FR, 4=ES, 8=All)'
+        required: true
+        default: '1'
+      scihub:
+        description: 'Enable Sci-Hub?'
+        required: false
+        default: false
+        type: boolean
+      keywords:
+        description: 'Optional comma-separated keywords'
+        required: false
+        default: ''
+
+  # Or run on a schedule (e.g. weekly)
+  schedule:
+    - cron: '0 0 * * 0'  # Every Sunday at midnight
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360  # 6 hours max
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests rich openpyxl
+
+      - name: Run Research Hunter
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          python research_hunter_v2-4.py \
+            --title "${{ github.event.inputs.title || 'The impact of AI on language learning' }}" \
+            ${{ github.event.inputs.year_from && format('--year-from {0}', github.event.inputs.year_from) || '' }} \
+            ${{ github.event.inputs.year_to && format('--year-to {0}', github.event.inputs.year_to) || '' }} \
+            --mode ${{ github.event.inputs.mode || 'deep' }} \
+            --language ${{ github.event.inputs.language || '1' }} \
+            ${{ github.event.inputs.scihub == 'true' && '--scihub' || '' }} \
+            ${{ github.event.inputs.keywords && format('--keywords "{0}"', github.event.inputs.keywords) || '' }}
+
+      - name: Upload results (PDFs + reports)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: research-results
+          path: pdf_files/
+          retention-days: 90
+          compression-level: 9
+
+      - name: Upload log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs
+          path: |
+            search_cache.json
+            ghost_credentials.json
+          retention-days: 30

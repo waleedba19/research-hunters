@@ -6152,5 +6152,395 @@ def main():
         print(f"{'='*65}")
 
 
+def main_headless(params: dict):
+    """Run the full Research Hunter pipeline with pre-set parameters (no interactive wizard)."""
+    title            = params["title"]
+    field            = params["field"]
+    study_types      = params["study_types"]
+    year_from        = params["year_from"]
+    year_to          = params["year_to"]
+    rqs              = params.get("research_questions", [])
+    platforms        = params["platforms"]
+    mode             = params.get("search_mode", "Deep")
+    use_scihub       = params.get("use_scihub", False)
+    study_keywords   = params.get("keywords", [])
+    lang_label       = params.get("lang_label", "English")
+    search_languages = params.get("search_languages", ["en"])
+    single_folder    = params.get("single_folder", False)
+    country_context  = params.get("country_context") or detect_country_context(title, rqs)
+
+    if country_context:
+        info(f"Geographic context: {' → '.join(country_context)}")
+    if study_keywords:
+        info(f"Study keywords extracted: {len(study_keywords)} terms")
+
+    folder_name = _safe_name(title, 80)
+    out_folder  = Path("pdf_files") / folder_name
+    out_folder.mkdir(parents=True, exist_ok=True)
+
+    if not single_folder:
+        all_folder_names = list(set(Q_FOLDER_MAP.values())) + ALL_EXTRA_FOLDERS
+        for fn in all_folder_names:
+            try:
+                (out_folder / fn).mkdir(parents=True, exist_ok=True)
+            except Exception:
+                pass
+    else:
+        info("Single-folder mode enabled — all PDFs saved directly to output folder")
+
+    existing_titles = scan_existing_pdfs(out_folder)
+    cache = SearchCache(out_folder)
+    stats = cache.stats()
+    if stats["total_found"] > 0:
+        warn(f"Resuming previous search — {stats['total_found']} papers cached "
+             f"({stats['total_downloaded']} downloaded, {stats['queries_used']} queries used)")
+
+    ok(f"Output: {out_folder}")
+    start_g4f_proxy()
+
+    if use_scihub:
+        _check_drissionpage()
+        if HAS_DRISSIONPAGE:
+            ok("Walter Ghost: DrissionPage available — gated PDF access enabled")
+        else:
+            info("Walter Ghost: DrissionPage unavailable — shadow libraries still work via API")
+
+    red_list = RedListManager(out_folder)
+    info("Generating search queries…")
+    used_q  = cache.queries_used()
+    queries = generate_queries(title, field, study_types, rqs, year_from,
+                               used_q, country_context)
+    extra_kw_queries = [kw for kw in study_keywords
+                        if len(kw.split()) >= 2 and kw.lower() not in
+                        {q.lower() for q in queries + used_q}]
+    queries = (queries + extra_kw_queries[:8])[:25]
+
+    cache.add_queries(queries)
+    cache.save()
+    ok(f"Generated {len(queries)} queries:")
+    for i, q in enumerate(queries, 1):
+        log(f"  {i:2}. {q}")
+
+    print()
+    info(f"Searching {len(platforms)} platforms ({mode} mode)…")
+    raw = search_all(queries, platforms, year_from=year_from, year_to=year_to,
+                     field=field, country_context=country_context)
+
+    deduped = cache.deduplicate(raw)
+    info(f"Raw: {len(raw)} → deduplicated: {len(deduped)}")
+
+    relevant, removed = filter_by_relevance(deduped, title, field, threshold=0.15)
+    if removed:
+        warn(f"Relevance filter removed {removed} unrelated papers")
+
+    new_papers, skipped = cache.filter_new(relevant)
+    if skipped:
+        info(f"Skipped {skipped} already-found papers from previous runs")
+
+    if existing_titles:
+        truly_new = []
+        dup_count = 0
+        for p in new_papers:
+            if is_duplicate_paper(p, existing_titles):
+                dup_count += 1
+            else:
+                truly_new.append(p)
+        if dup_count > 0:
+            warn(f"Duplicate scan: skipped {dup_count} papers already downloaded as PDFs")
+        new_papers = truly_new
+
+    ok(f"New papers this run: {len(new_papers)}")
+
+    if not new_papers:
+        warn("No new papers found. Try Deep search mode, more RQs, or broader topic.")
+        return
+
+    for p in new_papers:
+        cache.mark_found(p)
+
+    print()
+    dl_mode_str = "single folder" if single_folder else "smart folders"
+    info(f"Interleaved quartile verification + download (14-layer chain) into {dl_mode_str}…")
+
+    BATCH_SIZE = 50
+    dl_count  = 0
+    type_cnt  = {"PhD":0,"MA":0,"Book":0,"BookChapter":0,"Conference":0}
+    geo_cnt   = {"Libya":0,"Neighbor":0,"MENA":0}
+    folder_dl: dict[str, int] = {}
+    q_cnt     = {"Q1":0,"Q2":0,"Q3":0,"Q4":0,"Not Found":0}
+
+    total_batches = (len(new_papers) + BATCH_SIZE - 1) // BATCH_SIZE
+    for batch_idx in range(total_batches):
+        start = batch_idx * BATCH_SIZE
+        end   = min(start + BATCH_SIZE, len(new_papers))
+        batch = new_papers[start:end]
+        batch_num = batch_idx + 1
+
+        info(f"  Batch {batch_num}/{total_batches}: quartile checking {len(batch)} papers…")
+        seen: dict = {}
+        for p in batch:
+            journal = (p.get("journal") or p.get("venue") or "") or ""
+            if not journal.strip():
+                p["scopus_quartile"] = {"quartile": "Not Found"}
+                continue
+            jkey = journal.lower().strip()
+            if jkey in seen:
+                p["scopus_quartile"] = seen[jkey]
+            else:
+                try:
+                    r = check_quartile(journal)
+                except Exception:
+                    r = {"quartile": "Not Found", "verified": False}
+                qval = r.get("quartile","") if isinstance(r, dict) else str(r)
+                if not qval or qval in ("Not Found","Not Ranked",""):
+                    upgraded = enhanced_quartile_check(p)
+                    if upgraded and upgraded not in ("Not Found",""):
+                        if isinstance(r, dict):
+                            r["quartile"] = upgraded
+                        else:
+                            r = {"quartile": upgraded}
+                seen[jkey] = r
+                p["scopus_quartile"] = r
+
+        for p in batch:
+            q = (p.get("scopus_quartile") or {})
+            q = q.get("quartile","Not Found") if isinstance(q, dict) else str(q)
+            q_cnt[q if q in q_cnt else "Not Found"] += 1
+
+        ok(f"  Batch {batch_num}: Q1={q_cnt['Q1']} Q2={q_cnt['Q2']} Q3={q_cnt['Q3']} Q4={q_cnt['Q4']} N/A={q_cnt['Not Found']}")
+        info(f"  Batch {batch_num}: downloading {len(batch)} papers…")
+
+        for i, paper in enumerate(batch, 1):
+            global_idx = start + i
+            success, folder_used = smart_file_paper(paper, out_folder, use_scihub, red_list, cache, single_folder)
+            paper["downloaded"] = success
+            if success:
+                dl_count += 1
+                folder_dl[folder_used] = folder_dl.get(folder_used, 0) + 1
+            dt = detect_doc_type(paper)
+            if dt in type_cnt:
+                type_cnt[dt] += 1
+            gt = detect_geo_tier(paper)
+            if gt in geo_cnt:
+                geo_cnt[gt] += 1
+            if i % 10 == 0:
+                info(f"    [{global_idx}/{len(new_papers)}] {dl_count} downloaded so far…")
+            time.sleep(0.15)
+
+    ok(f"Scopus Summary (this run):")
+    for q, c in q_cnt.items():
+        log(f"  {quartile_badge(q)}: {c}")
+
+    cache.save()
+    ok(f"Downloaded {dl_count} / {len(new_papers)} PDFs")
+    if red_list.entries:
+        warn(red_list.summary())
+
+    existing: list = []
+    results_path = out_folder / "results.json"
+    if results_path.exists():
+        try:
+            prev = json.loads(results_path.read_text(encoding="utf-8"))
+            existing = prev.get("papers") or []
+        except Exception:
+            pass
+
+    all_papers = cache.deduplicate(new_papers + existing)
+
+    all_q = {"Q1":0,"Q2":0,"Q3":0,"Q4":0,"Not Found":0}
+    for p in all_papers:
+        q = (p.get("scopus_quartile") or {})
+        q = q.get("quartile","Not Found") if isinstance(q, dict) else str(q)
+        all_q[q if q in all_q else "Not Found"] += 1
+
+    info("Generating executive summary…")
+    report_data = {
+        "title":              title,
+        "field":              field,
+        "study_types":        study_types,
+        "year_range":         params.get("year_range", f"{year_from or 'All'} – {year_to}"),
+        "search_mode":        mode,
+        "platforms_searched": platforms,
+        "ai_queries":         queries,
+        "study_keywords":     study_keywords,
+        "search_language":    lang_label,
+        "country_context":    " → ".join(country_context) if country_context else "International",
+        "papers":             all_papers,
+        "executive_summary":  "",
+        "generated_at":       datetime.now().isoformat(),
+        "run_stats": {
+            "new_this_run":        len(new_papers),
+            "downloaded_this_run": dl_count,
+            "total_in_cache":      len(all_papers),
+            "q_distribution":      all_q,
+            "type_distribution":   type_cnt,
+            "geo_distribution":    geo_cnt,
+            "red_list_count":      len(red_list.entries),
+            "folder_downloads":    folder_dl,
+        },
+    }
+    report_data["executive_summary"] = generate_executive_summary(report_data)
+
+    results_path.write_text(
+        json.dumps(report_data, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    ok(f"Saved results.json ({len(all_papers)} total papers)")
+    cache.record_run(len(new_papers), dl_count, skipped)
+    cache.save()
+
+    md_path   = generate_markdown_report(report_data, out_folder)
+    docx_path = generate_docx_report(report_data, out_folder)
+    xlsx_path = _write_master_xlsx(all_papers, out_folder)
+
+    total_dl = sum(1 for p in all_papers if p.get("downloaded"))
+
+    def _cnt(folder: str) -> int:
+        p = out_folder / folder
+        return sum(1 for _ in p.glob("*.pdf")) if p.exists() else 0
+
+    ma_cnt  = _cnt("MA_Dissertations")
+    phd_cnt = _cnt("PhD_Dissertations")
+    ly_cnt  = _cnt("LOCAL_Libya")
+    mn_cnt  = _cnt("REGIONAL_MENA")
+    nb_cnt  = _cnt("NEIGHBOR_NorthAfrica")
+    bk_cnt  = _cnt("Books")
+    cf_cnt  = _cnt("Conference_Papers")
+    hc_cnt  = _cnt("HIGH_CITED_100plus") + _cnt("HIGH_CITED_500plus")
+    rl_cnt  = len(red_list.entries)
+
+    if HAS_RICH:
+        console.print(Panel.fit(
+            f"[bold green]🎉 Hunt Complete![/bold green]\n\n"
+            f"  Topic : [cyan]{title[:65]}[/cyan]\n"
+            f"  Field : [dim]{field}[/dim]   Lang: [dim]{lang_label}[/dim]\n"
+            f"  New: [white]{len(new_papers)}[/white]  |  Total: [white]{len(all_papers)}[/white]  |  "
+            f"PDFs: [green]{dl_count}[/green] this run / [green]{total_dl}[/green] total\n\n"
+            f"  📊 Scopus Quality:\n"
+            f"     Q1 [green]{all_q['Q1']:>4}[/green]  Q2 [blue]{all_q['Q2']:>4}[/blue]  "
+            f"Q3 [yellow]{all_q['Q3']:>4}[/yellow]  Q4 [red]{all_q['Q4']:>4}[/red]  "
+            f"Not-indexed [white]{all_q['Not Found']:>4}[/white]\n\n"
+            f"  📂 {out_folder}/\n"
+            f"     ├─ Q1_Top_Journals/          ({all_q['Q1']:>4} papers)\n"
+            f"     ├─ Q2_Good_Journals/         ({all_q['Q2']:>4} papers)\n"
+            f"     ├─ Q3_Acceptable_Journals/   ({all_q['Q3']:>4} papers)\n"
+            f"     ├─ Q4_Lower_Tier/            ({all_q['Q4']:>4} papers)\n"
+            f"     ├─ Not_Indexed/              ({all_q['Not Found']:>4} papers)\n"
+            f"     ├─ PhD_Dissertations/        ({phd_cnt:>4} PDFs)\n"
+            f"     ├─ MA_Dissertations/         ({ma_cnt:>4} PDFs)\n"
+            f"     ├─ Books/                    ({bk_cnt:>4} PDFs)\n"
+            f"     ├─ Conference_Papers/        ({cf_cnt:>4} PDFs)\n"
+            f"     ├─ LOCAL_Libya/              ({ly_cnt:>4} PDFs)\n"
+            f"     ├─ REGIONAL_MENA/            ({mn_cnt:>4} PDFs)\n"
+            f"     ├─ NEIGHBOR_NorthAfrica/     ({nb_cnt:>4} PDFs)\n"
+            f"     ├─ HIGH_CITED (100+/500+)/   ({hc_cnt:>4} PDFs)\n"
+            f"     └─ 🔴 RED_LIST pending/      ({rl_cnt:>4} manual needed)\n\n"
+            f"  📄 research_report.md          ✅\n"
+            f"  📘 {'research_report.docx  ✅' if docx_path else 'DOCX (node.js needed)'}\n"
+            f"  📊 {'master_database.xlsx  ✅' if xlsx_path and str(xlsx_path).endswith('.xlsx') else 'master_database.csv  ✅'}\n"
+            f"  📋 RED_LIST_view.html          {'✅' if rl_cnt else '(nothing failed)'}\n"
+            f"\n  [dim]Run again — already-found papers are skipped automatically.[/dim]",
+            border_style="green"
+        ))
+    else:
+        print(f"\n{'='*65}")
+        print(f"✅ Hunt Complete! {len(all_papers)} total papers, {total_dl} PDFs")
+        print(f"   Q1:{all_q['Q1']}  Q2:{all_q['Q2']}  Q3:{all_q['Q3']}  Q4:{all_q['Q4']}  Not-indexed:{all_q['Not Found']}")
+        print(f"   PhD:{phd_cnt}  MA:{ma_cnt}  Books:{bk_cnt}  Conference:{cf_cnt}")
+        print(f"   Libya:{ly_cnt}  MENA:{mn_cnt}  NorthAfrica:{nb_cnt}  HighCited:{hc_cnt}")
+        print(f"   Red List pending: {rl_cnt}")
+        print(f"   Folder: {out_folder}")
+        print(f"{'='*65}")
+
+
 if __name__ == "__main__":
-    main()
+    # ── GitHub Actions / CLI mode ────────────────────────────────────────────
+    import argparse
+    parser = argparse.ArgumentParser(description="Research Hunter v6 — run on GitHub Actions 24/7")
+    parser.add_argument("--title",         help="Research topic / title (required)")
+    parser.add_argument("--year-from",     help="Start year (e.g. 2015)")
+    parser.add_argument("--year-to",       help="End year (default: current)")
+    parser.add_argument("--mode",          choices=["quick","field","deep"], default="deep",
+                        help="Search mode (default: deep)")
+    parser.add_argument("--language",      choices=["1","2","3","4","5","6","7","8"], default="1",
+                        help="Search language (default: 1=English)")
+    parser.add_argument("--scihub",        action="store_true", help="Enable Sci-Hub")
+    parser.add_argument("--single-folder", action="store_true", help="Single folder mode")
+    parser.add_argument("--keywords",      help="Comma-separated custom keywords")
+    args, _ = parser.parse_known_args()
+
+    if args.title:
+        # ── HEADLESS MODE for GitHub Actions ──────────────────────────────
+        print("╔══════════════════════════════════════════════════════╗")
+        print("║  🔬 Research Hunter v6 — HEADLESS MODE             ║")
+        print("║  Running on GitHub Actions (24/7 cloud)            ║")
+        print("╚══════════════════════════════════════════════════════╝")
+        title = args.title
+        rqs   = []
+        suggested_field = auto_detect_field(title, rqs)
+        suggested_types = auto_detect_study_type(title, rqs)
+        suggested_kws   = extract_study_keywords(title, rqs, suggested_field, count=30)
+        country_context = detect_country_context(title, rqs)
+
+        field = suggested_field
+
+        study_types = suggested_types or ["Qualitative Study"]
+
+        SEARCH_LANGUAGES = {
+            "1": ("English",              ["en"]),
+            "2": ("Arabic",               ["ar"]),
+            "3": ("French",               ["fr"]),
+            "4": ("Spanish",              ["es"]),
+            "5": ("English + Arabic",     ["en", "ar"]),
+            "6": ("English + French",     ["en", "fr"]),
+            "7": ("English + Arabic + French", ["en","ar","fr"]),
+            "8": ("All Languages",        ["en","ar","fr","es","de","zh","pt","tr"]),
+        }
+        lang_label, lang_codes = SEARCH_LANGUAGES.get(args.language, ("English", ["en"]))
+
+        year_from = int(args.year_from) if args.year_from and args.year_from.strip().isdigit() else None
+        year_to   = int(args.year_to) if args.year_to and args.year_to.strip().isdigit() else datetime.now().year
+
+        plat_mode = args.mode.lower()
+        if plat_mode == "quick":
+            platforms = QUICK_PLATS[:]
+        elif plat_mode == "field":
+            platforms = FIELD_PLATS[:]
+        else:
+            platforms = DEEP_PLATS[:]
+
+        if args.keywords:
+            suggested_kws = [k.strip() for k in args.keywords.split(",") if k.strip()]
+
+        use_scihub = args.scihub
+        single_folder = args.single_folder
+        if use_scihub:
+            os.environ["SCIHUB_ENABLED"] = "1"
+
+        params = {
+            "title":              title,
+            "field":              field,
+            "study_types":        study_types,
+            "year_from":          year_from,
+            "year_to":            year_to,
+            "year_range":         f"{year_from or 'All'} – {year_to}",
+            "research_questions": rqs,
+            "platforms":          platforms,
+            "search_mode":        plat_mode.capitalize(),
+            "use_scihub":         use_scihub,
+            "keywords":           suggested_kws,
+            "lang_label":         lang_label,
+            "search_languages":   lang_codes,
+            "single_folder":      single_folder,
+            "country_context":    country_context,
+        }
+
+        # Override _ask to auto-confirm in headless mode
+        import builtins
+        _orig_input = builtins.input
+        builtins.input = lambda prompt="": "y"
+        try:
+            main_headless(params)
+        finally:
+            builtins.input = _orig_input
+    else:
+        main()
