@@ -38,3 +38,6 @@ env/
 # Test outputs
 test_*.py
 __pycache__/
+
+# SQL Server Compact database files
+*.sdf
