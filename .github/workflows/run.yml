@@ -31,38 +31,100 @@ on:
         required: false
         default: ''
       
-      # ── STEP 5: Field Selection (see field reference in description) ────────
+      # ── STEP 5: Field Selection ──────────────────────────────────────────────
       field:
-        description: |
-          🎓 Field number (enter number or 'auto').
-          Fields: 1=Applied Linguistics,2=SLA,3=TESOL/EFL,4=Discourse Analysis,
-          5=Sociolinguistics,6=Psycholinguistics,7=Translation,8=Lang Teaching,
-          9=Computational Ling,10=Historical Ling,11=Ed Tech,12=General Ed,
-          13=Curriculum,14=Ed Psych,15=Higher Ed,16=Special Ed,17=Psychology,
-          18=Sociology,19=Anthropology,20=Political Sci,21=Communication,
-          22=Cultural Studies,23=Gender Studies,24=History,25=CS/AI,26=Data Sci,
-          27=Medicine,28=Nursing,29=Pharmacology,30=Biology,31=Chemistry,
-          32=Physics,33=Mathematics,34=Env Science,35=Engineering,
-          36=Materials Sci,37=Agriculture,38=Business,39=Marketing,
-          40=Finance,41=Management,42=Law,43=Public Policy,44=Philosophy,
-          45=Literature,46=Linguistics,47=Arts,48=Theology
-        required: false
+        description: '🎓 Academic field'
+        required: true
         default: 'auto'
+        type: choice
+        options:
+          - auto - Auto-detect from title
+          - '1 - Applied Linguistics'
+          - '2 - Second Language Acquisition'
+          - '3 - TESOL / EFL / ESL'
+          - '4 - Discourse Analysis'
+          - '5 - Sociolinguistics'
+          - '6 - Psycholinguistics'
+          - '7 - Translation Studies'
+          - '8 - Language Teaching Methods'
+          - '9 - Computational Linguistics'
+          - '10 - Historical Linguistics'
+          - '11 - Educational Technology'
+          - '12 - General Education'
+          - '13 - Curriculum and Instruction'
+          - '14 - Educational Psychology'
+          - '15 - Higher Education'
+          - '16 - Special Education'
+          - '17 - Psychology'
+          - '18 - Sociology'
+          - '19 - Anthropology'
+          - '20 - Political Science'
+          - '21 - Communication Studies'
+          - '22 - Cultural Studies'
+          - '23 - Gender Studies'
+          - '24 - History'
+          - '25 - Computer Science / AI'
+          - '26 - Data Science / ML'
+          - '27 - Medicine / Health Sciences'
+          - '28 - Nursing'
+          - '29 - Pharmacology'
+          - '30 - Biology / Life Sciences'
+          - '31 - Chemistry'
+          - '32 - Physics'
+          - '33 - Mathematics'
+          - '34 - Environmental Science'
+          - '35 - Engineering'
+          - '36 - Materials Science'
+          - '37 - Agricultural Sciences'
+          - '38 - Business / Economics'
+          - '39 - Marketing'
+          - '40 - Finance / Accounting'
+          - '41 - Management'
+          - '42 - Law / Legal Studies'
+          - '43 - Public Policy'
+          - '44 - Philosophy'
+          - '45 - Literature'
+          - '46 - Linguistics (General)'
+          - '47 - Arts / Music / Design'
+          - '48 - Theology / Religious Studies'
 
       # ── STEP 6: Study Type Selection ────────────────────────────────────────
       study_type:
-        description: |
-          📋 Study type number(s) (e.g. '6', '6,7,8', '30' for all, 'auto' for auto-detect).
-          Types: 1=Empirical,2=Systematic Review,3=Literature Review,4=Case Study,
-          5=Experimental,6=Qualitative,7=Quantitative,8=Mixed-Methods,
-          9=Theoretical,10=Thesis/Dissertation,11=Conference,12=Book Chapter,
-          14=PhD Dissertation,15=Master's Thesis,16=Action Research,
-          17=Survey,18=Grounded Theory,19=Ethnography,20=Phenomenological,
-          21=Narrative Inquiry,22=Longitudinal,23=Cross-Sectional,24=RCT,
-          25=Cohort,26=Scoping Review,27=Critical Review,28=Tech Report,
-          29=White Paper,30=All types
-        required: false
+        description: '📋 Study type'
+        required: true
         default: 'auto'
+        type: choice
+        options:
+          - auto - Auto-detect from title
+          - '1 - Empirical Research'
+          - '2 - Systematic Review / Meta-Analysis'
+          - '3 - Literature Review'
+          - '4 - Case Study'
+          - '5 - Experimental Study'
+          - '6 - Qualitative Study'
+          - '7 - Quantitative Study'
+          - '8 - Mixed-Methods'
+          - '9 - Theoretical Framework'
+          - '10 - Thesis / Dissertation'
+          - '11 - Conference Paper'
+          - '12 - Book Chapter'
+          - '14 - PhD Dissertation'
+          - '15 - Master Thesis'
+          - '16 - Action Research'
+          - '17 - Survey Research'
+          - '18 - Grounded Theory'
+          - '19 - Ethnographic Study'
+          - '20 - Phenomenological Study'
+          - '21 - Narrative Inquiry'
+          - '22 - Longitudinal Study'
+          - '23 - Cross-Sectional Study'
+          - '24 - Randomized Controlled Trial'
+          - '25 - Cohort Study'
+          - '26 - Scoping Review'
+          - '27 - Critical Review'
+          - '28 - Technical Report'
+          - '29 - White Paper'
+          - '30 - Any / All types'
       
       # ── STEP 7: Language ──────────────────────────────────────────────────
       language:
@@ -167,14 +229,18 @@ jobs:
           if [ -n "${{ github.event.inputs.rq4 }}" ]; then ARGS="$ARGS --rq4 \"${{ github.event.inputs.rq4 }}\""; fi
           if [ -n "${{ github.event.inputs.rq5 }}" ]; then ARGS="$ARGS --rq5 \"${{ github.event.inputs.rq5 }}\""; fi
           
-          # Field
-          if [ "${{ github.event.inputs.field }}" != "auto" ] && [ -n "${{ github.event.inputs.field }}" ]; then
-            ARGS="$ARGS --field \"${{ github.event.inputs.field }}\""
+          # Field (extract number from "1 - Applied Linguistics" or "auto" format)
+          FIELD_VAL="${{ github.event.inputs.field }}"
+          FIELD_NUM=$(echo "$FIELD_VAL" | cut -d' ' -f1)
+          if [ "$FIELD_NUM" != "auto" ] && [ -n "$FIELD_NUM" ]; then
+            ARGS="$ARGS --field \"$FIELD_NUM\""
           fi
           
-          # Study Type
-          if [ "${{ github.event.inputs.study_type }}" != "auto" ] && [ -n "${{ github.event.inputs.study_type }}" ]; then
-            ARGS="$ARGS --study-type \"${{ github.event.inputs.study_type }}\""
+          # Study Type (extract number from "6 - Qualitative Study" or "auto" format)
+          ST_VAL="${{ github.event.inputs.study_type }}"
+          ST_NUM=$(echo "$ST_VAL" | cut -d' ' -f1)
+          if [ "$ST_NUM" != "auto" ] && [ -n "$ST_NUM" ]; then
+            ARGS="$ARGS --study-type \"$ST_NUM\""
           fi
           
           # Language
