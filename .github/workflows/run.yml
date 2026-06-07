@@ -31,15 +31,36 @@ on:
         required: false
         default: ''
       
-      # ── STEP 5: Field Selection ───────────────────────────────────────────
+      # ── STEP 5: Field Selection (see field reference in description) ────────
       field:
-        description: '🎓 Field number (Enter=auto, see list below)'
+        description: |
+          🎓 Field number (enter number or 'auto').
+          Fields: 1=Applied Linguistics,2=SLA,3=TESOL/EFL,4=Discourse Analysis,
+          5=Sociolinguistics,6=Psycholinguistics,7=Translation,8=Lang Teaching,
+          9=Computational Ling,10=Historical Ling,11=Ed Tech,12=General Ed,
+          13=Curriculum,14=Ed Psych,15=Higher Ed,16=Special Ed,17=Psychology,
+          18=Sociology,19=Anthropology,20=Political Sci,21=Communication,
+          22=Cultural Studies,23=Gender Studies,24=History,25=CS/AI,26=Data Sci,
+          27=Medicine,28=Nursing,29=Pharmacology,30=Biology,31=Chemistry,
+          32=Physics,33=Mathematics,34=Env Science,35=Engineering,
+          36=Materials Sci,37=Agriculture,38=Business,39=Marketing,
+          40=Finance,41=Management,42=Law,43=Public Policy,44=Philosophy,
+          45=Literature,46=Linguistics,47=Arts,48=Theology
         required: false
         default: 'auto'
-      
-      # ── STEP 6: Study Type ────────────────────────────────────────────────
+
+      # ── STEP 6: Study Type Selection ────────────────────────────────────────
       study_type:
-        description: '📋 Study type(s) (Enter=auto, e.g. 6,7,8 or 30=all)'
+        description: |
+          📋 Study type number(s) (e.g. '6', '6,7,8', '30' for all, 'auto' for auto-detect).
+          Types: 1=Empirical,2=Systematic Review,3=Literature Review,4=Case Study,
+          5=Experimental,6=Qualitative,7=Quantitative,8=Mixed-Methods,
+          9=Theoretical,10=Thesis/Dissertation,11=Conference,12=Book Chapter,
+          14=PhD Dissertation,15=Master's Thesis,16=Action Research,
+          17=Survey,18=Grounded Theory,19=Ethnography,20=Phenomenological,
+          21=Narrative Inquiry,22=Longitudinal,23=Cross-Sectional,24=RCT,
+          25=Cohort,26=Scoping Review,27=Critical Review,28=Tech Report,
+          29=White Paper,30=All types
         required: false
         default: 'auto'
       
@@ -61,14 +82,14 @@ on:
       
       # ── STEP 9: Search Mode ───────────────────────────────────────────────
       mode:
-        description: '🔎 Search mode'
+        description: '🔎 Search mode (quick=8APIs, field=best, deep=70+ platforms)'
         required: true
         default: 'deep'
         type: choice
         options:
-          - quick   (8 core APIs, ~2 min)
-          - field   (best for auto-detected field, ~5 min)
-          - deep    (ALL 70+ platforms, ~25 min, recommended)
+          - quick
+          - field
+          - deep
       
       # ── STEP 10a: Sci-Hub ─────────────────────────────────────────────────
       scihub:
@@ -79,13 +100,13 @@ on:
       
       # ── STEP 10b: Folder Mode ─────────────────────────────────────────────
       folder_mode:
-        description: '📁 Output folder mode'
+        description: '📁 Output folder mode (hierarchy=16 folders, single=one folder)'
         required: true
         default: 'hierarchy'
         type: choice
         options:
-          - hierarchy  (16-folder: Q1-Q4, MA/PhD, Books, Conference, Libya/MENA)
-          - single     (all PDFs in one folder)
+          - hierarchy
+          - single
       
       # ── STEP 4: Keywords ──────────────────────────────────────────────────
       keywords:
@@ -100,9 +121,9 @@ on:
         default: 'n'
         type: choice
         options:
-          - n  (skip)
-          - y  (auto qoder:8082)
-          - p  (custom URL)
+          - n
+          - y
+          - p
 
       # ── Notification Email ────────────────────────────────────────────────
       email:
