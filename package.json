@@ -1,0 +1,8 @@
+{
+  "name": "research-hunters",
+  "version": "1.0.0",
+  "description": "Research Hunter - Academic paper search tool",
+  "dependencies": {
+    "docx": "^9.1.1"
+  }
+}
