@@ -1,0 +1,10 @@
+requests
+rich
+openpyxl
+pdfplumber
+pymupdf
+scrapling
+DrissionPage
+fastapi
+uvicorn
+g4f
