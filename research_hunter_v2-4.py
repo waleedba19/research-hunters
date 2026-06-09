@@ -6327,7 +6327,7 @@ def main_headless(params: dict):
     ok(f"New papers this run: {len(new_papers)}")
 
     # ── v6: Enforce max_papers limit based on search mode ─────────────────────
-    mode_config = MODE_TIME_ESTIMATES.get(search_mode, {})
+    mode_config = MODE_TIME_ESTIMATES.get(mode, {})
     max_papers = mode_config.get("max_papers")
     if max_papers and len(new_papers) > max_papers:
         info(f"Mode limit: capping to {max_papers} papers (from {len(new_papers)})")
