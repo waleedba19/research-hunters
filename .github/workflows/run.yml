@@ -177,6 +177,22 @@ permissions:
         description: 'Email for completion notification (optional)'
         required: false
         default: ''
+      smtp_username:
+        description: 'Your Gmail address for sending notifications (optional)'
+        required: false
+        default: ''
+      smtp_password:
+        description: 'Your Gmail App Password (generate at myaccount.google.com → Security → App passwords)'
+        required: false
+        default: ''
+      smtp_server:
+        description: 'SMTP server address'
+        required: false
+        default: 'smtp.gmail.com'
+      smtp_port:
+        description: 'SMTP server port (465 for SSL, 587 for TLS)'
+        required: false
+        default: '465'
 
   schedule:
     - cron: '0 0 * * 0'
@@ -362,6 +378,10 @@ jobs:
           TRIGGER_KEYWORDS: ${{ github.event.inputs.keywords }}
           TRIGGER_PROXY: ${{ github.event.inputs.proxy }}
           TRIGGER_EMAIL: ${{ github.event.inputs.email }}
+          TRIGGER_SMTP_USERNAME: ${{ github.event.inputs.smtp_username }}
+          TRIGGER_SMTP_PASSWORD: ${{ github.event.inputs.smtp_password }}
+          TRIGGER_SMTP_SERVER: ${{ github.event.inputs.smtp_server || 'smtp.gmail.com' }}
+          TRIGGER_SMTP_PORT: ${{ github.event.inputs.smtp_port || '465' }}
         shell: bash
         run: |
           echo "Checking if more work remains..."
@@ -386,7 +406,7 @@ jobs:
           fi
           echo "Triggering next run via GitHub API..."
           
-          PAYLOAD=$(printf '{"ref":"%s","inputs":{"title":"%s","rq1":"%s","rq2":"%s","rq3":"%s","rq4":"%s","rq5":"%s","field":"%s","study_type":"%s","language":"%s","year_from":"%s","year_to":"%s","mode":"%s","scihub":"%s","folder_mode":"%s","keywords":"%s","proxy":"%s","email":"%s"}}' \
+          PAYLOAD=$(printf '{"ref":"%s","inputs":{"title":"%s","rq1":"%s","rq2":"%s","rq3":"%s","rq4":"%s","rq5":"%s","field":"%s","study_type":"%s","language":"%s","year_from":"%s","year_to":"%s","mode":"%s","scihub":"%s","folder_mode":"%s","keywords":"%s","proxy":"%s","email":"%s","smtp_username":"%s","smtp_password":"%s","smtp_server":"%s","smtp_port":"%s"}}' \
             '${{ github.ref_name }}' \
             '${{ github.event.inputs.title }}' \
             '${{ github.event.inputs.rq1 }}' \
@@ -404,7 +424,11 @@ jobs:
             '${{ github.event.inputs.folder_mode }}' \
             '${{ github.event.inputs.keywords }}' \
             '${{ github.event.inputs.proxy }}' \
-            '${{ github.event.inputs.email }}')
+            '${{ github.event.inputs.email }}' \
+            '${{ github.event.inputs.smtp_username }}' \
+            '${{ github.event.inputs.smtp_password }}' \
+            '${{ github.event.inputs.smtp_server || 'smtp.gmail.com' }}' \
+            '${{ github.event.inputs.smtp_port || '465' }}')
           
           curl -s -X POST \
             -H "Accept: application/vnd.github+json" \
@@ -449,19 +473,19 @@ jobs:
           retention-days: 30
 
       - name: Send email notification
-        if: always() && github.event.inputs.email != ''
+        if: always() && github.event.inputs.email != '' && github.event.inputs.smtp_username != '' && github.event.inputs.smtp_password != ''
         continue-on-error: true
         uses: dawidd6/action-send-mail@v3
         with:
-          server_address: smtp.gmail.com
-          server_port: 465
-          username: ${{ secrets.MAIL_USERNAME }}
-          password: ${{ secrets.MAIL_PASSWORD }}
+          server_address: ${{ github.event.inputs.smtp_server || 'smtp.gmail.com' }}
+          server_port: ${{ github.event.inputs.smtp_port || '465' }}
+          username: ${{ github.event.inputs.smtp_username }}
+          password: ${{ github.event.inputs.smtp_password }}
           subject: >-
             ${{ job.status == 'success' && 'SUCCESS' || 'FAILED' }}
             Research Hunt: ${{ github.event.inputs.title }}
           to: ${{ github.event.inputs.email }}
-          from: Research Hunter Bot
+          from: Research Hunter Bot <${{ github.event.inputs.smtp_username }}>
           body: |
             Research Hunter v6 - CUMULATIVE MODE
 
