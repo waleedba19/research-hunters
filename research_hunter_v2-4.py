@@ -5019,6 +5019,7 @@ def smart_file_paper(paper: dict, base_folder: Path,
     # ── Single-folder mode: skip all subfolder logic ────────────────────────────
     if single_folder:
         folder_name = "single_folder"
+        folder_key = "single_folder"
         dest_folder = base_folder
         dest_folder.mkdir(parents=True, exist_ok=True)
     else:
