@@ -5239,10 +5239,10 @@ DEEP_PLATS = list(PLATFORM_FNS.keys())
 LIBYAN_PLATS  = list(LIBYAN_PLATFORM_URLS.keys())
 
 MODE_TIME_ESTIMATES = {
-    "sample":  {"label": "Sample Trial (~10 min)",     "time": "10-15 min",  "platforms": SAMPLE_PLATS[:], "max_papers": 80,   "download_pdfs": True},
-    "quick":   {"label": "Quick Search (~30 min)",     "time": "20-40 min",  "platforms": QUICK_PLATS[:],  "max_papers": 1000, "download_pdfs": True},
-    "field":   {"label": "Field Optimized (~2 hr)",    "time": "1.5-3 hr",   "platforms": FIELD_PLATS[:],  "max_papers": 3000, "download_pdfs": True},
-    "deep":    {"label": "Deep Search (4-8 hr)",       "time": "4-8 hr",     "platforms": DEEP_PLATS[:],   "max_papers": None, "download_pdfs": True},
+    "sample":  {"label": "Sample Trial (~10-15 min)", "time": "10-15 min",  "platforms": SAMPLE_PLATS[:], "max_papers": 80,   "download_pdfs": True},
+    "quick":   {"label": "Quick Search (~30 min)",    "time": "20-40 min",  "platforms": QUICK_PLATS[:],  "max_papers": 1000, "download_pdfs": True},
+    "field":   {"label": "Field Optimized (~2 hr)",   "time": "1.5-3 hr",   "platforms": FIELD_PLATS[:],  "max_papers": 3000, "download_pdfs": True},
+    "deep":    {"label": "Deep Search (4-8 hr)",      "time": "4-8 hr",     "platforms": DEEP_PLATS[:],   "max_papers": None, "download_pdfs": True},
 }
 
 

@@ -134,7 +134,7 @@ permissions:
         required: false
         default: ''
       mode:
-        description: 'Search mode - sample=~5min test (4 platforms, ~200 papers), quick=~30min (8 platforms, ~1000), field=~2hr (28 platforms, ~3000), deep=4-8hr+ (all 70+ platforms)'
+        description: 'Search mode - sample=~10-15min test (4 platforms, ~80 papers), quick=~30min (8 platforms, ~1000), field=~2hr (28 platforms, ~3000), deep=4-8hr+ (all 70+ platforms)'
         required: true
         default: 'sample'
         type: choice
