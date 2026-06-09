@@ -1,15 +1,15 @@
 name: 🔬 Research Hunter — 24/7 Cloud Search
+permissions:
+  contents: write
+  actions: write
 
 on:
   workflow_dispatch:
     inputs:
-      # ── STEP 1: Research Title ────────────────────────────────────────────
       title:
         description: '📌 Research topic / title (required)'
         required: true
         default: ''
-      
-      # ── STEP 2: Research Questions ────────────────────────────────────────
       rq1:
         description: '📝 Research Question 1 (optional)'
         required: false
@@ -30,8 +30,6 @@ on:
         description: '📝 Research Question 5 (optional)'
         required: false
         default: ''
-      
-      # ── STEP 5: Field Selection ──────────────────────────────────────────────
       field:
         description: '🎓 Academic field'
         required: true
@@ -87,8 +85,6 @@ on:
           - '46 - Linguistics (General)'
           - '47 - Arts / Music / Design'
           - '48 - Theology / Religious Studies'
-
-      # ── STEP 6: Study Type Selection ────────────────────────────────────────
       study_type:
         description: '📋 Study type'
         required: true
@@ -125,14 +121,10 @@ on:
           - '28 - Technical Report'
           - '29 - White Paper'
           - '30 - Any / All types'
-      
-      # ── STEP 7: Language ──────────────────────────────────────────────────
       language:
         description: '🌍 Language (1=EN, 2=AR, 3=FR, 4=ES, 5=EN+AR, 6=EN+FR, 7=EN+AR+FR, 8=All)'
         required: true
         default: '1'
-      
-      # ── STEP 8: Year Range ────────────────────────────────────────────────
       year_from:
         description: '📅 Year from (e.g. 2015, leave blank = all years)'
         required: false
@@ -141,26 +133,25 @@ on:
         description: '📅 Year to (default = current year)'
         required: false
         default: ''
-      
-      # ── STEP 9: Search Mode ───────────────────────────────────────────────
       mode:
-        description: '🔎 Search mode (quick=8APIs, field=best, deep=70+ platforms)'
+        description: '🔎 Search mode — sample=~5min test (4 platforms, ~200 papers), quick=~30min (8 platforms, ~1000), field=~2hr (28 platforms, ~3000), deep=4-8hr+ (all 70+ platforms)'
         required: true
-        default: 'deep'
+        default: 'sample'
         type: choice
         options:
+          - sample
           - quick
           - field
           - deep
-      
-      # ── STEP 10a: Sci-Hub ─────────────────────────────────────────────────
+      max_batches:
+        description: '⏱ Max batches per run (each batch=50 papers; 12 batches≈600 papers≈6 hours; 0=all)'
+        required: false
+        default: '12'
       scihub:
         description: '⚡ Enable Sci-Hub / shadow libraries?'
         required: true
         default: false
         type: boolean
-      
-      # ── STEP 10b: Folder Mode ─────────────────────────────────────────────
       folder_mode:
         description: '📁 Output folder mode (hierarchy=16 folders, single=one folder)'
         required: true
@@ -169,14 +160,10 @@ on:
         options:
           - hierarchy
           - single
-      
-      # ── STEP 4: Keywords ──────────────────────────────────────────────────
       keywords:
         description: '🔑 Custom keywords (comma-separated, or leave blank for auto-extraction)'
         required: false
         default: ''
-      
-      # ── STEP 11: Proxy ────────────────────────────────────────────────────
       proxy:
         description: '🌐 Proxy (y=auto qoder, p=custom URL, n=skip)'
         required: true
@@ -186,8 +173,6 @@ on:
           - n
           - y
           - p
-
-      # ── Notification Email ────────────────────────────────────────────────
       email:
         description: '📧 Email for completion notification (optional)'
         required: false
@@ -199,7 +184,15 @@ on:
 jobs:
   research:
     runs-on: ubuntu-latest
-    timeout-minutes: 360  # 6 hours max (GitHub max for free)
+    timeout-minutes: 360
+
+    outputs:
+      total_pdfs:
+        description: 'Total PDFs across all runs'
+        value: ${{ steps.check_results.outputs.pdf_count }}
+      zip_name:
+        description: 'Final ZIP archive name'
+        value: ${{ steps.check_results.outputs.zip_name }}
 
     steps:
       - name: Checkout repository
@@ -222,77 +215,98 @@ jobs:
           pip install requests rich openpyxl
           npm install docx
 
+      - name: Determine output folder (deterministic name from title)
+        id: folder
+        shell: bash
+        run: |
+          TITLE="${{ github.event.inputs.title }}"
+          SAFE=$(echo "$TITLE" | sed 's/[^a-zA-Z0-9_\-]/_/g' | sed 's/__*/_/g' | cut -c1-50)
+          echo "folder_name=RESEARCH_${SAFE}" >> $GITHUB_OUTPUT
+          echo "Using folder: RESEARCH_${SAFE}"
+
+      - name: Download previous research data (cumulative)
+        if: always()
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: research-data-${{ steps.folder.outputs.folder_name }}
+          path: pdf_files_restore
+
+      - name: Download previous cache (resume support)
+        if: always()
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: cache-data
+        path: download_cache
+
+      - name: Restore cumulative data and cache
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: |
+          mkdir -p pdf_files
+          echo "📂 Restoring previous data and cache..."
+          # Restore the full pdf_files folder from previous run(s)
+          if [ -d "pdf_files_restore" ]; then
+            echo "Found previous research data"
+            cp -r pdf_files_restore/. pdf_files/
+            rm -rf pdf_files_restore
+          else
+            echo "No previous research data found — starting fresh"
+          fi
+          # Restore cache files
+          if [ -d "download_cache" ]; then
+            cp -f download_cache/*.json . 2>/dev/null || true
+            if [ -d "download_cache/pdf_files" ]; then
+              cp -rn download_cache/pdf_files/. pdf_files/ 2>/dev/null || true
+            fi
+            rm -rf download_cache
+          fi
+          echo "✅ All data restored"
+          ls -la pdf_files/ 2>/dev/null | head -20
+
       - name: Build command arguments
         id: args
         shell: bash
         run: |
-          ARGS="--title \"${{ github.event.inputs.title }}\""
-          
-          # Research Questions
+          BASE_DIR="pdf_files/${{ steps.folder.outputs.folder_name }}"
+          ARGS="--title \"${{ github.event.inputs.title }}\" --single-folder"
+          mkdir -p "$BASE_DIR"
           if [ -n "${{ github.event.inputs.rq1 }}" ]; then ARGS="$ARGS --rq1 \"${{ github.event.inputs.rq1 }}\""; fi
           if [ -n "${{ github.event.inputs.rq2 }}" ]; then ARGS="$ARGS --rq2 \"${{ github.event.inputs.rq2 }}\""; fi
           if [ -n "${{ github.event.inputs.rq3 }}" ]; then ARGS="$ARGS --rq3 \"${{ github.event.inputs.rq3 }}\""; fi
           if [ -n "${{ github.event.inputs.rq4 }}" ]; then ARGS="$ARGS --rq4 \"${{ github.event.inputs.rq4 }}\""; fi
           if [ -n "${{ github.event.inputs.rq5 }}" ]; then ARGS="$ARGS --rq5 \"${{ github.event.inputs.rq5 }}\""; fi
-          
-          # Field (extract number from "1 - Applied Linguistics" or "auto" format)
           FIELD_VAL="${{ github.event.inputs.field }}"
           FIELD_NUM=$(echo "$FIELD_VAL" | cut -d' ' -f1)
-          if [ "$FIELD_NUM" != "auto" ] && [ -n "$FIELD_NUM" ]; then
-            ARGS="$ARGS --field \"$FIELD_NUM\""
-          fi
-          
-          # Study Type (extract number from "6 - Qualitative Study" or "auto" format)
+          if [ "$FIELD_NUM" != "auto" ] && [ -n "$FIELD_NUM" ]; then ARGS="$ARGS --field \"$FIELD_NUM\""; fi
           ST_VAL="${{ github.event.inputs.study_type }}"
           ST_NUM=$(echo "$ST_VAL" | cut -d' ' -f1)
-          if [ "$ST_NUM" != "auto" ] && [ -n "$ST_NUM" ]; then
-            ARGS="$ARGS --study-type \"$ST_NUM\""
-          fi
-          
-          # Language
+          if [ "$ST_NUM" != "auto" ] && [ -n "$ST_NUM" ]; then ARGS="$ARGS --study-type \"$ST_NUM\""; fi
           ARGS="$ARGS --language ${{ github.event.inputs.language }}"
-          
-          # Year range
           if [ -n "${{ github.event.inputs.year_from }}" ]; then ARGS="$ARGS --year-from ${{ github.event.inputs.year_from }}"; fi
           if [ -n "${{ github.event.inputs.year_to }}" ]; then ARGS="$ARGS --year-to ${{ github.event.inputs.year_to }}"; fi
-          
-          # Mode
           MODE="${{ github.event.inputs.mode }}"
-          MODE="${MODE%% *}"  # Take first word (quick/field/deep)
+          MODE="${MODE%% *}"
           ARGS="$ARGS --mode $MODE"
-          
-          # Sci-Hub
-          if [ "${{ github.event.inputs.scihub }}" == "true" ]; then
-            ARGS="$ARGS --scihub"
-          fi
-          
-          # Folder mode
-          if [ "${{ github.event.inputs.folder_mode }}" == "single" ]; then
-            ARGS="$ARGS --single-folder"
-          fi
-          
-          # Custom keywords
-          if [ -n "${{ github.event.inputs.keywords }}" ]; then
-            ARGS="$ARGS --keywords \"${{ github.event.inputs.keywords }}\""
-          fi
-          
-          # Proxy
-          if [ "${{ github.event.inputs.proxy }}" == "y" ] || [ "${{ github.event.inputs.proxy }}" == "p" ]; then
-            ARGS="$ARGS --proxy ${{ github.event.inputs.proxy }}"
-          fi
-          
+          if [ "${{ github.event.inputs.scihub }}" == "true" ]; then ARGS="$ARGS --scihub"; fi
+          if [ -n "${{ github.event.inputs.keywords }}" ]; then ARGS="$ARGS --keywords \"${{ github.event.inputs.keywords }}\""; fi
+          if [ "${{ github.event.inputs.proxy }}" == "y" ] || [ "${{ github.event.inputs.proxy }}" == "p" ]; then ARGS="$ARGS --proxy ${{ github.event.inputs.proxy }}"; fi
           echo "args=$ARGS" >> $GITHUB_OUTPUT
 
-      - name: Run Research Hunter (Full Wizard Mode)
+      - name: Run Research Hunter (cumulative mode)
         env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
           PYTHONIOENCODING: utf-8
         run: |
           echo "╔══════════════════════════════════════════════════════════════╗"
-          echo "║  🔬 Research Hunter v6 — SUPER LOADED GOD MODE             ║"
-          echo "║  Running on GitHub Actions Cloud (24/7)                    ║"
+          echo "║  🔬 Research Hunter v6 — CUMULATIVE MODE                   ║"
+          echo "║  All runs accumulate into one folder & ZIP                 ║"
           echo "╚══════════════════════════════════════════════════════════════╝"
           echo ""
           echo "📋 Search Parameters:"
+          echo ""
           python research_hunter_v2-4.py ${{ steps.args.outputs.args }}
 
       - name: Check results
@@ -300,77 +314,143 @@ jobs:
         shell: bash
         run: |
           echo "=== Results Summary ==="
-          echo "Title: ${{ github.event.inputs.title }}"
-          echo "Mode: ${{ github.event.inputs.mode }}"
-          
-          # Count results
-          PDF_COUNT=$(find pdf_files/ -name "*.pdf" 2>/dev/null | wc -l)
-          JSON_COUNT=$(find pdf_files/ -name "results.json" 2>/dev/null | wc -l)
-          MD_COUNT=$(find pdf_files/ -name "research_report.md" 2>/dev/null | wc -l)
-          CSV_COUNT=$(find pdf_files/ -name "master_database.csv" -o -name "master_database.xlsx" 2>/dev/null | wc -l)
-          REDLIST_COUNT=$(find pdf_files/ -name "RED_LIST_view.html" 2>/dev/null | wc -l)
-          
-          echo "PDFs downloaded: $PDF_COUNT"
+          OUT_DIR="pdf_files/${{ steps.folder.outputs.folder_name }}"
+          PDF_COUNT=$(find "$OUT_DIR" -name "*.pdf" 2>/dev/null | wc -l)
+          JSON_COUNT=$(find "$OUT_DIR" -name "results.json" 2>/dev/null | wc -l)
+          echo "PDFs in cumulative folder: $PDF_COUNT"
           echo "Results JSON: $JSON_COUNT"
-          echo "Reports: $MD_COUNT MD, $CSV_COUNT database, $REDLIST_COUNT redlist"
-          
           echo "pdf_count=$PDF_COUNT" >> $GITHUB_OUTPUT
-          
           if [ "$PDF_COUNT" -gt 0 ] || [ "$JSON_COUNT" -gt 0 ]; then
             echo "status=success" >> $GITHUB_OUTPUT
           else
             echo "status=no_results" >> $GITHUB_OUTPUT
           fi
 
-      - name: Zip all results (16-folder hierarchy preserved)
+      - name: Zip cumulative results
         if: always()
         shell: bash
         run: |
-          echo "📦 Creating ZIP archive..."
-          if [ -d "pdf_files" ] && [ "$(find pdf_files/ -type f 2>/dev/null | wc -l)" -gt 0 ]; then
-            # Install zip if needed
+          OUT_DIR="pdf_files/${{ steps.folder.outputs.folder_name }}"
+          TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+          SAFE_TITLE=$(echo "${{ github.event.inputs.title }}" | sed 's/[^a-zA-Z0-9_\-]/_/g' | cut -c1-30)
+          ZIP_NAME="${SAFE_TITLE}_cumulative.zip"
+          echo "📦 Creating cumulative ZIP: $ZIP_NAME"
+          if [ -d "$OUT_DIR" ] && [ "$(find "$OUT_DIR" -type f 2>/dev/null | wc -l)" -gt 0 ]; then
             sudo apt-get update -qq && sudo apt-get install -y -qq zip unzip
-            
-            # Create timestamped zip with full folder structure
-            TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-            SAFE_TITLE=$(echo "${{ github.event.inputs.title }}" | sed 's/[^a-zA-Z0-9_\-]/_/g' | cut -c1-40)
-            ZIP_NAME="research_${SAFE_TITLE}_${TIMESTAMP}.zip"
-            
-            cd pdf_files
-            zip -r -9 "../${ZIP_NAME}" ./
-            cd ..
-            
-            echo "✅ ZIP created: ${ZIP_NAME}"
-            ls -lh "${ZIP_NAME}"
-            echo "zip_name=${ZIP_NAME}" >> $GITHUB_OUTPUT
+            zip -r -9 "$ZIP_NAME" "$OUT_DIR"
+            echo "✅ ZIP created: $ZIP_NAME ($(du -h "$ZIP_NAME" | cut -f1))"
           else
-            echo "⚠ No results to zip"
-            echo "zip_name=" >> $GITHUB_OUTPUT
+            echo "⚠ No data to zip yet"
+            touch "$ZIP_NAME"
           fi
+          echo "zip_name=$ZIP_NAME" >> $GITHUB_OUTPUT
 
-      - name: Upload full results (ZIP + individual files)
+      - name: Auto-trigger next run (chain continuation)
+        if: always() && steps.check_results.outputs.status == 'success'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          echo "🔄 Checking if more work remains..."
+          
+          # Determine how many batches remain unprocessed
+          CACHE_FILE="pdf_files/${{ steps.folder.outputs.folder_name }}/search_cache.json"
+          if [ ! -f "$CACHE_FILE" ]; then
+            echo "⚠ No cache file found — cannot determine remaining work"
+            exit 0
+          fi
+          
+          TOTAL_FOUND=$(python3 -c "import json; d=json.load(open('$CACHE_FILE')); print(len(d.get('papers_found',{})))" 2>/dev/null || echo "0")
+          TOTAL_DL=$(python3 -c "import json; d=json.load(open('$CACHE_FILE')); print(len(d.get('papers_downloaded',{})))" 2>/dev/null || echo "0")
+          EXHAUSTED=$(python3 -c "import json; d=json.load(open('$CACHE_FILE')); print(str(d.get('queries_exhausted',False)))" 2>/dev/null || echo "False")
+          
+          echo "📊 Progress: $TOTAL_DL downloaded / $TOTAL_FOUND found / exhausted=$EXHAUSTED"
+          
+          # Stop if queries are exhausted AND all found papers are downloaded
+          if [ "$EXHAUSTED" = "True" ] && [ "$TOTAL_FOUND" -le "$TOTAL_DL" ]; then
+            echo "✅ All work complete — no need to trigger another run"
+            exit 0
+          fi
+          
+          # Count remaining batches
+          REMAINING=$(( (TOTAL_FOUND - TOTAL_DL + 49) / 50 ))
+          echo "📋 Approximately $REMAINING batches remaining"
+          
+          if [ "$REMAINING" -le 0 ]; then
+            echo "✅ All papers downloaded — no need to trigger another run"
+            exit 0
+          fi
+          
+          echo "🚀 Triggering next run via GitHub API..."
+          
+          # Build the workflow dispatch payload — reuse ALL the same inputs
+          PAYLOAD=$(python3 -c "
+import json, sys
+inputs = {
+    'title': '${{ github.event.inputs.title }}',
+    'rq1': '${{ github.event.inputs.rq1 }}',
+    'rq2': '${{ github.event.inputs.rq2 }}',
+    'rq3': '${{ github.event.inputs.rq3 }}',
+    'rq4': '${{ github.event.inputs.rq4 }}',
+    'rq5': '${{ github.event.inputs.rq5 }}',
+    'field': '${{ github.event.inputs.field }}',
+    'study_type': '${{ github.event.inputs.study_type }}',
+    'language': '${{ github.event.inputs.language }}',
+    'year_from': '${{ github.event.inputs.year_from }}',
+    'year_to': '${{ github.event.inputs.year_to }}',
+    'mode': '${{ github.event.inputs.mode }}',
+    'scihub': '${{ github.event.inputs.scihub }}',
+    'folder_mode': '${{ github.event.inputs.folder_mode }}',
+    'keywords': '${{ github.event.inputs.keywords }}',
+    'proxy': '${{ github.event.inputs.proxy }}',
+    'email': '${{ github.event.inputs.email }}',
+}
+print(json.dumps({'ref': '\${{ github.ref_name }}', 'inputs': inputs}))
+")
+          
+          curl -s -X POST \
+            -H \"Accept: application/vnd.github+json\" \
+            -H \"Authorization: Bearer $GITHUB_TOKEN\" \
+            -H \"X-GitHub-Api-Version: 2022-11-28\" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/run.yml/dispatches" \
+            -d "$PAYLOAD" \
+            -w "\nHTTP Status: %{http_code}"
+          
+          echo ""
+          echo "✅ Next run triggered! It will start in ~30 seconds."
+          echo "🔗 Monitor: https://github.com/${{ github.repository }}/actions"
+
+      - name: Upload cumulative research data
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: research-hunt-results
-          path: |
-            pdf_files/
-            *.zip
+          name: research-data-${{ steps.folder.outputs.folder_name }}
+          path: pdf_files/
+          retention-days: 90
+          compression-level: 1
+
+      - name: Upload cumulative ZIP
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.folder.outputs.folder_name }}_ZIP
+          path: ${{ steps.check_results.outputs.zip_name || '*.zip' }}
           retention-days: 90
           compression-level: 9
 
       - name: Upload cache/logs (for resume capability)
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: cache-data
           path: |
+            pdf_files/*/search_cache.json
             search_cache.json
             ghost_credentials.json
             g4f_locked_config.json
           retention-days: 30
 
-      # ── Email notification ────────────────────────────────────────────────
       - name: Send email notification
         if: always() && github.event.inputs.email != ''
         uses: dawidd6/action-send-mail@v3
@@ -381,41 +461,32 @@ jobs:
           password: ${{ secrets.MAIL_PASSWORD }}
           subject: >-
             ${{ job.status == 'success' && '✅' || '❌' }}
-            Research Hunt Complete: ${{ github.event.inputs.title }}
+            Research Hunt: ${{ github.event.inputs.title }}
           to: ${{ github.event.inputs.email }}
           from: Research Hunter Bot
           body: |
-            🔬 Research Hunter v6 — SUPER LOADED GOD MODE
-            
+            🔬 Research Hunter v6 — CUMULATIVE MODE
+
             ───────────────────────────────────────
             📋 SEARCH COMPLETED
             ───────────────────────────────────────
-            
+
             Status: ${{ job.status }}
             Title: ${{ github.event.inputs.title }}
+            Run #: ${{ github.run_number }}
             
             📊 Results Summary:
-            • PDFs Downloaded: ${{ steps.check_results.outputs.pdf_count || '0' }}
+            • Total PDFs (cumulative): ${{ steps.check_results.outputs.pdf_count || '0' }}
             • Topic: ${{ github.event.inputs.title }}
             • Search Mode: ${{ github.event.inputs.mode }}
+            • Output Folder: ${{ steps.folder.outputs.folder_name }}
             
-            📂 Your results are available as ZIP download:
+            📂 Your results ZIP (all runs combined):
             https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
             
+            ⚠ If this is not the final run, more PDFs will be added in subsequent runs.
+            Trigger another run to collect more papers.
+
             ───────────────────────────────────────
             Generated by Research Hunter v6 on GitHub Actions
             🔗 ${{ github.server_url }}/${{ github.repository }}
-
-      # ── Alternative: Send via curl (no SMTP setup needed) ─────────────────
-      - name: Send notification via Pushover / email fallback
-        if: always() && github.event.inputs.email != ''
-        shell: bash
-        run: |
-          echo "📧 To get email notifications, set these GitHub Secrets:"
-          echo "   - MAIL_USERNAME (your Gmail address)"
-          echo "   - MAIL_PASSWORD (Google App Password)"
-          echo ""
-          echo "📎 Or configure in Settings → Secrets and variables → Actions"
-          echo ""
-          echo "Download your results from:"
-          echo "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"

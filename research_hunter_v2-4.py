@@ -2031,21 +2031,36 @@ def _title_similarity(query_title: str, paper_title: str) -> float:
     return min(1.0, seq_score * 0.6 + overlap * 0.4)
 
 
-def _is_relevant_paper(query_title: str, paper: dict, threshold: float = 0.25) -> bool:
-    """Check if paper is relevant enough to the search title."""
-    paper_title = paper.get("title", "")
-    abstract = paper.get("abstract", "")
+def _is_relevant_paper(query_title: str, paper: dict, threshold: float = None) -> bool:
+    """
+    Strict relevance check against the user title.
+    Auto-selects threshold based on mode env var (RELEVANCE_MODE).
+      strict   → 0.60 (only very close matches)
+    normal   → 0.30 (default, balanced)
+      loose    → 0.15 (broader tolerance)
+    """
+    if threshold is None:
+        mode = os.environ.get("RELEVANCE_MODE", "normal").lower()
+        threshold = {"strict": 0.60, "normal": 0.30, "loose": 0.15}.get(mode, 0.30)
 
-    # Check title similarity
+    paper_title = paper.get("title", "")
+    abstract    = paper.get("abstract", "")
+    if not paper_title:
+        return False
+
     title_score = _title_similarity(query_title, paper_title)
     if title_score >= threshold:
         return True
 
-    # Check abstract similarity if available
-    if abstract:
-        abstract_score = _title_similarity(query_title, abstract[:200])
+    if abstract and len(abstract) > 50:
+        abstract_score = _title_similarity(query_title, abstract[:400])
         if abstract_score >= threshold:
             return True
+        combined = min(1.0, title_score * 0.7 + abstract_score * 0.3)
+        if combined >= threshold:
+            return True
+
+    return False
 
     return False
 
@@ -5215,8 +5230,19 @@ FIELD_PLATS = [
     "MDPI", "OpenAIRE", "Science.gov", "NASA NTRS",
 ]
 
+SAMPLE_PLATS = [
+    "Semantic Scholar", "OpenAlex", "CORE", "CrossRef",
+]
+
 DEEP_PLATS = list(PLATFORM_FNS.keys())
 LIBYAN_PLATS  = list(LIBYAN_PLATFORM_URLS.keys())
+
+MODE_TIME_ESTIMATES = {
+    "sample":  {"label": "Sample Trial (~5 min)",      "time": "5-15 min",   "platforms": SAMPLE_PLATS[:], "max_papers": 200},
+    "quick":   {"label": "Quick Search (~30 min)",      "time": "20-40 min",  "platforms": QUICK_PLATS[:],  "max_papers": 1000},
+    "field":   {"label": "Field Optimized (~2 hr)",     "time": "1.5-3 hr",   "platforms": FIELD_PLATS[:],  "max_papers": 3000},
+    "deep":    {"label": "Deep Search (4-8 hr)",        "time": "4-8 hr",     "platforms": DEEP_PLATS[:],   "max_papers": None},
+}
 
 
 def _run_platform(plat, query, year_from, field):
@@ -5569,20 +5595,24 @@ def wizard() -> dict:
     # ── STEP 9: Search mode ───────────────────────────────────────────────────
     api_count = len([p for p in DEEP_PLATS if p not in BROWSER_PLATS])
     browser_count = len([p for p in DEEP_PLATS if p in BROWSER_PLATS])
-    print(f"\n  🔎 Search Mode ({len(DEEP_PLATS)} platforms: {api_count} API + {browser_count} browser):")
-    print("    [1]  Quick   — 8 core APIs                      (~2 min)")
-    print("    [2]  Field   — Best for detected field            (~5 min)")
-    print(f"    [3]  Deep    — ALL {len(DEEP_PLATS)} platforms                (~25 min)  ← recommended")
-    print("    [4]  Custom  — Pick platforms")
+    print(f"\n  🔎 Search Mode (total {len(DEEP_PLATS)} platforms: {api_count} API + {browser_count} browser):")
+    for idx, (key, cfg) in enumerate(MODE_TIME_ESTIMATES.items(), 1):
+        plat_count = len(cfg["platforms"])
+        print(f"    [{idx}]  {cfg['label']:<40}  ({plat_count} platforms)")
+    print(f"    [{len(MODE_TIME_ESTIMATES)+1}]  Custom  — Pick specific platforms")
     mk = _ask("  Mode", "3")
 
-    if mk == "1":
-        platforms, mode = QUICK_PLATS[:], "Quick"
-    elif mk == "2":
-        platforms, mode = FIELD_PLATS[:], "Field"
-    elif mk == "3":
-        platforms, mode = DEEP_PLATS[:], "Deep"
-    else:
+    mode_keys = list(MODE_TIME_ESTIMATES.keys())
+    selected_key = None
+    if mk.isdigit() and 1 <= int(mk) <= len(mode_keys):
+        selected_key = mode_keys[int(mk) - 1]
+        cfg = MODE_TIME_ESTIMATES[selected_key]
+        platforms, mode = cfg["platforms"][:], cfg["label"]
+        if selected_key == "deep":
+            mode_label = f"Deep (~{cfg['time']})"
+        else:
+            mode_label = cfg["label"]
+    elif mk == str(len(MODE_TIME_ESTIMATES) + 1):
         print(f"\n  Available platforms ({len(DEEP_PLATS)}):")
         for i, p in enumerate(DEEP_PLATS, 1):
             print(f"    [{i:>2}]  {p}")
@@ -5590,8 +5620,12 @@ def wizard() -> dict:
         idxs     = [int(x.strip())-1 for x in sel.split(",") if x.strip().isdigit()]
         platforms = [DEEP_PLATS[i] for i in idxs if 0 <= i < len(DEEP_PLATS)]
         mode     = "Custom"
+    else:
+        cfg = MODE_TIME_ESTIMATES["deep"]
+        platforms, mode = DEEP_PLATS[:], cfg["label"]
     if not platforms:
-        platforms, mode = DEEP_PLATS[:], "Deep"
+        cfg = MODE_TIME_ESTIMATES["deep"]
+        platforms, mode = DEEP_PLATS[:], cfg["label"]
 
     # ── STEP 10: Sci-Hub ──────────────────────────────────────────────────────
     use_scihub = _ask("\n  ⚠ Enable Sci-Hub / shadow libraries? (y/n)", "n").lower() == "y"
@@ -5733,6 +5767,38 @@ def _write_master_xlsx(all_papers: list, out_folder: Path) -> Path | None:
         # Freeze header
         ws.freeze_panes = "A2"
         wb.save(xlsx_path)
+
+        # ── Post-process: backfill missing abstracts from first page of PDFs ──
+        info("Backfilling abstracts/authors from downloaded PDFs...")
+        enriched = 0
+        for p in all_papers:
+            fpath = p.get("file_path") or ""
+            if not fpath or not Path(fpath).exists():
+                continue
+            if p.get("abstract") and len(str(p.get("abstract",""))) > 100:
+                continue
+            if p.get("authors") and len(p.get("authors", [])) >= 2:
+                continue
+            try:
+                text = extract_pdf_text(Path(fpath), max_pages=2)
+                if not p.get("abstract") or len(str(p.get("abstract",""))) < 100:
+                    ab_match = re.search(r'(?i)abstract[\s:\-]+(.{200,600}?)(?:\n\n|\Z)', text)
+                    if ab_match:
+                        p["abstract"] = ab_match.group(1).replace('\n',' ').strip()[:800]
+                        enriched += 1
+                if not p.get("authors") or len(p.get("authors",[])) < 2:
+                    auth_block = re.search(r'(?i)(?:authors?\s*[\n:\-]+)([A-Z][^\n]{5,200})', text)
+                    if auth_block:
+                        names = re.split(r',\s*|\s*;\s*|\s+and\s+|\n', auth_block.group(1))[:5]
+                        names = [n.strip() for n in names if len(n.strip()) > 2]
+                        if names:
+                            p["authors"] = names
+            except Exception:
+                pass
+
+        if enriched:
+            info(f"  Enriched {enriched} papers from PDF text extraction")
+            wb.save(xlsx_path)
         ok(f"master_database.xlsx: {xlsx_path}")
         return xlsx_path
     except ImportError:
@@ -5949,6 +6015,7 @@ def main():
     info(f"Interleaved quartile verification + download (14-layer chain) into {dl_mode_str}…")
 
     BATCH_SIZE = 50  # Papers per batch
+    MAX_BATCHES = int(os.environ.get("MAX_BATCHES", "0"))  # 0 = all batches
     dl_count  = 0
     type_cnt  = {"PhD":0,"MA":0,"Book":0,"BookChapter":0,"Conference":0}
     geo_cnt   = {"Libya":0,"Neighbor":0,"MENA":0}
@@ -5956,7 +6023,8 @@ def main():
     q_cnt     = {"Q1":0,"Q2":0,"Q3":0,"Q4":0,"Not Found":0}
 
     total_batches = (len(new_papers) + BATCH_SIZE - 1) // BATCH_SIZE
-    for batch_idx in range(total_batches):
+    effective_batches = total_batches if MAX_BATCHES == 0 else min(total_batches, MAX_BATCHES)
+    for batch_idx in range(effective_batches):
         start = batch_idx * BATCH_SIZE
         end   = min(start + BATCH_SIZE, len(new_papers))
         batch = new_papers[start:end]
@@ -6263,6 +6331,7 @@ def main_headless(params: dict):
     info(f"Interleaved quartile verification + download (14-layer chain) into {dl_mode_str}…")
 
     BATCH_SIZE = 50
+    MAX_BATCHES = int(os.environ.get("MAX_BATCHES", "0"))
     dl_count  = 0
     type_cnt  = {"PhD":0,"MA":0,"Book":0,"BookChapter":0,"Conference":0}
     geo_cnt   = {"Libya":0,"Neighbor":0,"MENA":0}
@@ -6270,7 +6339,8 @@ def main_headless(params: dict):
     q_cnt     = {"Q1":0,"Q2":0,"Q3":0,"Q4":0,"Not Found":0}
 
     total_batches = (len(new_papers) + BATCH_SIZE - 1) // BATCH_SIZE
-    for batch_idx in range(total_batches):
+    effective_batches = total_batches if MAX_BATCHES == 0 else min(total_batches, MAX_BATCHES)
+    for batch_idx in range(effective_batches):
         start = batch_idx * BATCH_SIZE
         end   = min(start + BATCH_SIZE, len(new_papers))
         batch = new_papers[start:end]
@@ -6466,8 +6536,10 @@ if __name__ == "__main__":
     parser.add_argument("--study-type",   help="Study type(s) (e.g. 6,7,8 or 30=all)")
     parser.add_argument("--year-from",    help="Start year (e.g. 2015)")
     parser.add_argument("--year-to",      help="End year (default: current)")
-    parser.add_argument("--mode",         choices=["quick","field","deep"], default="deep",
-                        help="Search mode (default: deep)")
+    parser.add_argument("--mode",         choices=["sample","quick","field","deep"], default="deep",
+                        help="Search mode: sample=~5min (4 platforms), quick=~30min (8), field=~2hr (28), deep=4-8hr (all)")
+    parser.add_argument("--max-batches",  type=int, default=0,
+                        help="Max batches to process per run (0=all)")
     parser.add_argument("--language",     choices=["1","2","3","4","5","6","7","8"], default="1",
                         help="Search language (default: 1=English)")
     parser.add_argument("--scihub",       action="store_true", help="Enable Sci-Hub")
@@ -6529,7 +6601,9 @@ if __name__ == "__main__":
         year_to   = int(args.year_to) if args.year_to and args.year_to.strip().isdigit() else datetime.now().year
 
         plat_mode = args.mode.lower()
-        if plat_mode == "quick":
+        if plat_mode == "sample":
+            platforms = SAMPLE_PLATS[:]
+        elif plat_mode == "quick":
             platforms = QUICK_PLATS[:]
         elif plat_mode == "field":
             platforms = FIELD_PLATS[:]
@@ -6572,6 +6646,9 @@ if __name__ == "__main__":
             "single_folder":      single_folder,
             "country_context":    country_context,
         }
+
+        if args.max_batches and int(args.max_batches) > 0:
+            os.environ["MAX_BATCHES"] = str(int(args.max_batches))
 
         # Override _ask to auto-confirm in headless mode
         import builtins
