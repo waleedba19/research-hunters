@@ -7,31 +7,31 @@ on:
   workflow_dispatch:
     inputs:
       title:
-        description: '📌 Research topic / title (required)'
+        description: 'Research topic / title (required)'
         required: true
         default: ''
       rq1:
-        description: '📝 Research Question 1 (optional)'
+        description: 'Research Question 1 (optional)'
         required: false
         default: ''
       rq2:
-        description: '📝 Research Question 2 (optional)'
+        description: 'Research Question 2 (optional)'
         required: false
         default: ''
       rq3:
-        description: '📝 Research Question 3 (optional)'
+        description: 'Research Question 3 (optional)'
         required: false
         default: ''
       rq4:
-        description: '📝 Research Question 4 (optional)'
+        description: 'Research Question 4 (optional)'
         required: false
         default: ''
       rq5:
-        description: '📝 Research Question 5 (optional)'
+        description: 'Research Question 5 (optional)'
         required: false
         default: ''
       field:
-        description: '🎓 Academic field'
+        description: 'Academic field'
         required: true
         default: 'auto'
         type: choice
@@ -86,7 +86,7 @@ on:
           - '47 - Arts / Music / Design'
           - '48 - Theology / Religious Studies'
       study_type:
-        description: '📋 Study type'
+        description: 'Study type'
         required: true
         default: 'auto'
         type: choice
@@ -122,19 +122,19 @@ on:
           - '29 - White Paper'
           - '30 - Any / All types'
       language:
-        description: '🌍 Language (1=EN, 2=AR, 3=FR, 4=ES, 5=EN+AR, 6=EN+FR, 7=EN+AR+FR, 8=All)'
+        description: 'Language (1=EN, 2=AR, 3=FR, 4=ES, 5=EN+AR, 6=EN+FR, 7=EN+AR+FR, 8=All)'
         required: true
         default: '1'
       year_from:
-        description: '📅 Year from (e.g. 2015, leave blank = all years)'
+        description: 'Year from (e.g. 2015, leave blank = all years)'
         required: false
         default: ''
       year_to:
-        description: '📅 Year to (default = current year)'
+        description: 'Year to (default = current year)'
         required: false
         default: ''
       mode:
-        description: '🔎 Search mode — sample=~5min test (4 platforms, ~200 papers), quick=~30min (8 platforms, ~1000), field=~2hr (28 platforms, ~3000), deep=4-8hr+ (all 70+ platforms)'
+        description: 'Search mode - sample=~5min test (4 platforms, ~200 papers), quick=~30min (8 platforms, ~1000), field=~2hr (28 platforms, ~3000), deep=4-8hr+ (all 70+ platforms)'
         required: true
         default: 'sample'
         type: choice
@@ -144,16 +144,16 @@ on:
           - field
           - deep
       max_batches:
-        description: '⏱ Max batches per run (each batch=50 papers; 12 batches≈600 papers≈6 hours; 0=all)'
+        description: 'Max batches per run (each batch=50 papers; 12 batches=600 papers in 6 hours; 0=all)'
         required: false
         default: '12'
       scihub:
-        description: '⚡ Enable Sci-Hub / shadow libraries?'
+        description: 'Enable Sci-Hub / shadow libraries?'
         required: true
         default: false
         type: boolean
       folder_mode:
-        description: '📁 Output folder mode (hierarchy=16 folders, single=one folder)'
+        description: 'Output folder mode (hierarchy=16 folders, single=one folder)'
         required: true
         default: 'hierarchy'
         type: choice
@@ -161,11 +161,11 @@ on:
           - hierarchy
           - single
       keywords:
-        description: '🔑 Custom keywords (comma-separated, or leave blank for auto-extraction)'
+        description: 'Custom keywords (comma-separated, or leave blank for auto-extraction)'
         required: false
         default: ''
       proxy:
-        description: '🌐 Proxy (y=auto qoder, p=custom URL, n=skip)'
+        description: 'Proxy (y=auto qoder, p=custom URL, n=skip)'
         required: true
         default: 'n'
         type: choice
@@ -174,7 +174,7 @@ on:
           - y
           - p
       email:
-        description: '📧 Email for completion notification (optional)'
+        description: 'Email for completion notification (optional)'
         required: false
         default: ''
 
@@ -238,7 +238,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: cache-data
-        path: download_cache
+          path: download_cache
 
       - name: Restore cumulative data and cache
         if: always()
@@ -246,16 +246,14 @@ jobs:
         shell: bash
         run: |
           mkdir -p pdf_files
-          echo "📂 Restoring previous data and cache..."
-          # Restore the full pdf_files folder from previous run(s)
+          echo "Restoring previous data and cache..."
           if [ -d "pdf_files_restore" ]; then
             echo "Found previous research data"
             cp -r pdf_files_restore/. pdf_files/
             rm -rf pdf_files_restore
           else
-            echo "No previous research data found — starting fresh"
+            echo "No previous research data found - starting fresh"
           fi
-          # Restore cache files
           if [ -d "download_cache" ]; then
             cp -f download_cache/*.json . 2>/dev/null || true
             if [ -d "download_cache/pdf_files" ]; then
@@ -263,7 +261,7 @@ jobs:
             fi
             rm -rf download_cache
           fi
-          echo "✅ All data restored"
+          echo "All data restored"
           ls -la pdf_files/ 2>/dev/null | head -20
 
       - name: Build command arguments
@@ -300,12 +298,12 @@ jobs:
           FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
           PYTHONIOENCODING: utf-8
         run: |
-          echo "╔══════════════════════════════════════════════════════════════╗"
-          echo "║  🔬 Research Hunter v6 — CUMULATIVE MODE                   ║"
-          echo "║  All runs accumulate into one folder & ZIP                 ║"
-          echo "╚══════════════════════════════════════════════════════════════╝"
+          echo "========================================================"
+          echo "  Research Hunter v6 -- CUMULATIVE MODE"
+          echo "  All runs accumulate into one folder & ZIP"
+          echo "========================================================"
           echo ""
-          echo "📋 Search Parameters:"
+          echo "Search Parameters:"
           echo ""
           python research_hunter_v2-4.py ${{ steps.args.outputs.args }}
 
@@ -334,13 +332,13 @@ jobs:
           TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
           SAFE_TITLE=$(echo "${{ github.event.inputs.title }}" | sed 's/[^a-zA-Z0-9_\-]/_/g' | cut -c1-30)
           ZIP_NAME="${SAFE_TITLE}_cumulative.zip"
-          echo "📦 Creating cumulative ZIP: $ZIP_NAME"
+          echo "Creating cumulative ZIP: $ZIP_NAME"
           if [ -d "$OUT_DIR" ] && [ "$(find "$OUT_DIR" -type f 2>/dev/null | wc -l)" -gt 0 ]; then
             sudo apt-get update -qq && sudo apt-get install -y -qq zip unzip
             zip -r -9 "$ZIP_NAME" "$OUT_DIR"
-            echo "✅ ZIP created: $ZIP_NAME ($(du -h "$ZIP_NAME" | cut -f1))"
+            echo "ZIP created: $ZIP_NAME ($(du -h "$ZIP_NAME" | cut -f1))"
           else
-            echo "⚠ No data to zip yet"
+            echo "No data to zip yet"
             touch "$ZIP_NAME"
           fi
           echo "zip_name=$ZIP_NAME" >> $GITHUB_OUTPUT
@@ -368,60 +366,47 @@ jobs:
           TRIGGER_EMAIL: ${{ github.event.inputs.email }}
         shell: bash
         run: |
-          echo "🔄 Checking if more work remains..."
-          
+          echo "Checking if more work remains..."
           CACHE_FILE="pdf_files/${{ steps.folder.outputs.folder_name }}/search_cache.json"
           if [ ! -f "$CACHE_FILE" ]; then
-            echo "⚠ No cache file found — cannot determine remaining work"
+            echo "No cache file found - cannot determine remaining work"
             exit 0
           fi
-          
           TOTAL_FOUND=$(python3 -c "import json; d=json.load(open('$CACHE_FILE')); print(len(d.get('papers_found',{})))" 2>/dev/null || echo "0")
           TOTAL_DL=$(python3 -c "import json; d=json.load(open('$CACHE_FILE')); print(len(d.get('papers_downloaded',{})))" 2>/dev/null || echo "0")
           EXHAUSTED=$(python3 -c "import json; d=json.load(open('$CACHE_FILE')); print(str(d.get('queries_exhausted',False)))" 2>/dev/null || echo "False")
-          
-          echo "📊 Progress: $TOTAL_DL downloaded / $TOTAL_FOUND found / exhausted=$EXHAUSTED"
-          
+          echo "Progress: $TOTAL_DL downloaded / $TOTAL_FOUND found / exhausted=$EXHAUSTED"
           if [ "$EXHAUSTED" = "True" ] && [ "$TOTAL_FOUND" -le "$TOTAL_DL" ]; then
-            echo "✅ All work complete — no need to trigger another run"
+            echo "All work complete - no need to trigger another run"
             exit 0
           fi
-          
           REMAINING=$(( (TOTAL_FOUND - TOTAL_DL + 49) / 50 ))
-          echo "📋 Approximately $REMAINING batches remaining"
-          
+          echo "Approximately $REMAINING batches remaining"
           if [ "$REMAINING" -le 0 ]; then
-            echo "✅ All papers downloaded — no need to trigger another run"
+            echo "All papers downloaded - no need to trigger another run"
             exit 0
           fi
+          echo "Triggering next run via GitHub API..."
           
-          echo "🚀 Triggering next run via GitHub API..."
-          
-          python3 -c "
-import json, os
-inputs = {
-    'title':       os.environ.get('TRIGGER_TITLE', '${{ github.event.inputs.title }}'),
-    'rq1':         os.environ.get('TRIGGER_RQ1', ''),
-    'rq2':         os.environ.get('TRIGGER_RQ2', ''),
-    'rq3':         os.environ.get('TRIGGER_RQ3', ''),
-    'rq4':         os.environ.get('TRIGGER_RQ4', ''),
-    'rq5':         os.environ.get('TRIGGER_RQ5', ''),
-    'field':       os.environ.get('TRIGGER_FIELD', '${{ github.event.inputs.field }}'),
-    'study_type':  os.environ.get('TRIGGER_STUDY_TYPE', '${{ github.event.inputs.study_type }}'),
-    'language':    os.environ.get('TRIGGER_LANGUAGE', '${{ github.event.inputs.language }}'),
-    'year_from':   os.environ.get('TRIGGER_YEAR_FROM', ''),
-    'year_to':     os.environ.get('TRIGGER_YEAR_TO', ''),
-    'mode':        os.environ.get('TRIGGER_MODE', 'sample'),
-    'scihub':      os.environ.get('TRIGGER_SCI_HUB', '${{ github.event.inputs.scihub }}'),
-    'folder_mode': os.environ.get('TRIGGER_FOLDER_MODE', '${{ github.event.inputs.folder_mode }}'),
-    'keywords':    os.environ.get('TRIGGER_KEYWORDS', ''),
-    'proxy':       os.environ.get('TRIGGER_PROXY', '${{ github.event.inputs.proxy }}'),
-    'email':       os.environ.get('TRIGGER_EMAIL', ''),
-}
-print(json.dumps({'ref': '${{ github.ref_name }}', 'inputs': inputs}))
-"
-          
-          PAYLOAD=$(cat)
+          PAYLOAD=$(printf '{"ref":"%s","inputs":{"title":"%s","rq1":"%s","rq2":"%s","rq3":"%s","rq4":"%s","rq5":"%s","field":"%s","study_type":"%s","language":"%s","year_from":"%s","year_to":"%s","mode":"%s","scihub":"%s","folder_mode":"%s","keywords":"%s","proxy":"%s","email":"%s"}}' \
+            '${{ github.ref_name }}' \
+            '${{ github.event.inputs.title }}' \
+            '${{ github.event.inputs.rq1 }}' \
+            '${{ github.event.inputs.rq2 }}' \
+            '${{ github.event.inputs.rq3 }}' \
+            '${{ github.event.inputs.rq4 }}' \
+            '${{ github.event.inputs.rq5 }}' \
+            '${{ github.event.inputs.field }}' \
+            '${{ github.event.inputs.study_type }}' \
+            '${{ github.event.inputs.language }}' \
+            '${{ github.event.inputs.year_from }}' \
+            '${{ github.event.inputs.year_to }}' \
+            '${{ github.event.inputs.mode }}' \
+            '${{ github.event.inputs.scihub }}' \
+            '${{ github.event.inputs.folder_mode }}' \
+            '${{ github.event.inputs.keywords }}' \
+            '${{ github.event.inputs.proxy }}' \
+            '${{ github.event.inputs.email }}')
           
           curl -s -X POST \
             -H "Accept: application/vnd.github+json" \
@@ -430,10 +415,9 @@ print(json.dumps({'ref': '${{ github.ref_name }}', 'inputs': inputs}))
             "https://api.github.com/repos/${{ github.repository }}/actions/workflows/run.yml/dispatches" \
             -d "$PAYLOAD" \
             -w "\nHTTP Status: %{http_code}"
-          
           echo ""
-          echo "✅ Next run triggered!"
-          echo "🔗 https://github.com/${{ github.repository }}/actions"
+          echo "Next run triggered!"
+          echo "https://github.com/${{ github.repository }}/actions"
 
       - name: Upload cumulative research data
         if: always()
@@ -475,33 +459,33 @@ print(json.dumps({'ref': '${{ github.ref_name }}', 'inputs': inputs}))
           username: ${{ secrets.MAIL_USERNAME }}
           password: ${{ secrets.MAIL_PASSWORD }}
           subject: >-
-            ${{ job.status == 'success' && '✅' || '❌' }}
+            ${{ job.status == 'success' && 'SUCCESS' || 'FAILED' }}
             Research Hunt: ${{ github.event.inputs.title }}
           to: ${{ github.event.inputs.email }}
           from: Research Hunter Bot
           body: |
-            🔬 Research Hunter v6 — CUMULATIVE MODE
+            Research Hunter v6 - CUMULATIVE MODE
 
-            ───────────────────────────────────────
-            📋 SEARCH COMPLETED
-            ───────────────────────────────────────
+            -------------------------
+            SEARCH COMPLETED
+            -------------------------
 
             Status: ${{ job.status }}
             Title: ${{ github.event.inputs.title }}
             Run #: ${{ github.run_number }}
-            
-            📊 Results Summary:
-            • Total PDFs (cumulative): ${{ steps.check_results.outputs.pdf_count || '0' }}
-            • Topic: ${{ github.event.inputs.title }}
-            • Search Mode: ${{ github.event.inputs.mode }}
-            • Output Folder: ${{ steps.folder.outputs.folder_name }}
-            
-            📂 Your results ZIP (all runs combined):
+
+            Results Summary:
+            - Total PDFs (cumulative): ${{ steps.check_results.outputs.pdf_count || '0' }}
+            - Topic: ${{ github.event.inputs.title }}
+            - Search Mode: ${{ github.event.inputs.mode }}
+            - Output Folder: ${{ steps.folder.outputs.folder_name }}
+
+            Your results ZIP (all runs combined):
             https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
-            
-            ⚠ If this is not the final run, more PDFs will be added in subsequent runs.
+
+            NOTE: If this is not the final run, more PDFs will be added in subsequent runs.
             Trigger another run to collect more papers.
 
-            ───────────────────────────────────────
+            -------------------------
             Generated by Research Hunter v6 on GitHub Actions
-            🔗 ${{ github.server_url }}/${{ github.repository }}
+            https://${{ github.server_url }}/${{ github.repository }}
