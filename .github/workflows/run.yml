@@ -174,25 +174,9 @@ permissions:
           - y
           - p
       email:
-        description: 'Email for completion notification (optional)'
+        description: 'Your email to receive results notification'
         required: false
         default: ''
-      smtp_username:
-        description: 'Your Gmail address for sending notifications (optional)'
-        required: false
-        default: ''
-      smtp_password:
-        description: 'Your Gmail App Password (generate at myaccount.google.com → Security → App passwords)'
-        required: false
-        default: ''
-      smtp_server:
-        description: 'SMTP server address'
-        required: false
-        default: 'smtp.gmail.com'
-      smtp_port:
-        description: 'SMTP server port (465 for SSL, 587 for TLS)'
-        required: false
-        default: '465'
 
   schedule:
     - cron: '0 0 * * 0'
@@ -378,10 +362,6 @@ jobs:
           TRIGGER_KEYWORDS: ${{ github.event.inputs.keywords }}
           TRIGGER_PROXY: ${{ github.event.inputs.proxy }}
           TRIGGER_EMAIL: ${{ github.event.inputs.email }}
-          TRIGGER_SMTP_USERNAME: ${{ github.event.inputs.smtp_username }}
-          TRIGGER_SMTP_PASSWORD: ${{ github.event.inputs.smtp_password }}
-          TRIGGER_SMTP_SERVER: ${{ github.event.inputs.smtp_server || 'smtp.gmail.com' }}
-          TRIGGER_SMTP_PORT: ${{ github.event.inputs.smtp_port || '465' }}
         shell: bash
         run: |
           echo "Checking if more work remains..."
@@ -406,7 +386,7 @@ jobs:
           fi
           echo "Triggering next run via GitHub API..."
           
-          PAYLOAD=$(printf '{"ref":"%s","inputs":{"title":"%s","rq1":"%s","rq2":"%s","rq3":"%s","rq4":"%s","rq5":"%s","field":"%s","study_type":"%s","language":"%s","year_from":"%s","year_to":"%s","mode":"%s","scihub":"%s","folder_mode":"%s","keywords":"%s","proxy":"%s","email":"%s","smtp_username":"%s","smtp_password":"%s","smtp_server":"%s","smtp_port":"%s"}}' \
+          PAYLOAD=$(printf '{"ref":"%s","inputs":{"title":"%s","rq1":"%s","rq2":"%s","rq3":"%s","rq4":"%s","rq5":"%s","field":"%s","study_type":"%s","language":"%s","year_from":"%s","year_to":"%s","mode":"%s","scihub":"%s","folder_mode":"%s","keywords":"%s","proxy":"%s","email":"%s"}}' \
             '${{ github.ref_name }}' \
             '${{ github.event.inputs.title }}' \
             '${{ github.event.inputs.rq1 }}' \
@@ -424,11 +404,7 @@ jobs:
             '${{ github.event.inputs.folder_mode }}' \
             '${{ github.event.inputs.keywords }}' \
             '${{ github.event.inputs.proxy }}' \
-            '${{ github.event.inputs.email }}' \
-            '${{ github.event.inputs.smtp_username }}' \
-            '${{ github.event.inputs.smtp_password }}' \
-            '${{ github.event.inputs.smtp_server || 'smtp.gmail.com' }}' \
-            '${{ github.event.inputs.smtp_port || '465' }}')
+            '${{ github.event.inputs.email }}')
           
           curl -s -X POST \
             -H "Accept: application/vnd.github+json" \
@@ -472,43 +448,77 @@ jobs:
             g4f_locked_config.json
           retention-days: 30
 
-      - name: Send email notification
-        if: always() && github.event.inputs.email != '' && github.event.inputs.smtp_username != '' && github.event.inputs.smtp_password != ''
+      - name: Send email notification via Mailgun
+        if: always() && github.event.inputs.email != ''
         continue-on-error: true
-        uses: dawidd6/action-send-mail@v3
-        with:
-          server_address: ${{ github.event.inputs.smtp_server || 'smtp.gmail.com' }}
-          server_port: ${{ github.event.inputs.smtp_port || '465' }}
-          username: ${{ github.event.inputs.smtp_username }}
-          password: ${{ github.event.inputs.smtp_password }}
-          subject: >-
-            ${{ job.status == 'success' && 'SUCCESS' || 'FAILED' }}
-            Research Hunt: ${{ github.event.inputs.title }}
-          to: ${{ github.event.inputs.email }}
-          from: Research Hunter Bot <${{ github.event.inputs.smtp_username }}>
-          body: |
-            Research Hunter v6 - CUMULATIVE MODE
-
-            -------------------------
-            SEARCH COMPLETED
-            -------------------------
-
-            Status: ${{ job.status }}
-            Title: ${{ github.event.inputs.title }}
-            Run #: ${{ github.run_number }}
-
-            Results Summary:
-            - Total PDFs (cumulative): ${{ steps.check_results.outputs.pdf_count || '0' }}
-            - Topic: ${{ github.event.inputs.title }}
-            - Search Mode: ${{ github.event.inputs.mode }}
-            - Output Folder: ${{ steps.folder.outputs.folder_name }}
-
-            Your results ZIP (all runs combined):
-            https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
-
-            NOTE: If this is not the final run, more PDFs will be added in subsequent runs.
-            Trigger another run to collect more papers.
-
-            -------------------------
-            Generated by Research Hunter v6 on GitHub Actions
-            https://${{ github.server_url }}/${{ github.repository }}
+        shell: bash
+        env:
+          MAILGUN_API_KEY: ${{ secrets.MAILGUN_API_KEY }}
+          MAILGUN_DOMAIN: ${{ secrets.MAILGUN_DOMAIN }}
+        run: |
+          # Escape HTML in body for mailgun
+          BODY="
+            <html>
+            <body style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;'>
+              <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center;'>
+                <h1 style='margin: 0;'>🔬 Research Hunter v6</h1>
+                <p style='margin: 10px 0 0; opacity: 0.9;'>CUMULATIVE MODE</p>
+              </div>
+              
+              <div style='padding: 30px; background: #f9f9f9;'>
+                <h2 style='color: #333; margin-top: 0;'>✅ SEARCH COMPLETED</h2>
+                
+                <table style='width: 100%; border-collapse: collapse;'>
+                  <tr>
+                    <td style='padding: 10px; border-bottom: 1px solid #ddd; font-weight: bold;'>Status:</td>
+                    <td style='padding: 10px; border-bottom: 1px solid #ddd;'>${{ job.status }}</td>
+                  </tr>
+                  <tr>
+                    <td style='padding: 10px; border-bottom: 1px solid #ddd; font-weight: bold;'>Title:</td>
+                    <td style='padding: 10px; border-bottom: 1px solid #ddd;'>${{ github.event.inputs.title }}</td>
+                  </tr>
+                  <tr>
+                    <td style='padding: 10px; border-bottom: 1px solid #ddd; font-weight: bold;'>Run #:</td>
+                    <td style='padding: 10px; border-bottom: 1px solid #ddd;'>${{ github.run_number }}</td>
+                  </tr>
+                  <tr>
+                    <td style='padding: 10px; border-bottom: 1px solid #ddd; font-weight: bold;'>Total PDFs:</td>
+                    <td style='padding: 10px; border-bottom: 1px solid #ddd;'>${{ steps.check_results.outputs.pdf_count || '0' }}</td>
+                  </tr>
+                  <tr>
+                    <td style='padding: 10px; border-bottom: 1px solid #ddd; font-weight: bold;'>Search Mode:</td>
+                    <td style='padding: 10px; border-bottom: 1px solid #ddd;'>${{ github.event.inputs.mode }}</td>
+                  </tr>
+                </table>
+                
+                <div style='margin-top: 20px; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);'>
+                  <h3 style='margin-top: 0;'>📥 Your Results</h3>
+                  <p>Download your research results (all runs combined):</p>
+                  <a href='https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}' 
+                     style='display: inline-block; background: #667eea; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;'>
+                     View Results on GitHub
+                  </a>
+                </div>
+                
+                <p style='color: #666; font-size: 12px; margin-top: 20px;'>
+                  <em>NOTE: If this is not the final run, more PDFs will be added in subsequent runs.<br>
+                  Trigger another run to collect more papers.</em>
+                </p>
+              </div>
+              
+              <div style='padding: 20px; text-align: center; color: #999; font-size: 12px;'>
+                Generated by <a href='https://${{ github.server_url }}/${{ github.repository }}'>Research Hunter v6</a><br>
+                Powered by GitHub Actions
+              </div>
+            </body>
+            </html>
+          "
+          
+          # Send via Mailgun API
+          curl -s --user "api:${MAILGUN_API_KEY}" \
+            "https://api.mailgun.net/v3/${MAILGUN_DOMAIN}/messages" \
+            -F from="Research Hunter <hello@${MAILGUN_DOMAIN}>" \
+            -F to="${{ github.event.inputs.email }}" \
+            -F subject="${{ job.status == 'success' && '✅' || '❌' }} Research Hunt: ${{ github.event.inputs.title }}" \
+            -F html="${BODY}" \
+            -w "\nHTTP Status: %{http_code}\n"
