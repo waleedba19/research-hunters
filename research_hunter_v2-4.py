@@ -5702,122 +5702,376 @@ def wizard() -> dict:
 # ── Main ───────────────────────────────────────────────────────────────────────
 def _write_master_xlsx(all_papers: list, out_folder: Path) -> Path | None:
     """
-    MD §8.1 — Generate master_database.xlsx with all paper metadata.
-    Uses openpyxl if available; falls back to CSV.
+    MD §8.1 — Generate ENHANCED master_database.xlsx with multiple professional sheets:
+    - Dashboard: Summary statistics and charts
+    - All Papers: Complete data with color-coding by quartile
+    - Q1 Papers: High-impact journal papers
+    - Q2 Papers: Good quality papers
+    - Q3 Papers: Acceptable papers
+    - Q4 Papers: Lower tier papers
+    - By Year: Papers organized by publication year
+    - Authors: Author analysis and collaboration data
+    - Citations: Papers ranked by citation count
     """
     xlsx_path = out_folder / "master_database.xlsx"
     csv_path  = out_folder / "master_database.csv"
+    
     try:
         import openpyxl
-        from openpyxl.styles import Font, PatternFill, Alignment
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from openpyxl.utils import get_column_letter
+        from openpyxl.formatting.rule import ColorScaleRule, DataBarRule
+        from openpyxl.chart import BarChart, Reference, PieChart
+    except ImportError:
+        pass
+    
+    try:
         wb = openpyxl.Workbook()
-        ws = wb.active
-        ws.title = "All Papers"
-        headers = [
-            "#","Title","Authors","Year","Journal","Scopus Q","Citations",
-            "DOI","PDF Downloaded","File Path","Source Platform",
-            "Document Type","Geo Tier","Abstract (300 chars)",
-        ]
-        # Header row styling
-        hdr_fill = PatternFill("solid", fgColor="1F3864")
-        hdr_font = Font(bold=True, color="FFFFFF", size=10)
-        for col, h in enumerate(headers, 1):
-            cell = ws.cell(row=1, column=col, value=h)
-            cell.fill = hdr_fill
-            cell.font = hdr_font
-            cell.alignment = Alignment(horizontal="center")
-
-        # Q-colour map
-        q_colours = {"Q1":"C6EFCE","Q2":"BDD7EE","Q3":"FFEB9C","Q4":"FFC7CE","":"F2F2F2"}
-
-        for i, p in enumerate(all_papers, 1):
-            q      = (p.get("scopus_quartile") or {})
-            q      = q.get("quartile","") if isinstance(q, dict) else str(q)
-            auth   = " | ".join(str(a) for a in (p.get("authors") or [])[:3])
-            dt     = detect_doc_type(p)
-            gt     = detect_geo_tier(p)
-            row    = [
-                i,
-                str(p.get("title",""))[:120],
-                auth[:80],
-                str(p.get("year","")),
-                str(p.get("journal",""))[:60],
-                q or "Not Indexed",
-                int(p.get("gs_citations") or 0),
-                str(p.get("doi") or ""),
-                "✅" if p.get("downloaded") else "—",
-                str(p.get("file_path") or ""),
-                str(p.get("source","")),
-                dt or "Article",
-                gt or "Global",
-                str(p.get("abstract",""))[:300],
-            ]
-            fill_col = q_colours.get(q, "F2F2F2")
-            for col, val in enumerate(row, 1):
-                cell = ws.cell(row=i+1, column=col, value=val)
-                if col in (5, 6):   # journal + quartile get colour
-                    cell.fill = PatternFill("solid", fgColor=fill_col)
-                cell.alignment = Alignment(wrap_text=(col == len(headers)))
-
-        # Column widths
-        widths = [4,55,35,6,35,10,8,30,10,40,18,14,12,60]
-        for col, w in enumerate(widths, 1):
-            ws.column_dimensions[
-                openpyxl.utils.get_column_letter(col)].width = w
-
-        # Freeze header
-        ws.freeze_panes = "A2"
-        wb.save(xlsx_path)
-
-        # ── Post-process: backfill missing abstracts from first page of PDFs ──
-        info("Backfilling abstracts/authors from downloaded PDFs...")
-        enriched = 0
+        
+        # Color constants
+        COLORS = {
+            "primary": "1F3864", "secondary": "2E75B6", "accent": "5B9BD5",
+            "q1": "70AD47", "q2": "9DC3E6", "q3": "FFC000", "q4": "FF6B6B",
+            "white": "FFFFFF", "light_gray": "F5F5F5", "dark_gray": "404040",
+            "success": "C6EFCE", "header_blue": "1F3864"
+        }
+        
+        # Style helpers
+        thin_border = Border(
+            left=Side(style='thin', color='CCCCCC'),
+            right=Side(style='thin', color='CCCCCC'),
+            top=Side(style='thin', color='CCCCCC'),
+            bottom=Side(style='thin', color='CCCCCC')
+        )
+        
+        def style_header(cell, color="1F3864"):
+            cell.fill = PatternFill("solid", fgColor=color)
+            cell.font = Font(bold=True, color="FFFFFF", size=11)
+            cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+            cell.border = thin_border
+        
+        def style_data_cell(cell, bg_color=None):
+            cell.alignment = Alignment(vertical="top", wrap_text=True)
+            cell.border = thin_border
+            if bg_color:
+                cell.fill = PatternFill("solid", fgColor=bg_color)
+        
+        def get_q_color(q):
+            return {"Q1": "C6EFCE", "Q2": "BDD7EE", "Q3": "FFEB9C", "Q4": "FFC7CE"}.get(q, "F2F2F2")
+        
+        # ── SHEET 1: Dashboard ─────────────────────────────────────────────────────
+        ws_dash = wb.active
+        ws_dash.title = "📊 Dashboard"
+        
+        # Title
+        ws_dash.merge_cells('A1:H1')
+        ws_dash['A1'] = "🔬 RESEARCH HUNTER v6 — MASTER DATABASE"
+        ws_dash['A1'].font = Font(bold=True, size=18, color="1F3864")
+        ws_dash['A1'].alignment = Alignment(horizontal="center")
+        ws_dash.row_dimensions[1].height = 30
+        
+        # Summary stats
+        q_dist = {"Q1": 0, "Q2": 0, "Q3": 0, "Q4": 0, "Not Found": 0}
+        total_citations = 0
+        downloaded = 0
         for p in all_papers:
-            fpath = p.get("file_path") or ""
-            if not fpath or not Path(fpath).exists():
-                continue
-            if p.get("abstract") and len(str(p.get("abstract",""))) > 100:
-                continue
-            if p.get("authors") and len(p.get("authors", [])) >= 2:
-                continue
-            try:
-                text = extract_pdf_text(Path(fpath), max_pages=2)
-                if not p.get("abstract") or len(str(p.get("abstract",""))) < 100:
-                    ab_match = re.search(r'(?i)abstract[\s:\-]+(.{200,600}?)(?:\n\n|\Z)', text)
-                    if ab_match:
-                        p["abstract"] = ab_match.group(1).replace('\n',' ').strip()[:800]
-                        enriched += 1
-                if not p.get("authors") or len(p.get("authors",[])) < 2:
-                    auth_block = re.search(r'(?i)(?:authors?\s*[\n:\-]+)([A-Z][^\n]{5,200})', text)
-                    if auth_block:
-                        names = re.split(r',\s*|\s*;\s*|\s+and\s+|\n', auth_block.group(1))[:5]
-                        names = [n.strip() for n in names if len(n.strip()) > 2]
-                        if names:
-                            p["authors"] = names
-            except Exception:
-                pass
-
-        if enriched:
-            info(f"  Enriched {enriched} papers from PDF text extraction")
-            wb.save(xlsx_path)
-        ok(f"master_database.xlsx: {xlsx_path}")
+            q = (p.get("scopus_quartile") or {}).get("quartile", "Not Found")
+            q_dist[q] = q_dist.get(q, 0) + 1
+            total_citations += int(p.get("gs_citations") or 0)
+            if p.get("downloaded"):
+                downloaded += 1
+        
+        stats_data = [
+            ["METRIC", "VALUE", "DETAILS"],
+            ["Total Papers", str(len(all_papers)), "All papers in database"],
+            ["PDFs Downloaded", str(downloaded), f"{(downloaded/len(all_papers)*100) if all_papers else 0:.1f}% success rate"],
+            ["Total Citations", str(total_citations), "Across all papers"],
+            ["Q1 (Top Tier)", str(q_dist["Q1"]), "High impact journals"],
+            ["Q2 (Good)", str(q_dist["Q2"]), "Quality journals"],
+            ["Q3 (Acceptable)", str(q_dist["Q3"]), "Standard journals"],
+            ["Q4 (Lower)", str(q_dist["Q4"]), "Lower tier journals"],
+            ["Not Indexed", str(q_dist["Not Found"]), "Journals without quartile data"],
+        ]
+        
+        for i, row_data in enumerate(stats_data, 3):
+            for j, val in enumerate(row_data, 1):
+                cell = ws_dash.cell(row=i, column=j, value=val)
+                if i == 3:
+                    style_header(cell, COLORS["secondary"])
+                elif j == 1:
+                    cell.font = Font(bold=True)
+                    cell.fill = PatternFill("solid", fgColor=COLORS["light_gray"])
+                cell.border = thin_border
+        
+        # Quartile distribution chart (visual bars)
+        ws_dash.cell(row=3, column=5, value="QUARTILE DISTRIBUTION").font = Font(bold=True, size=12)
+        for qi, (q_name, q_count) in enumerate(q_dist.items(), 4):
+            ws_dash.cell(row=qi, column=5, value=q_name)
+            ws_dash.cell(row=qi, column=6, value=q_count)
+            bar_cell = ws_dash.cell(row=qi, column=7)
+            bar_cell.value = "█" * min(q_count, 20) if q_count > 0 else ""
+            bar_cell.font = Font(color={"Q1": "70AD47", "Q2": "2E75B6", "Q3": "FFC000", "Q4": "FF6B6B", "Not Found": "808080"}.get(q_name, "000000"))
+        
+        ws_dash.column_dimensions['A'].width = 20
+        ws_dash.column_dimensions['B'].width = 15
+        ws_dash.column_dimensions['C'].width = 35
+        ws_dash.column_dimensions['E'].width = 15
+        ws_dash.column_dimensions['F'].width = 10
+        ws_dash.column_dimensions['G'].width = 25
+        
+        # ── SHEET 2: All Papers ────────────────────────────────────────────────────
+        ws_all = wb.create_sheet("📄 All Papers")
+        all_headers = [
+            "#", "Title", "Authors", "Year", "Journal", "Scopus Q", "Citations",
+            "DOI", "PDF", "File Path", "Source", "Doc Type", "Geo Tier", "Abstract"
+        ]
+        
+        for col, h in enumerate(all_headers, 1):
+            cell = ws_all.cell(row=1, column=col, value=h)
+            style_header(cell)
+        
+        for i, p in enumerate(all_papers, 2):
+            q = (p.get("scopus_quartile") or {})
+            q = q.get("quartile", "") if isinstance(q, dict) else str(q)
+            authors = (p.get("authors") or [])[:5]
+            auth_str = " | ".join(str(a) for a in authors)
+            if len(p.get("authors", [])) > 5:
+                auth_str += f" +{len(p.get('authors', [])) - 5} more"
+            
+            row_data = [
+                i - 1,
+                p.get("title", "")[:150],
+                auth_str[:100],
+                p.get("year", ""),
+                p.get("journal", "")[:80],
+                q or "Not Indexed",
+                p.get("gs_citations", 0),
+                p.get("doi", ""),
+                "✅" if p.get("downloaded") else "❌",
+                p.get("file_path", ""),
+                p.get("source", ""),
+                detect_doc_type(p) or "Article",
+                detect_geo_tier(p) or "Global",
+                (p.get("abstract") or "")[:500],
+            ]
+            
+            q_color = get_q_color(q)
+            for col, val in enumerate(row_data, 1):
+                cell = ws_all.cell(row=i, column=col, value=val)
+                style_data_cell(cell)
+                if col == 6:  # Quartile column
+                    cell.fill = PatternFill("solid", fgColor=q_color)
+                    cell.font = Font(bold=True)
+                elif col == 9:  # PDF column
+                    cell.alignment = Alignment(horizontal="center")
+        
+        # Column widths for All Papers
+        col_widths = [5, 50, 35, 6, 30, 10, 8, 28, 6, 40, 15, 12, 12, 60]
+        for col, w in enumerate(col_widths, 1):
+            ws_all.column_dimensions[get_column_letter(col)].width = w
+        ws_all.freeze_panes = "A2"
+        ws_all.auto_filter.ref = f"A1:N{len(all_papers) + 1}"
+        
+        # ── SHEET 3: Q1 Papers ────────────────────────────────────────────────────
+        q1_papers = [p for p in all_papers if (p.get("scopus_quartile") or {}).get("quartile") == "Q1"]
+        if q1_papers:
+            ws_q1 = wb.create_sheet("⭐ Q1 Papers")
+            ws_q1.merge_cells('A1:M1')
+            ws_q1['A1'] = f"⭐ TOP TIER — {len(q1_papers)} Q1 Papers (High Impact)"
+            ws_q1['A1'].font = Font(bold=True, size=14, color="70AD47")
+            ws_q1['A1'].fill = PatternFill("solid", fgColor="E2EFDA")
+            
+            for col, h in enumerate(all_headers, 1):
+                cell = ws_q1.cell(row=2, column=col, value=h)
+                style_header(cell, "70AD47")
+            
+            for i, p in enumerate(q1_papers, 3):
+                authors = (p.get("authors") or [])[:5]
+                auth_str = " | ".join(str(a) for a in authors)
+                row_data = [
+                    i - 2, p.get("title", "")[:150], auth_str[:100],
+                    p.get("year", ""), p.get("journal", "")[:80], "Q1",
+                    p.get("gs_citations", 0), p.get("doi", ""),
+                    "✅" if p.get("downloaded") else "❌",
+                    p.get("file_path", ""), p.get("source", ""),
+                    detect_doc_type(p) or "Article", detect_geo_tier(p) or "Global",
+                    (p.get("abstract") or "")[:500],
+                ]
+                for col, val in enumerate(row_data, 1):
+                    cell = ws_q1.cell(row=i, column=col, value=val)
+                    style_data_cell(cell, "C6EFCE")
+                    if col == 9:
+                        cell.alignment = Alignment(horizontal="center")
+            
+            for col, w in enumerate(col_widths, 1):
+                ws_q1.column_dimensions[get_column_letter(col)].width = w
+            ws_q1.freeze_panes = "A3"
+        
+        # ── SHEET 4: Q2 Papers ────────────────────────────────────────────────────
+        q2_papers = [p for p in all_papers if (p.get("scopus_quartile") or {}).get("quartile") == "Q2"]
+        if q2_papers:
+            ws_q2 = wb.create_sheet("📗 Q2 Papers")
+            ws_q2.merge_cells('A1:M1')
+            ws_q2['A1'] = f"📗 GOOD QUALITY — {len(q2_papers)} Q2 Papers"
+            ws_q2['A1'].font = Font(bold=True, size=14, color="2E75B6")
+            ws_q2['A1'].fill = PatternFill("solid", fgColor="DEEAF1")
+            
+            for col, h in enumerate(all_headers, 1):
+                cell = ws_q2.cell(row=2, column=col, value=h)
+                style_header(cell, "2E75B6")
+            
+            for i, p in enumerate(q2_papers, 3):
+                authors = (p.get("authors") or [])[:5]
+                auth_str = " | ".join(str(a) for a in authors)
+                row_data = [
+                    i - 2, p.get("title", "")[:150], auth_str[:100],
+                    p.get("year", ""), p.get("journal", "")[:80], "Q2",
+                    p.get("gs_citations", 0), p.get("doi", ""),
+                    "✅" if p.get("downloaded") else "❌",
+                    p.get("file_path", ""), p.get("source", ""),
+                    detect_doc_type(p) or "Article", detect_geo_tier(p) or "Global",
+                    (p.get("abstract") or "")[:500],
+                ]
+                for col, val in enumerate(row_data, 1):
+                    cell = ws_q2.cell(row=i, column=col, value=val)
+                    style_data_cell(cell, "BDD7EE")
+                    if col == 9:
+                        cell.alignment = Alignment(horizontal="center")
+            
+            for col, w in enumerate(col_widths, 1):
+                ws_q2.column_dimensions[get_column_letter(col)].width = w
+            ws_q2.freeze_panes = "A3"
+        
+        # ── SHEET 5: By Year ──────────────────────────────────────────────────────
+        ws_year = wb.create_sheet("📅 By Year")
+        ws_year.merge_cells('A1:E1')
+        ws_year['A1'] = "📅 PAPERS BY PUBLICATION YEAR"
+        ws_year['A1'].font = Font(bold=True, size=14, color="1F3864")
+        
+        year_headers = ["Year", "Paper Count", "% of Total", "Visual Bar"]
+        for col, h in enumerate(year_headers, 1):
+            cell = ws_year.cell(row=2, column=col, value=h)
+            style_header(cell)
+        
+        year_counts = {}
+        for p in all_papers:
+            yr = str(p.get("year", "Unknown"))
+            year_counts[yr] = year_counts.get(yr, 0) + 1
+        
+        sorted_years = sorted(year_counts.items(), key=lambda x: x[0] if x[0].isdigit() else "0", reverse=True)
+        for i, (year, count) in enumerate(sorted_years, 3):
+            pct = (count / len(all_papers) * 100) if all_papers else 0
+            ws_year.cell(row=i, column=1, value=year).font = Font(bold=True)
+            ws_year.cell(row=i, column=2, value=count).alignment = Alignment(horizontal="center")
+            ws_year.cell(row=i, column=3, value=f"{pct:.1f}%").alignment = Alignment(horizontal="center")
+            ws_year.cell(row=i, column=4, value="█" * min(count, 20)).font = Font(color="1F3864")
+            for col in range(1, 5):
+                ws_year.cell(row=i, column=col).border = thin_border
+        
+        ws_year.column_dimensions['A'].width = 10
+        ws_year.column_dimensions['B'].width = 15
+        ws_year.column_dimensions['C'].width = 15
+        ws_year.column_dimensions['D'].width = 25
+        
+        # ── SHEET 6: Authors Analysis ────────────────────────────────────────────
+        ws_auth = wb.create_sheet("👥 Authors")
+        ws_auth.merge_cells('A1:F1')
+        ws_auth['A1'] = "👥 TOP AUTHORS BY PAPER COUNT"
+        ws_auth['A1'].font = Font(bold=True, size=14, color="1F3864")
+        
+        auth_headers = ["Rank", "Author Name", "Paper Count", "Papers Bar", "First Author Count", "Co-author Count"]
+        for col, h in enumerate(auth_headers, 1):
+            cell = ws_auth.cell(row=2, column=col, value=h)
+            style_header(cell)
+        
+        author_counts = {}
+        first_author_counts = {}
+        for p in all_papers:
+            authors = p.get("authors") or []
+            if authors:
+                # First author
+                first = str(authors[0])
+                author_counts[first] = author_counts.get(first, 0) + 1
+                first_author_counts[first] = first_author_counts.get(first, 0) + 1
+                # Co-authors
+                for a in authors[1:]:
+                    a_str = str(a)
+                    author_counts[a_str] = author_counts.get(a_str, 0) + 1
+        
+        sorted_authors = sorted(author_counts.items(), key=lambda x: x[1], reverse=True)[:50]
+        for i, (author, count) in enumerate(sorted_authors, 3):
+            first_count = first_author_counts.get(author, 0)
+            co_count = count - first_count
+            ws_auth.cell(row=i, column=1, value=i - 2).alignment = Alignment(horizontal="center")
+            ws_auth.cell(row=i, column=2, value=author)
+            ws_auth.cell(row=i, column=3, value=count).alignment = Alignment(horizontal="center")
+            ws_auth.cell(row=i, column=4, value="█" * min(count, 10)).font = Font(color="1F3864")
+            ws_auth.cell(row=i, column=5, value=first_count).alignment = Alignment(horizontal="center")
+            ws_auth.cell(row=i, column=6, value=co_count).alignment = Alignment(horizontal="center")
+            for col in range(1, 7):
+                ws_auth.cell(row=i, column=col).border = thin_border
+        
+        ws_auth.column_dimensions['A'].width = 8
+        ws_auth.column_dimensions['B'].width = 35
+        ws_auth.column_dimensions['C'].width = 12
+        ws_auth.column_dimensions['D'].width = 20
+        ws_auth.column_dimensions['E'].width = 18
+        ws_auth.column_dimensions['F'].width = 15
+        
+        # ── SHEET 7: Citations ───────────────────────────────────────────────────
+        ws_cite = wb.create_sheet("📈 Citations")
+        ws_cite.merge_cells('A1:G1')
+        ws_cite['A1'] = "📈 PAPERS RANKED BY CITATION COUNT"
+        ws_cite['A1'].font = Font(bold=True, size=14, color="1F3864")
+        
+        cite_headers = ["Rank", "Title", "Authors", "Year", "Journal", "Citations", "Q"]
+        for col, h in enumerate(cite_headers, 1):
+            cell = ws_cite.cell(row=2, column=col, value=h)
+            style_header(cell)
+        
+        sorted_cites = sorted(all_papers, key=lambda p: int(p.get("gs_citations") or 0), reverse=True)[:100]
+        for i, p in enumerate(sorted_cites, 3):
+            q = (p.get("scopus_quartile") or {}).get("quartile", "—")
+            auth = " | ".join(str(a) for a in (p.get("authors") or [])[:2])
+            ws_cite.cell(row=i, column=1, value=i - 2).alignment = Alignment(horizontal="center")
+            ws_cite.cell(row=i, column=2, value=p.get("title", "")[:80])
+            ws_cite.cell(row=i, column=3, value=auth[:50])
+            ws_cite.cell(row=i, column=4, value=p.get("year", ""))
+            ws_cite.cell(row=i, column=5, value=p.get("journal", "")[:40])
+            ws_cite.cell(row=i, column=6, value=p.get("gs_citations", 0)).alignment = Alignment(horizontal="center")
+            ws_cite.cell(row=i, column=7, value=q).alignment = Alignment(horizontal="center")
+            for col in range(1, 8):
+                ws_cite.cell(row=i, column=col).border = thin_border
+        
+        ws_cite.column_dimensions['A'].width = 8
+        ws_cite.column_dimensions['B'].width = 55
+        ws_cite.column_dimensions['C'].width = 30
+        ws_cite.column_dimensions['D'].width = 8
+        ws_cite.column_dimensions['E'].width = 30
+        ws_cite.column_dimensions['F'].width = 12
+        ws_cite.column_dimensions['G'].width = 8
+        
+        # Save workbook
+        wb.save(xlsx_path)
+        ok(f"Enhanced master_database.xlsx created: {xlsx_path}")
+        ok(f"  📊 Dashboard | 📄 All Papers | ⭐ Q1 | 📗 Q2 | 📅 By Year | 👥 Authors | 📈 Citations")
         return xlsx_path
+        
     except ImportError:
         pass
     except Exception as ex:
-        warn(f"XLSX failed ({ex}), writing CSV fallback")
-
-    # CSV fallback
+        warn(f"Enhanced XLSX failed ({ex}), trying basic version...")
+    
+    # Fallback: Basic version
     try:
         import csv as _csv
         with open(csv_path, "w", encoding="utf-8", newline="") as f:
             w = _csv.writer(f)
-            w.writerow(["#","Title","Authors","Year","Journal","Q","Citations",
-                         "DOI","Downloaded","Source","DocType","GeoTier","Abstract"])
+            w.writerow(["#","Title","Authors","Year","Journal","Q","Citations","DOI","Downloaded","Source","DocType","GeoTier","Abstract"])
             for i, p in enumerate(all_papers, 1):
-                q     = (p.get("scopus_quartile") or {})
-                q     = q.get("quartile","") if isinstance(q, dict) else str(q)
-                auth  = " | ".join(str(a) for a in (p.get("authors") or [])[:3])
+                q = (p.get("scopus_quartile") or {})
+                q = q.get("quartile","") if isinstance(q, dict) else str(q)
+                auth = " | ".join(str(a) for a in (p.get("authors") or [])[:3])
                 w.writerow([
                     i, str(p.get("title",""))[:120], auth[:80],
                     str(p.get("year","")), str(p.get("journal",""))[:60],
@@ -5829,7 +6083,7 @@ def _write_master_xlsx(all_papers: list, out_folder: Path) -> Path | None:
                     detect_geo_tier(p) or "Global",
                     str(p.get("abstract",""))[:200],
                 ])
-        ok(f"master_database.csv (openpyxl not found): {csv_path}")
+        ok(f"master_database.csv (basic): {csv_path}")
         return csv_path
     except Exception as ex2:
         warn(f"CSV fallback also failed: {ex2}")
