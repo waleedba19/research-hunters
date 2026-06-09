@@ -5238,10 +5238,10 @@ DEEP_PLATS = list(PLATFORM_FNS.keys())
 LIBYAN_PLATS  = list(LIBYAN_PLATFORM_URLS.keys())
 
 MODE_TIME_ESTIMATES = {
-    "sample":  {"label": "Sample Trial (~5 min)",      "time": "5-15 min",   "platforms": SAMPLE_PLATS[:], "max_papers": 200},
-    "quick":   {"label": "Quick Search (~30 min)",      "time": "20-40 min",  "platforms": QUICK_PLATS[:],  "max_papers": 1000},
-    "field":   {"label": "Field Optimized (~2 hr)",     "time": "1.5-3 hr",   "platforms": FIELD_PLATS[:],  "max_papers": 3000},
-    "deep":    {"label": "Deep Search (4-8 hr)",        "time": "4-8 hr",     "platforms": DEEP_PLATS[:],   "max_papers": None},
+    "sample":  {"label": "Sample Trial (~5 min)",      "time": "5-15 min",   "platforms": SAMPLE_PLATS[:], "max_papers": 200,  "download_pdfs": False},
+    "quick":   {"label": "Quick Search (~30 min)",      "time": "20-40 min",  "platforms": QUICK_PLATS[:],  "max_papers": 1000, "download_pdfs": True},
+    "field":   {"label": "Field Optimized (~2 hr)",     "time": "1.5-3 hr",   "platforms": FIELD_PLATS[:],  "max_papers": 3000, "download_pdfs": True},
+    "deep":    {"label": "Deep Search (4-8 hr)",        "time": "4-8 hr",     "platforms": DEEP_PLATS[:],   "max_papers": None,  "download_pdfs": True},
 }
 
 
@@ -6074,34 +6074,49 @@ def main():
 
         ok(f"  Batch {batch_num}: Q1={q_cnt['Q1']} Q2={q_cnt['Q2']} Q3={q_cnt['Q3']} Q4={q_cnt['Q4']} N/A={q_cnt['Not Found']}")
 
-        # ── Step C: Download this batch immediately ─────────────────────────────
-        info(f"  Batch {batch_num}: downloading {len(batch)} papers…")
-        for i, paper in enumerate(batch, 1):
-            global_idx = start + i
-            q_badge = (paper.get("scopus_quartile") or {})
-            q_badge = q_badge.get("quartile","?") if isinstance(q_badge, dict) else str(q_badge)
-            success, folder_used = smart_file_paper(paper, out_folder, use_scihub, red_list, cache, single_folder)
-            paper["downloaded"] = success
-            if success:
-                dl_count += 1
-                folder_dl[folder_used] = folder_dl.get(folder_used, 0) + 1
-            dt = detect_doc_type(paper)
-            if dt in type_cnt:
-                type_cnt[dt] += 1
-            gt = detect_geo_tier(paper)
-            if gt in geo_cnt:
-                geo_cnt[gt] += 1
-            # Brief pause to avoid rate limiting
-            if i % 10 == 0:
-                info(f"    [{global_idx}/{len(new_papers)}] {dl_count} downloaded so far…")
-            time.sleep(0.15)
+        # ── Step C: Download this batch (or skip in sample mode) ─────────────────
+        do_download = mode_config.get("download_pdfs", True)
+        if not do_download:
+            info(f"  Batch {batch_num}: SAMPLE MODE — skipping PDF downloads, collecting metadata only")
+            for p in batch:
+                p["downloaded"] = False
+                dt = detect_doc_type(p)
+                if dt in type_cnt:
+                    type_cnt[dt] += 1
+                gt = detect_geo_tier(p)
+                if gt in geo_cnt:
+                    geo_cnt[gt] += 1
+        else:
+            info(f"  Batch {batch_num}: downloading {len(batch)} papers…")
+            for i, paper in enumerate(batch, 1):
+                global_idx = start + i
+                q_badge = (paper.get("scopus_quartile") or {})
+                q_badge = q_badge.get("quartile","?") if isinstance(q_badge, dict) else str(q_badge)
+                success, folder_used = smart_file_paper(paper, out_folder, use_scihub, red_list, cache, single_folder)
+                paper["downloaded"] = success
+                if success:
+                    dl_count += 1
+                    folder_dl[folder_used] = folder_dl.get(folder_used, 0) + 1
+                dt = detect_doc_type(paper)
+                if dt in type_cnt:
+                    type_cnt[dt] += 1
+                gt = detect_geo_tier(paper)
+                if gt in geo_cnt:
+                    geo_cnt[gt] += 1
+                # Brief pause to avoid rate limiting
+                if i % 10 == 0:
+                    info(f"    [{global_idx}/{len(new_papers)}] {dl_count} downloaded so far…")
+                time.sleep(0.15)
 
     ok(f"Scopus Summary (this run):")
     for q, c in q_cnt.items():
         log(f"  {quartile_badge(q)}: {c}")
 
     cache.save()
-    ok(f"Downloaded {dl_count} / {len(new_papers)} PDFs")
+    if do_download:
+        ok(f"Downloaded {dl_count} / {len(new_papers)} PDFs")
+    else:
+        ok(f"Sample mode complete — {len(new_papers)} papers collected (PDF download skipped)")
     if red_list.entries:
         warn(red_list.summary())
 
@@ -6392,31 +6407,47 @@ def main_headless(params: dict):
             q_cnt[q if q in q_cnt else "Not Found"] += 1
 
         ok(f"  Batch {batch_num}: Q1={q_cnt['Q1']} Q2={q_cnt['Q2']} Q3={q_cnt['Q3']} Q4={q_cnt['Q4']} N/A={q_cnt['Not Found']}")
-        info(f"  Batch {batch_num}: downloading {len(batch)} papers…")
 
-        for i, paper in enumerate(batch, 1):
-            global_idx = start + i
-            success, folder_used = smart_file_paper(paper, out_folder, use_scihub, red_list, cache, single_folder)
-            paper["downloaded"] = success
-            if success:
-                dl_count += 1
-                folder_dl[folder_used] = folder_dl.get(folder_used, 0) + 1
-            dt = detect_doc_type(paper)
-            if dt in type_cnt:
-                type_cnt[dt] += 1
-            gt = detect_geo_tier(paper)
-            if gt in geo_cnt:
-                geo_cnt[gt] += 1
-            if i % 10 == 0:
-                info(f"    [{global_idx}/{len(new_papers)}] {dl_count} downloaded so far…")
-            time.sleep(0.15)
+        # ── Sample mode: skip PDF downloads ─────────────────────────────────────
+        do_download = mode_config.get("download_pdfs", True)
+        if not do_download:
+            info(f"  Batch {batch_num}: SAMPLE MODE — skipping PDF downloads, collecting metadata only")
+            for p in batch:
+                p["downloaded"] = False
+                dt = detect_doc_type(p)
+                if dt in type_cnt:
+                    type_cnt[dt] += 1
+                gt = detect_geo_tier(p)
+                if gt in geo_cnt:
+                    geo_cnt[gt] += 1
+        else:
+            info(f"  Batch {batch_num}: downloading {len(batch)} papers…")
+            for i, paper in enumerate(batch, 1):
+                global_idx = start + i
+                success, folder_used = smart_file_paper(paper, out_folder, use_scihub, red_list, cache, single_folder)
+                paper["downloaded"] = success
+                if success:
+                    dl_count += 1
+                    folder_dl[folder_used] = folder_dl.get(folder_used, 0) + 1
+                dt = detect_doc_type(paper)
+                if dt in type_cnt:
+                    type_cnt[dt] += 1
+                gt = detect_geo_tier(paper)
+                if gt in geo_cnt:
+                    geo_cnt[gt] += 1
+                if i % 10 == 0:
+                    info(f"    [{global_idx}/{len(new_papers)}] {dl_count} downloaded so far…")
+                time.sleep(0.15)
 
     ok(f"Scopus Summary (this run):")
     for q, c in q_cnt.items():
         log(f"  {quartile_badge(q)}: {c}")
 
     cache.save()
-    ok(f"Downloaded {dl_count} / {len(new_papers)} PDFs")
+    if do_download:
+        ok(f"Downloaded {dl_count} / {len(new_papers)} PDFs")
+    else:
+        ok(f"Sample mode complete — {len(new_papers)} papers collected (PDF download skipped)")
     if red_list.entries:
         warn(red_list.summary())
 
