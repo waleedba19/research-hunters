@@ -3,7 +3,7 @@ permissions:
   contents: write
   actions: write
 
-on:
+"on":
   workflow_dispatch:
     inputs:
       title:
