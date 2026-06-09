@@ -186,14 +186,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 360
 
-    outputs:
-      total_pdfs:
-        description: 'Total PDFs across all runs'
-        value: ${{ steps.check_results.outputs.pdf_count }}
-      zip_name:
-        description: 'Final ZIP archive name'
-        value: ${{ steps.check_results.outputs.zip_name }}
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
