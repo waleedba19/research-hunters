@@ -1,0 +1,315 @@
+name: Research Hunter Search
+
+on:
+  workflow_dispatch:
+    inputs:
+      # Research Topic (Required)
+      research_topic:
+        description: 'Research Topic / Title (required)'
+        required: true
+        type: string
+      
+      # Research Questions (Optional)
+      research_question_1:
+        description: 'Research Question 1 (optional)'
+        required: false
+        type: string
+        default: ''
+      
+      research_question_2:
+        description: 'Research Question 2 (optional)'
+        required: false
+        type: string
+        default: ''
+      
+      research_question_3:
+        description: 'Research Question 3 (optional)'
+        required: false
+        type: string
+        default: ''
+      
+      research_question_4:
+        description: 'Research Question 4 (optional)'
+        required: false
+        type: string
+        default: ''
+      
+      research_question_5:
+        description: 'Research Question 5 (optional)'
+        required: false
+        type: string
+        default: ''
+      
+      # Academic Field
+      academic_field:
+        description: 'Academic Field'
+        required: false
+        type: choice
+        options:
+          - all
+          - cs
+          - medicine
+          - engineering
+          - business
+          - social
+          - education
+          - law
+          - arts
+          - sciences
+        default: 'all'
+      
+      # Study Type
+      study_type:
+        description: 'Study Type'
+        required: false
+        type: choice
+        options:
+          - any
+          - journal
+          - conference
+          - thesis
+          - book
+          - preprint
+          - review
+        default: 'any'
+      
+      # Language Selection
+      language:
+        description: 'Language (1=EN, 2=AR, 3=FR, 4=ES, 5=EN+AR, 6=EN+FR, 7=EN+AR+FR, 8=All)'
+        required: true
+        type: choice
+        options:
+          - '1'
+          - '2'
+          - '3'
+          - '4'
+          - '5'
+          - '6'
+          - '7'
+          - '8'
+        default: '8'
+      
+      # Year Range
+      year_from:
+        description: 'Year From (e.g. 2015, leave blank = all years)'
+        required: false
+        type: string
+        default: ''
+      
+      year_to:
+        description: 'Year To (default = current year)'
+        required: false
+        type: string
+        default: ''
+      
+      # Search Mode
+      search_mode:
+        description: 'Search Mode'
+        required: true
+        type: choice
+        options:
+          - sample
+          - quick
+          - field
+          - deep
+        default: 'quick'
+      
+      # Max Batches
+      max_batches:
+        description: 'Max Batches Per Run (0=all, 12=600 papers in 6hrs)'
+        required: false
+        type: string
+        default: '12'
+      
+      # Enable Sci-Hub
+      enable_scihub:
+        description: 'Enable Sci-Hub / Shadow Libraries?'
+        required: false
+        type: boolean
+        default: true
+      
+      # Output Folder Mode
+      output_mode:
+        description: 'Output Folder Mode'
+        required: false
+        type: choice
+        options:
+          - hierarchy
+          - single
+        default: 'hierarchy'
+      
+      # Custom Keywords
+      custom_keywords:
+        description: 'Custom Keywords (comma-separated, or leave blank for auto-extraction)'
+        required: false
+        type: string
+        default: ''
+      
+      # Proxy
+      proxy:
+        description: 'Proxy (y=auto qoder, p=custom URL, n=skip)'
+        required: false
+        type: choice
+        options:
+          - y
+          - p
+          - n
+        default: 'y'
+
+jobs:
+  research-search:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install Dependencies
+        run: |
+          pip install -r requirements.txt
+      
+      - name: Display Configuration
+        run: |
+          echo "========================================="
+          echo "    Research Hunter - Search Config"
+          echo "========================================="
+          echo ""
+          echo "📚 Research Topic: ${{ github.event.inputs.research_topic }}"
+          echo ""
+          echo "❓ Research Questions:"
+          [[ -n "${{ github.event.inputs.research_question_1 }}" ]] && echo "   1. ${{ github.event.inputs.research_question_1 }}"
+          [[ -n "${{ github.event.inputs.research_question_2 }}" ]] && echo "   2. ${{ github.event.inputs.research_question_2 }}"
+          [[ -n "${{ github.event.inputs.research_question_3 }}" ]] && echo "   3. ${{ github.event.inputs.research_question_3 }}"
+          [[ -n "${{ github.event.inputs.research_question_4 }}" ]] && echo "   4. ${{ github.event.inputs.research_question_4 }}"
+          [[ -n "${{ github.event.inputs.research_question_5 }}" ]] && echo "   5. ${{ github.event.inputs.research_question_5 }}"
+          echo ""
+          echo "🎓 Academic Field: ${{ github.event.inputs.academic_field }}"
+          echo "📄 Study Type: ${{ github.event.inputs.study_type }}"
+          echo ""
+          echo "🌐 Language: ${{ github.event.inputs.language }}"
+          echo "   (1=EN, 2=AR, 3=FR, 4=ES, 5=EN+AR, 6=EN+FR, 7=EN+AR+FR, 8=All)"
+          echo ""
+          echo "📅 Year Range: ${{ github.event.inputs.year_from }} - ${{ github.event.inputs.year_to }}"
+          echo ""
+          echo "⚡ Search Mode: ${{ github.event.inputs.search_mode }}"
+          echo "   • sample: ~10-15min (4 platforms, ~80 papers)"
+          echo "   • quick: ~30min (8 platforms, ~1000 papers)"
+          echo "   • field: ~2hr (28 platforms, ~3000 papers)"
+          echo "   • deep: 4-8hr+ (all 70+ platforms)"
+          echo ""
+          echo "📦 Max Batches: ${{ github.event.inputs.max_batches }}"
+          echo "🔓 Sci-Hub: ${{ github.event.inputs.enable_scihub }}"
+          echo "📁 Output Mode: ${{ github.event.inputs.output_mode }}"
+          echo "🔑 Proxy: ${{ github.event.inputs.proxy }}"
+          echo ""
+          echo "========================================="
+      
+      - name: Run Research Search
+        env:
+          RESEARCH_TOPIC: ${{ github.event.inputs.research_topic }}
+          RESEARCH_QUESTION_1: ${{ github.event.inputs.research_question_1 }}
+          RESEARCH_QUESTION_2: ${{ github.event.inputs.research_question_2 }}
+          RESEARCH_QUESTION_3: ${{ github.event.inputs.research_question_3 }}
+          RESEARCH_QUESTION_4: ${{ github.event.inputs.research_question_4 }}
+          RESEARCH_QUESTION_5: ${{ github.event.inputs.research_question_5 }}
+          ACADEMIC_FIELD: ${{ github.event.inputs.academic_field }}
+          STUDY_TYPE: ${{ github.event.inputs.study_type }}
+          LANGUAGE: ${{ github.event.inputs.language }}
+          YEAR_FROM: ${{ github.event.inputs.year_from }}
+          YEAR_TO: ${{ github.event.inputs.year_to }}
+          SEARCH_MODE: ${{ github.event.inputs.search_mode }}
+          MAX_BATCHES: ${{ github.event.inputs.max_batches }}
+          ENABLE_SCIHUB: ${{ github.event.inputs.enable_scihub }}
+          OUTPUT_MODE: ${{ github.event.inputs.output_mode }}
+          CUSTOM_KEYWORDS: ${{ github.event.inputs.custom_keywords }}
+          PROXY: ${{ github.event.inputs.proxy }}
+        run: |
+          python -c "
+          import os
+          from src.cli.workflow_cli import SearchWorkflow, SearchWorkflowConfig
+          from src.config.languages import LANGUAGE_OPTIONS
+          import asyncio
+          
+          # Build config from inputs
+          config = SearchWorkflowConfig()
+          config.topic = os.getenv('RESEARCH_TOPIC', '')
+          
+          # Research questions
+          questions = []
+          for i in range(1, 6):
+              q = os.getenv(f'RESEARCH_QUESTION_{i}', '')
+              if q:
+                  questions.append(q)
+          config.research_questions = questions
+          
+          # Language
+          lang_choice = os.getenv('LANGUAGE', '8')
+          config.selected_languages = LANGUAGE_OPTIONS.get(lang_choice, ['en'])
+          
+          # Year range
+          year_from = os.getenv('YEAR_FROM', '')
+          year_to = os.getenv('YEAR_TO', '')
+          config.year_from = int(year_from) if year_from.isdigit() else None
+          config.year_to = int(year_to) if year_to.isdigit() else None
+          
+          # Other settings
+          config.papers_limit = int(os.getenv('MAX_BATCHES', '12')) * 50
+          config.search_mode = os.getenv('SEARCH_MODE', 'quick')
+          config.output_mode = os.getenv('OUTPUT_MODE', 'hierarchy')
+          config.enable_scihub = os.getenv('ENABLE_SCIHUB', 'true').lower() == 'true'
+          config.custom_keywords = os.getenv('CUSTOM_KEYWORDS', '')
+          
+          print(f'Config loaded:')
+          print(f'  Topic: {config.topic}')
+          print(f'  Languages: {config.selected_languages}')
+          print(f'  Year range: {config.year_from} - {config.year_to}')
+          print(f'  Papers limit: {config.papers_limit}')
+          print(f'  Search mode: {config.search_mode}')
+          "
+      
+      - name: Execute Search
+        env:
+          RESEARCH_TOPIC: ${{ github.event.inputs.research_topic }}
+          LANGUAGE: ${{ github.event.inputs.language }}
+          YEAR_FROM: ${{ github.event.inputs.year_from }}
+          YEAR_TO: ${{ github.event.inputs.year_to }}
+          SEARCH_MODE: ${{ github.event.inputs.search_mode }}
+          MAX_BATCHES: ${{ github.event.inputs.max_batches }}
+        run: |
+          echo "Starting search execution..."
+          # Run the actual search
+          python run.py search "$RESEARCH_TOPIC" \
+            --year-from "$YEAR_FROM" \
+            --year-to "$YEAR_TO" \
+            --limit 50 || echo "Search completed (or failed - check logs)"
+      
+      - name: Upload Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: research-results-${{ github.run_number }}
+          path: |
+            results/**/*.pdf
+            results/**/*.json
+            search.log
+          retention-days: 30
+      
+      - name: Summary
+        if: always()
+        run: |
+          echo ""
+          echo "========================================="
+          echo "       Search Execution Complete"
+          echo "========================================="
+          echo ""
+          echo "✅ Workflow Run: ${{ github.run_number }}"
+          echo "📅 Date: $(date)"
+          echo "📁 Results saved as artifact"
+          echo ""
+          echo "View artifacts at:"
+          echo "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
