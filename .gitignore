@@ -35,6 +35,11 @@ venv/
 .venv/
 env/
 
+# Environment variables (DO NOT COMMIT .env)
+.env
+.env.local
+.env.*.local
+
 # Test outputs
 test_*.py
 __pycache__/
