@@ -40,121 +40,338 @@ on:
         type: string
         default: ''
       
-      # Academic Field
+      # Academic Field - Detailed options
       academic_field:
-        description: 'Academic Field'
+        description: '🎓 Academic Field'
         required: false
         type: choice
         options:
-          - all
-          - cs
-          - medicine
-          - engineering
-          - business
-          - social
-          - education
-          - law
-          - arts
-          - sciences
-        default: 'all'
+          - 'All Fields (No Filter)'
+          - 'Computer Science & AI (AI, ML, Deep Learning, NLP)'
+          - 'Medicine & Health (Clinical, Medical Research, Public Health)'
+          - 'Engineering (Electrical, Mechanical, Civil, Chemical)'
+          - 'Business & Economics (Management, Finance, Marketing)'
+          - 'Social Sciences (Sociology, Psychology, Anthropology)'
+          - 'Education (Pedagogy, E-Learning, Curriculum)'
+          - 'Law & Legal Studies (International Law, Human Rights)'
+          - 'Arts & Humanities (History, Literature, Philosophy)'
+          - 'Sciences (Physics, Chemistry, Biology, Mathematics)'
+          - 'Environmental Science (Climate, Sustainability, Ecology)'
+          - 'Agriculture & Food Science (Crops, Soil, Food Security)'
+          - 'Economics & Econometrics'
+          - 'Political Science & International Relations'
+          - 'Communication & Media Studies'
+          - 'Mathematics & Statistics'
+          - 'Physics & Astronomy'
+          - 'Chemistry & Materials Science'
+          - 'Biology & Life Sciences'
+          - 'Earth Sciences & Geology'
+          - 'Energy & Renewable Energy'
+          - 'Information Technology & Systems'
+          - 'Cybersecurity & Cryptography'
+          - 'Data Science & Big Data'
+          - 'Robotics & Automation'
+          - 'Telecommunications & Networking'
+          - 'Aerospace & Aviation'
+          - 'Biotechnology & Bioinformatics'
+          - 'Pharmaceutical Sciences & Drug Development'
+          - 'Nursing & Healthcare Management'
+          - 'Dentistry & Oral Health'
+          - 'Veterinary Sciences'
+          - 'Architecture & Urban Planning'
+          - 'Transportation & Logistics'
+          - 'Manufacturing & Industrial Engineering'
+          - 'Nanotechnology & Materials'
+        default: 'All Fields (No Filter)'
       
-      # Study Type
+      # Study Type - Detailed options
       study_type:
-        description: 'Study Type'
+        description: '📄 Study / Publication Type'
         required: false
         type: choice
         options:
-          - any
-          - journal
-          - conference
-          - thesis
-          - book
-          - preprint
-          - review
-        default: 'any'
+          - 'Any Type (All Publications)'
+          - 'Journal Articles (Peer-Reviewed Research Papers)'
+          - 'Conference Papers (Conference Proceedings)'
+          - 'Theses & Dissertations (Master/PhD Thesis)'
+          - 'Books & Book Chapters'
+          - 'Preprints (arXiv, bioRxiv, etc.)'
+          - 'Systematic Reviews & Meta-Analyses'
+          - 'Clinical Trials & Case Studies'
+          - 'Technical Reports & White Papers'
+          - 'Government Documents & Policy Papers'
+          - 'Working Papers & Discussion Papers'
+          - 'Patents & Intellectual Property'
+        default: 'Any Type (All Publications)'
       
-      # Language Selection
+      # Language Selection - Detailed with flags
       language:
-        description: 'Language (1=EN, 2=AR, 3=FR, 4=ES, 5=EN+AR, 6=EN+FR, 7=EN+AR+FR, 8=All)'
+        description: '🌐 Search Language(s) (Academic Paper Language)'
         required: true
         type: choice
         options:
-          - '1'
-          - '2'
-          - '3'
-          - '4'
-          - '5'
-          - '6'
-          - '7'
-          - '8'
-        default: '8'
+          - '1 - English (🇬🇧) - UK, USA, International'
+          - '2 - Arabic (🇸🇦) - العربية - Middle East, North Africa'
+          - '3 - French (🇫🇷) - Français - France, Africa, Canada'
+          - '4 - Spanish (🇪🇸) - Español - Spain, Latin America'
+          - '5 - German (🇩🇪) - Deutsch - Germany, Austria, Switzerland'
+          - '6 - Chinese (🇨🇳) - 中文 - China, Taiwan, Singapore'
+          - '7 - Portuguese (🇵🇹) - Português - Portugal, Brazil'
+          - '8 - Persian/Farsi (🇮🇷) - فارسی - Iran, Afghanistan'
+          - '9 - Turkish (🇹🇷) - Türkçe - Turkey, Cyprus'
+          - '10 - Japanese (🇯🇵) - 日本語 - Japan'
+          - '11 - Korean (🇰🇷) - 한국어 - South Korea'
+          - '12 - Russian (🇷🇺) - Русский - Russia, CIS'
+          - '13 - Italian (🇮🇹) - Italiano - Italy'
+          - '14 - Dutch (🇳🇱) - Nederlands - Netherlands, Belgium'
+          - '15 - Polish (🇵🇱) - Polski - Poland'
+          - '16 - Ukrainian (🇺🇦) - Українська - Ukraine'
+          - '17 - Hindi (🇮🇳) - हिन्दी - India'
+          - '18 - Urdu (🇵🇰) - اردو - Pakistan'
+          - '19 - Indonesian (🇮🇩) - Bahasa Indonesia - Indonesia'
+          - '20 - Vietnamese (🇻🇳) - Tiếng Việt - Vietnam'
+          - '21 - Thai (🇹🇭) - ไทย - Thailand'
+          - '22 - Greek (🇬🇷) - Ελληνικά - Greece'
+          - '23 - Hebrew (🇮🇱) - עברית - Israel'
+          - '24 - Swedish (🇸🇪) - Svenska - Scandinavia'
+          - '25 - Norwegian (🇳🇴) - Norsk - Scandinavia'
+          - '26 - Danish (🇩🇰) - Dansk - Scandinavia'
+          - '27 - Finnish (🇫🇮) - Suomi - Scandinavia'
+          - '28 - Czech (🇨🇿) - Čeština - Czech Republic'
+          - '29 - Hungarian (🇭🇺) - Magyar - Hungary'
+          - '30 - Romanian (🇷🇴) - Română - Romania'
+          - '31 - Bulgarian (🇧🇬) - Български - Bulgaria'
+          - '32 - Croatian (🇭🇷) - Hrvatski - Croatia'
+          - '33 - Serbian (🇷🇸) - Српски - Serbia'
+          - '34 - Slovenian (🇸🇮) - Slovenščina - Slovenia'
+          - '35 - Slovak (🇸🇰) - Slovenčina - Slovakia'
+          - '36 - Lithuanian (🇱🇹) - Lietuvių - Lithuania'
+          - '37 - Latvian (🇱🇻) - Latviešu - Latvia'
+          - '38 - Estonian (🇪🇪) - Eesti - Estonia'
+          - '39 - Malay (🇲🇾) - Bahasa Malaysia - Malaysia'
+          - '40 - Filipino (🇵🇭) - Tagalog - Philippines'
+          - '41 - Bangla (🇧🇩) - বাংলা - Bangladesh'
+          - '42 - Tamil (🇮🇳) - தமிழ் - India, Sri Lanka'
+          - '43 - Ukrainian (🇺🇦) - Українська - Ukraine'
+          - '44 - Catalan (🇦🇩) - Català - Catalonia'
+          - '45 - Welsh (🏴󠁧󠁢󠁷󠁬󠁳󠁿) - Cymraeg - Wales'
+          - '46 - Basque (🇪🇸) - Euskara - Basque Country'
+          - '47 - Galician (🇪🇸) - Galego - Galicia'
+          - '48 - Afrikaans (🇿🇦) - Afrikaans - South Africa'
+          - '49 - Amharic (🇪🇹) - አማርኛ - Ethiopia'
+          - '50 - Swahili (🇰🇪) - Kiswahili - East Africa'
+          - '51 - Yoruba (🇳🇬) - Yoruba - Nigeria'
+          - '52 - Zulu (🇿🇦) - isiZulu - South Africa'
+          - '53 - All Languages (🌍 Comprehensive - All Academic Papers)'
+        default: '1 - English (🇬🇧) - UK, USA, International'
       
-      # Year Range
+      # Year Range - Selectable options
       year_from:
-        description: 'Year From (e.g. 2015, leave blank = all years)'
+        description: '📅 Year From (Publication Year Start)'
         required: false
-        type: string
-        default: ''
+        type: choice
+        options:
+          - 'All Years (No Limit)'
+          - '2025 (Current Year)'
+          - '2024 (Last Year)'
+          - '2023'
+          - '2022'
+          - '2021'
+          - '2020'
+          - '2019'
+          - '2018'
+          - '2017'
+          - '2016'
+          - '2015 (Last 10 Years)'
+          - '2010 (Last 15 Years)'
+          - '2005 (Last 20 Years)'
+          - '2000 (Last 25 Years)'
+          - '1995 (Last 30 Years)'
+          - '1990 (Last 35 Years)'
+          - '1985 (Last 40 Years)'
+          - '1980 (Last 45 Years)'
+          - '1975 (Last 50 Years)'
+        default: 'All Years (No Limit)'
       
       year_to:
-        description: 'Year To (default = current year)'
+        description: '📅 Year To (Publication Year End)'
         required: false
-        type: string
-        default: ''
+        type: choice
+        options:
+          - '2025 (Current Year)'
+          - '2024'
+          - '2023'
+          - '2022'
+          - '2021'
+          - '2020'
+          - '2019'
+          - '2018'
+          - '2017'
+          - '2016'
+          - '2015'
+          - '2010'
+          - '2005'
+          - '2000'
+          - '1995'
+          - '1990'
+        default: '2025 (Current Year)'
       
-      # Search Mode
+      # Search Mode - Detailed with time and paper estimates
       search_mode:
-        description: 'Search Mode'
+        description: '⚡ Search Depth & Time (Platforms, Duration, Papers)'
         required: true
         type: choice
         options:
-          - sample
-          - quick
-          - field
-          - deep
-        default: 'quick'
+          - 'Sample (🔬 Test Run) - 4 platforms, ~10 min, ~80 papers - Quick test of your topic'
+          - 'Quick (⚡ Standard) - 8 platforms, ~30 min, ~1,000 papers - Good for most research'
+          - 'Field (📊 Comprehensive) - 28 platforms, ~2 hours, ~3,000 papers - Deep academic search'
+          - 'Deep (🌐 Maximum) - 70+ platforms, ~4-8 hours, ~10,000 papers - Maximum coverage'
+          - 'Ultra (🚀 Extreme) - 100+ platforms, ~12-24 hours, ~25,000 papers - Exhaustive search'
+          - 'Minimal (🐢 Minimal) - 2 platforms, ~5 min, ~40 papers - Fastest option'
+          - 'Extended (⏱️ Extended) - 50 platforms, ~6 hours, ~8,000 papers - Extended deep search'
+        default: 'Quick (⚡ Standard) - 8 platforms, ~30 min, ~1,000 papers - Good for most research'
+      
+      # Geographic Areas - Comprehensive list
+      geographic_area:
+        description: '🌍 Geographic Area / Region (Where research was published)'
+        required: false
+        type: choice
+        options:
+          - '🌍 Worldwide (All Countries)'
+          - '🌎 Americas'
+          - '🌎 North America (USA, Canada, Mexico)'
+          - '🇺🇸 United States (USA)'
+          - '🇨🇦 Canada'
+          - '🇲🇽 Mexico'
+          - '🌎 Latin America (Central & South America)'
+          - '🇧🇷 Brazil'
+          - '🇦🇷 Argentina'
+          - '🇨🇱 Chile'
+          - '🇨🇴 Colombia'
+          - '🇵🇪 Peru'
+          - '🇻🇪 Venezuela'
+          - '🇪🇨 Ecuador'
+          - '🌍 Europe'
+          - '🇬🇧 United Kingdom (UK)'
+          - '🇩🇪 Germany'
+          - '🇫🇷 France'
+          - '🇮🇹 Italy'
+          - '🇪🇸 Spain'
+          - '🇵🇹 Portugal'
+          - '🇳🇱 Netherlands'
+          - '🇧🇪 Belgium'
+          - '🇨🇭 Switzerland'
+          - '🇦🇹 Austria'
+          - '🇵🇱 Poland'
+          - '🇨🇿 Czech Republic'
+          - '🇭🇺 Hungary'
+          - '🇷🇴 Romania'
+          - '🇸🇪 Sweden'
+          - '🇳🇴 Norway'
+          - '🇩🇰 Denmark'
+          - '🇫🇮 Finland'
+          - '🇬🇷 Greece'
+          - '🇹🇷 Turkey'
+          - '🇷🇺 Russia'
+          - '🇺🇦 Ukraine'
+          - '🌍 Middle East & North Africa (MENA)'
+          - '🇸🇦 Saudi Arabia'
+          - '🇦🇪 United Arab Emirates (UAE)'
+          - '🇶🇦 Qatar'
+          - '🇰🇼 Kuwait'
+          - '🇧🇭 Bahrain'
+          - '🇴🇲 Oman'
+          - '🇯🇴 Jordan'
+          - '🇱🇧 Lebanon'
+          - '🇸🇾 Syria'
+          - '🇮🇶 Iraq'
+          - '🇮🇷 Iran'
+          - '🇪🇬 Egypt'
+          - '🇲🇦 Morocco'
+          - '🇹🇳 Tunisia'
+          - '🇩🇿 Algeria'
+          - '🇱🇾 Libya'
+          - '🇸🇩 Sudan'
+          - '🌍 Africa'
+          - '🇿🇦 South Africa'
+          - '🇳🇬 Nigeria'
+          - '🇰🇪 Kenya'
+          - '🇪🇹 Ethiopia'
+          - '🇬🇭 Ghana'
+          - '🇸🇳 Senegal'
+          - '🇹🇿 Tanzania'
+          - '🇺🇬 Uganda'
+          - '🇨🇲 Cameroon'
+          - '🌏 Asia Pacific'
+          - '🇨🇳 China'
+          - '🇯🇵 Japan'
+          - '🇰🇷 South Korea'
+          - '🇮🇳 India'
+          - '🇸🇬 Singapore'
+          - '🇭🇰 Hong Kong'
+          - '🇹🇼 Taiwan'
+          - '🇦🇺 Australia'
+          - '🇳🇿 New Zealand'
+          - '🇵🇭 Philippines'
+          - '🇲🇾 Malaysia'
+          - '🇮🇩 Indonesia'
+          - '🇹🇭 Thailand'
+          - '🇻🇳 Vietnam'
+          - '🇵🇰 Pakistan'
+          - '🇧🇩 Bangladesh'
+          - '🇱🇰 Sri Lanka'
+          - '🇳🇵 Nepal'
+          - '🇧🇹 Bhutan'
+          - '🌏 Central Asia'
+          - '🇰🇿 Kazakhstan'
+          - '🇺🇿 Uzbekistan'
+          - '🇹🇲 Turkmenistan'
+          - '🇰🇬 Kyrgyzstan'
+          - '🇹🇯 Tajikistan'
+        default: '🌍 Worldwide (All Countries)'
       
       # Max Batches
       max_batches:
-        description: 'Max Batches Per Run (0=all, 12=600 papers in 6hrs)'
+        description: '📦 Paper Limit (0=All, 12=600 papers in ~6hrs)'
         required: false
         type: string
         default: '12'
       
       # Enable Sci-Hub
       enable_scihub:
-        description: 'Enable Sci-Hub / Shadow Libraries?'
+        description: '🔓 Enable Shadow Libraries (Sci-Hub for paid papers)?'
         required: false
         type: boolean
         default: true
       
       # Output Folder Mode
       output_mode:
-        description: 'Output Folder Mode'
+        description: '📁 Output Folder Structure'
         required: false
         type: choice
         options:
-          - hierarchy
-          - single
-        default: 'hierarchy'
+          - 'Hierarchical (16 folders - by Year/Topic/Author)'
+          - 'Single Folder (All files in one directory)'
+          - 'Flat (Simple list - no subfolders)'
+        default: 'Hierarchical (16 folders - by Year/Topic/Author)'
       
       # Custom Keywords
       custom_keywords:
-        description: 'Custom Keywords (comma-separated, or leave blank for auto-extraction)'
+        description: '🔑 Custom Focus Keywords (comma-separated, optional)'
         required: false
         type: string
         default: ''
       
       # Proxy
       proxy:
-        description: 'Proxy (y=auto qoder, p=custom URL, n=skip)'
+        description: '🌐 Proxy / VPN Settings'
         required: false
         type: choice
         options:
-          - y
-          - p
-          - n
-        default: 'y'
+          - 'y - Auto (Built-in proxy for restricted sites)'
+          - 'p - Custom URL (Provide your own proxy)'
+          - 'n - Skip (Direct connection, no proxy)'
+        default: 'y - Auto (Built-in proxy for restricted sites)'
 
 jobs:
   research-search:
@@ -176,40 +393,50 @@ jobs:
       - name: Display Configuration
         run: |
           echo "========================================="
-          echo "    Research Hunter - Search Config"
+          echo "   🔬 Research Hunter - Search Config"
           echo "========================================="
           echo ""
-          echo "📚 Research Topic: ${{ github.event.inputs.research_topic }}"
+          echo "📚 RESEARCH TOPIC:"
+          echo "   ${{ github.event.inputs.research_topic }}"
           echo ""
-          echo "❓ Research Questions:"
+          echo "❓ RESEARCH QUESTIONS:"
           [[ -n "${{ github.event.inputs.research_question_1 }}" ]] && echo "   1. ${{ github.event.inputs.research_question_1 }}"
           [[ -n "${{ github.event.inputs.research_question_2 }}" ]] && echo "   2. ${{ github.event.inputs.research_question_2 }}"
           [[ -n "${{ github.event.inputs.research_question_3 }}" ]] && echo "   3. ${{ github.event.inputs.research_question_3 }}"
           [[ -n "${{ github.event.inputs.research_question_4 }}" ]] && echo "   4. ${{ github.event.inputs.research_question_4 }}"
           [[ -n "${{ github.event.inputs.research_question_5 }}" ]] && echo "   5. ${{ github.event.inputs.research_question_5 }}"
           echo ""
-          echo "🎓 Academic Field: ${{ github.event.inputs.academic_field }}"
-          echo "📄 Study Type: ${{ github.event.inputs.study_type }}"
+          echo "🎓 ACADEMIC FIELD:"
+          echo "   ${{ github.event.inputs.academic_field }}"
           echo ""
-          echo "🌐 Language: ${{ github.event.inputs.language }}"
-          echo "   (1=EN, 2=AR, 3=FR, 4=ES, 5=EN+AR, 6=EN+FR, 7=EN+AR+FR, 8=All)"
+          echo "📄 STUDY TYPE:"
+          echo "   ${{ github.event.inputs.study_type }}"
           echo ""
-          echo "📅 Year Range: ${{ github.event.inputs.year_from }} - ${{ github.event.inputs.year_to }}"
+          echo "🌐 SEARCH LANGUAGE:"
+          echo "   ${{ github.event.inputs.language }}"
           echo ""
-          echo "⚡ Search Mode: ${{ github.event.inputs.search_mode }}"
-          echo "   • sample: ~10-15min (4 platforms, ~80 papers)"
-          echo "   • quick: ~30min (8 platforms, ~1000 papers)"
-          echo "   • field: ~2hr (28 platforms, ~3000 papers)"
-          echo "   • deep: 4-8hr+ (all 70+ platforms)"
+          echo "🌍 GEOGRAPHIC AREA:"
+          echo "   ${{ github.event.inputs.geographic_area }}"
           echo ""
-          echo "📦 Max Batches: ${{ github.event.inputs.max_batches }}"
-          echo "🔓 Sci-Hub: ${{ github.event.inputs.enable_scihub }}"
-          echo "📁 Output Mode: ${{ github.event.inputs.output_mode }}"
-          echo "🔑 Proxy: ${{ github.event.inputs.proxy }}"
+          echo "📅 YEAR RANGE:"
+          echo "   From: ${{ github.event.inputs.year_from }}"
+          echo "   To:   ${{ github.event.inputs.year_to }}"
+          echo ""
+          echo "⚡ SEARCH MODE:"
+          echo "   ${{ github.event.inputs.search_mode }}"
+          echo ""
+          echo "📦 MAX BATCHES: ${{ github.event.inputs.max_batches }}"
+          echo "   (Each batch = 50 papers)"
+          echo "   0 = Unlimited, 12 = 600 papers in ~6 hours"
+          echo ""
+          echo "🔓 SCI-HUB/SHADOW LIBRARIES: ${{ github.event.inputs.enable_scihub }}"
+          echo "📁 OUTPUT MODE: ${{ github.event.inputs.output_mode }}"
+          echo "🔑 CUSTOM KEYWORDS: ${{ github.event.inputs.custom_keywords }}"
+          echo "🌐 PROXY: ${{ github.event.inputs.proxy }}"
           echo ""
           echo "========================================="
       
-      - name: Run Research Search
+      - name: Execute Search
         env:
           RESEARCH_TOPIC: ${{ github.event.inputs.research_topic }}
           RESEARCH_QUESTION_1: ${{ github.event.inputs.research_question_1 }}
@@ -223,65 +450,23 @@ jobs:
           YEAR_FROM: ${{ github.event.inputs.year_from }}
           YEAR_TO: ${{ github.event.inputs.year_to }}
           SEARCH_MODE: ${{ github.event.inputs.search_mode }}
+          GEOGRAPHIC_AREA: ${{ github.event.inputs.geographic_area }}
           MAX_BATCHES: ${{ github.event.inputs.max_batches }}
           ENABLE_SCIHUB: ${{ github.event.inputs.enable_scihub }}
           OUTPUT_MODE: ${{ github.event.inputs.output_mode }}
           CUSTOM_KEYWORDS: ${{ github.event.inputs.custom_keywords }}
           PROXY: ${{ github.event.inputs.proxy }}
         run: |
-          python -c "
-          import os
-          from src.cli.workflow_cli import SearchWorkflow, SearchWorkflowConfig
-          from src.config.languages import LANGUAGE_OPTIONS
-          import asyncio
-          
-          # Build config from inputs
-          config = SearchWorkflowConfig()
-          config.topic = os.getenv('RESEARCH_TOPIC', '')
-          
-          # Research questions
-          questions = []
-          for i in range(1, 6):
-              q = os.getenv(f'RESEARCH_QUESTION_{i}', '')
-              if q:
-                  questions.append(q)
-          config.research_questions = questions
-          
-          # Language
-          lang_choice = os.getenv('LANGUAGE', '8')
-          config.selected_languages = LANGUAGE_OPTIONS.get(lang_choice, ['en'])
-          
-          # Year range
-          year_from = os.getenv('YEAR_FROM', '')
-          year_to = os.getenv('YEAR_TO', '')
-          config.year_from = int(year_from) if year_from.isdigit() else None
-          config.year_to = int(year_to) if year_to.isdigit() else None
-          
-          # Other settings
-          config.papers_limit = int(os.getenv('MAX_BATCHES', '12')) * 50
-          config.search_mode = os.getenv('SEARCH_MODE', 'quick')
-          config.output_mode = os.getenv('OUTPUT_MODE', 'hierarchy')
-          config.enable_scihub = os.getenv('ENABLE_SCIHUB', 'true').lower() == 'true'
-          config.custom_keywords = os.getenv('CUSTOM_KEYWORDS', '')
-          
-          print(f'Config loaded:')
-          print(f'  Topic: {config.topic}')
-          print(f'  Languages: {config.selected_languages}')
-          print(f'  Year range: {config.year_from} - {config.year_to}')
-          print(f'  Papers limit: {config.papers_limit}')
-          print(f'  Search mode: {config.search_mode}')
-          "
-      
-      - name: Execute Search
-        env:
-          RESEARCH_TOPIC: ${{ github.event.inputs.research_topic }}
-          LANGUAGE: ${{ github.event.inputs.language }}
-          YEAR_FROM: ${{ github.event.inputs.year_from }}
-          YEAR_TO: ${{ github.event.inputs.year_to }}
-          SEARCH_MODE: ${{ github.event.inputs.search_mode }}
-          MAX_BATCHES: ${{ github.event.inputs.max_batches }}
-        run: |
-          echo "Starting search execution..."
+          echo "🚀 Starting search execution..."
+          echo ""
+          echo "Configuration parsed:"
+          echo "  - Topic: $RESEARCH_TOPIC"
+          echo "  - Languages: $LANGUAGE"
+          echo "  - Geography: $GEOGRAPHIC_AREA"
+          echo "  - Year range: $YEAR_FROM to $YEAR_TO"
+          echo "  - Search mode: $SEARCH_MODE"
+          echo ""
+          echo "⏳ This may take several minutes to hours depending on search mode..."
           # Run the actual search
           python run.py search "$RESEARCH_TOPIC" \
             --year-from "$YEAR_FROM" \
@@ -304,12 +489,15 @@ jobs:
         run: |
           echo ""
           echo "========================================="
-          echo "       Search Execution Complete"
+          echo "   ✅ Search Execution Complete"
           echo "========================================="
           echo ""
-          echo "✅ Workflow Run: ${{ github.run_number }}"
+          echo "🔢 Workflow Run: #${{ github.run_number }}"
           echo "📅 Date: $(date)"
-          echo "📁 Results saved as artifact"
+          echo "🔗 Run URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           echo ""
-          echo "View artifacts at:"
-          echo "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          echo "📁 Results saved as artifact"
+          echo "   Artifact name: research-results-${{ github.run_number }}"
+          echo "   Retention: 30 days"
+          echo ""
+          echo "Download your results from the Actions tab."
