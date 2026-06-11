@@ -5192,13 +5192,17 @@ EXTENDED_PLATS = [
 ]
 
 # ULTRA mode: All 128+ platforms with maximum paper limits
-ULTRA_PLATS = list(PLATFORM_FNS.keys())
+# Note: PLATFORM_FNS is defined later in the file after all search functions
+# These will be populated when PLATFORM_FNS is defined
+ULTRA_PLATS = []
 
 SAMPLE_PLATS = [
     "Semantic Scholar", "OpenAlex", "CORE", "CrossRef",
 ]
 
-DEEP_PLATS = list(PLATFORM_FNS.keys())
+# DEEP mode: All platforms (will be populated after PLATFORM_FNS is defined)
+DEEP_PLATS = []
+
 LIBYAN_PLATS  = list(LIBYAN_PLATFORM_URLS.keys())
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -9057,6 +9061,10 @@ PLATFORM_FNS = {
     "EarthArXiv":       search_eartharxiv,
     "BioOne":           search_bioone,
 }
+
+# Populate platform lists from PLATFORM_FNS (must be after PLATFORM_FNS definition)
+DEEP_PLATS = list(PLATFORM_FNS.keys())
+ULTRA_PLATS = list(PLATFORM_FNS.keys())
 
 if __name__ == "__main__":
     # ── GitHub Actions / CLI mode ────────────────────────────────────────────
