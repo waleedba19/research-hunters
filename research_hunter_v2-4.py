@@ -9759,6 +9759,54 @@ def main_headless(params: dict):
 # PLATFORM_FNS - Moved here to ensure all functions are defined first
 # ─────────────────────────────────────────────────────────────────────────────
 
+
+# ════════════════════════════════════════════════════════════════════════════════
+# PLATFORM LISTS (for different search modes)
+# ════════════════════════════════════════════════════════════════════════════════
+
+SAMPLE_PLATS = [
+    "Semantic Scholar", "OpenAlex", "CORE", "arXiv",
+]
+
+QUICK_PLATS = [
+    "Semantic Scholar", "OpenAlex", "CORE", "arXiv",
+    "Google Scholar", "ResearchGate", "DOAJ", "SSRN",
+]
+
+FIELD_PLATS = [
+    "Semantic Scholar", "OpenAlex", "CORE", "ERIC", "DOAJ",
+    "HAL Archives", "CrossRef", "Zenodo", "SciELO",
+    "Nature", "eLife Sciences", "CORE API",
+    "Europe PMC", "PLoS ONE", "Oxford UP",
+    "Springer Open", "Wiley Open", "Taylor & Francis",
+    "ScienceDirect", "SSRN",
+    "bioRxiv", "medRxiv", "PsyArXiv", "OSF Preprints",
+    "MDPI", "OpenAIRE", "Science.gov", "NASA NTRS",
+    "Google Scholar", "ResearchGate", "BASE",
+]
+
+EXTENDED_PLATS = [
+    "Semantic Scholar", "OpenAlex", "CORE", "ERIC", "DOAJ",
+    "HAL Archives", "CrossRef", "Zenodo", "SciELO",
+    "PubMed", "BASE", "Europe PMC",
+    "Nature", "eLife Sciences", "CORE API",
+    "PLoS ONE", "Oxford UP", "Springer Open", "Wiley Open",
+    "Taylor & Francis", "ScienceDirect", "SSRN",
+    "bioRxiv", "medRxiv", "PsyArXiv", "OSF Preprints", "SocArXiv",
+    "MDPI", "OpenAIRE", "Science.gov", "NASA NTRS",
+    "Google Scholar", "ResearchGate",
+    "arXiv", "Zenodo Extended",
+    "Redalyc", "Dialnet", "PhilPapers",
+    "Directory of OA Books", "CogPrints",
+    "AJOL", "SciELO Brazil", "Dialnet",
+    "PaperPanda", "Academia.edu",
+    "WorldWideScience", "Digital Commons",
+    "Internet Archive", "OATD", "EThOS",
+    "ScienceOpen", "OA.mg",
+]
+
+# ════════════════════════════════════════════════════════════════════════════════
+
 PLATFORM_FNS = {
     # ── Core API platforms ──────────────────────────────────────────────────────
     "Semantic Scholar": search_semantic_scholar,
