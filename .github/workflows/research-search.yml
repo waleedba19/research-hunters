@@ -881,16 +881,33 @@ jobs:
           echo ""
           echo "⏳ This may take several minutes to hours depending on search mode..."
           
-          # Build command arguments
+          # Build command arguments - use printf for safe quoting of special characters
           CMD="python research_hunter_v2-4.py"
-          CMD="$CMD --title "$RESEARCH_TOPIC""
+          # Use printf %q to safely quote the title (handles special chars: : ' " etc.)
+          SAFE_TITLE=$(printf '%s' "$RESEARCH_TOPIC" | python3 -c 'import sys,json; print(json.dumps(sys.stdin.read()))' 2>/dev/null || echo "\"$RESEARCH_TOPIC\"")
+          CMD="$CMD --title $SAFE_TITLE"
           
           # Add research questions if provided
-          [[ -n "$RQ1" ]] && CMD="$CMD --rq1 "$RQ1""
-          [[ -n "$RQ2" ]] && CMD="$CMD --rq2 "$RQ2""
-          [[ -n "$RQ3" ]] && CMD="$CMD --rq3 "$RQ3""
-          [[ -n "$RQ4" ]] && CMD="$CMD --rq4 "$RQ4""
-          [[ -n "$RQ5" ]] && CMD="$CMD --rq5 "$RQ5""
+          if [[ -n "$RQ1" ]]; then
+            SAFE_RQ1=$(printf '%s' "$RQ1" | python3 -c 'import sys,json; print(json.dumps(sys.stdin.read()))' 2>/dev/null || echo "\"$RQ1\"")
+            CMD="$CMD --rq1 $SAFE_RQ1"
+          fi
+          if [[ -n "$RQ2" ]]; then
+            SAFE_RQ2=$(printf '%s' "$RQ2" | python3 -c 'import sys,json; print(json.dumps(sys.stdin.read()))' 2>/dev/null || echo "\"$RQ2\"")
+            CMD="$CMD --rq2 $SAFE_RQ2"
+          fi
+          if [[ -n "$RQ3" ]]; then
+            SAFE_RQ3=$(printf '%s' "$RQ3" | python3 -c 'import sys,json; print(json.dumps(sys.stdin.read()))' 2>/dev/null || echo "\"$RQ3\"")
+            CMD="$CMD --rq3 $SAFE_RQ3"
+          fi
+          if [[ -n "$RQ4" ]]; then
+            SAFE_RQ4=$(printf '%s' "$RQ4" | python3 -c 'import sys,json; print(json.dumps(sys.stdin.read()))' 2>/dev/null || echo "\"$RQ4\"")
+            CMD="$CMD --rq4 $SAFE_RQ4"
+          fi
+          if [[ -n "$RQ5" ]]; then
+            SAFE_RQ5=$(printf '%s' "$RQ5" | python3 -c 'import sys,json; print(json.dumps(sys.stdin.read()))' 2>/dev/null || echo "\"$RQ5\"")
+            CMD="$CMD --rq5 $SAFE_RQ5"
+          fi
           
           # Add field (extract number from "1. Field Name" format)
           FIELD_NUM=$(echo "$ACADEMIC_FIELD" | cut -d. -f1)
@@ -982,8 +999,11 @@ jobs:
           esac
           CMD="$CMD --max-papers $MAX_PAPERS"
           
-          # Add custom keywords
-          [[ -n "$CUSTOM_KEYWORDS" ]] && CMD="$CMD --keywords "$CUSTOM_KEYWORDS""
+          # Add custom keywords (with safe quoting)
+          if [[ -n "$CUSTOM_KEYWORDS" ]]; then
+            SAFE_KEYWORDS=$(printf '%s' "$CUSTOM_KEYWORDS" | python3 -c 'import sys,json; print(json.dumps(sys.stdin.read()))' 2>/dev/null || echo "\"$CUSTOM_KEYWORDS\"")
+            CMD="$CMD --keywords $SAFE_KEYWORDS"
+          fi
           
           # Add scihub if enabled
           [[ "$ENABLE_SCIHUB" == "true" ]] && CMD="$CMD --scihub"
