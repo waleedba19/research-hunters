@@ -8446,6 +8446,33 @@ def main():
     dl_mode_str = "single folder" if single_folder else "smart folders"
     info(f"Interleaved quartile verification + download (14-layer chain) into {dl_mode_str}…")
 
+    # ── OPTIMIZATION: Skip quartile check if "All Quartiles" selected ──────────
+    # When user selects "All Quartiles (Q1-Q4)", we don't need to verify quartiles
+    # This saves ~50+ HTTP requests per batch (each takes 5s = 250s saved per batch!)
+    skip_quartile_check = (quartile_filter in ("7", "All Quartiles (Q1-Q4)", 
+                                                "All Indexes", "Indexed Only"))
+    if skip_quartile_check:
+        info("  ⚡ Quartile check SKIPPED (All Quartiles mode) — using API data directly")
+        for p in new_papers:
+            existing_q = p.get("scopus_quartile") or {}
+            if isinstance(existing_q, dict):
+                p["scopus_quartile"] = existing_q
+            else:
+                p["scopus_quartile"] = {"quartile": "Not Found", "verified": False}
+        ok(f"  All papers: Q1=0 Q2=0 Q3=0 Q4=0 N/A={len(new_papers)}")
+        info(f"  Downloading {len(new_papers)} papers (quartile check skipped)…")
+        for i, paper in enumerate(new_papers, 1):
+            success, folder_used = smart_file_paper(paper, out_folder, use_scihub, red_list, cache, single_folder)
+            paper["downloaded"] = success
+            if success:
+                dl_count += 1
+            if i % 10 == 0:
+                info(f"    [{i}/{len(new_papers)}] {dl_count} downloaded so far…")
+        ok(f"  Downloaded {dl_count} / {len(new_papers)} PDFs")
+        cache.save()
+        ok(f"Saved results.json ({len(new_papers)} total papers)")
+        return
+
     BATCH_SIZE = 50  # Papers per batch
     MAX_BATCHES = int(os.environ.get("MAX_BATCHES", "0"))  # 0 = all batches
     dl_count  = 0

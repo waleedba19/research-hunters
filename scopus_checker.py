@@ -148,7 +148,7 @@ def _scimago_lookup(journal: str) -> dict | None:
     try:
         # SJR search endpoint (returns HTML; we just need a hit + quartile band)
         url = f"https://www.scimagojr.com/journalsearch.php?q={quote(journal)}"
-        r = requests.get(url, headers=HDRS, timeout=12, allow_redirects=True)
+        r = requests.get(url, headers=HDRS, timeout=5, allow_redirects=True)  # Reduced from 12s to 5s
         if r.status_code != 200:
             return None
         text = r.text.lower()
@@ -201,7 +201,7 @@ def check_quartile(journal: str) -> dict:
 # ──────────────────────────────────────────────────────────────────────────────
 #  Bulk: bulk_check(papers)
 # ──────────────────────────────────────────────────────────────────────────────
-def bulk_check(papers: list[dict], *, max_workers: int = 6) -> list[dict]:
+def bulk_check(papers: list[dict], *, max_workers: int = 12) -> list[dict]:  # Increased from 6 to 12
     """
     Add / refresh 'scopus_quartile' on every paper in `papers` (in-place return).
 
