@@ -1,171 +1,601 @@
-name: Research Hunter Search
+name: Research Hunter v7 - Ultra Comprehensive Search
 
 on:
   workflow_dispatch:
     inputs:
-      # Research Topic (Required)
+      # ─────────────────────────────────────────────────────────────────────
+      # RESEARCH TOPIC (Required)
+      # ─────────────────────────────────────────────────────────────────────
       research_topic:
-        description: 'Research Topic / Title (required)'
+        description: '📌 Research Topic / Title (Required)'
         required: true
         type: string
-      
-      # Research Questions (Optional)
+
       research_question_1:
-        description: 'Research Question 1 (optional)'
+        description: '❓ RQ1 (Optional)'
         required: false
         type: string
         default: ''
       
       research_question_2:
-        description: 'Research Question 2 (optional)'
+        description: '❓ RQ2 (Optional)'
         required: false
         type: string
         default: ''
       
       research_question_3:
-        description: 'Research Question 3 (optional)'
+        description: '❓ RQ3 (Optional)'
         required: false
         type: string
         default: ''
       
       research_question_4:
-        description: 'Research Question 4 (optional)'
+        description: '❓ RQ4 (Optional)'
         required: false
         type: string
         default: ''
       
       research_question_5:
-        description: 'Research Question 5 (optional)'
+        description: '❓ RQ5 (Optional)'
         required: false
         type: string
         default: ''
-      
-      # Academic Field - Detailed options
+
+      # ─────────────────────────────────────────────────────────────────────
+      # STEP 1: ACADEMIC FIELD (278+ fields)
+      # ─────────────────────────────────────────────────────────────────────
       academic_field:
-        description: '🎓 Academic Field'
-        required: false
-        type: choice
-        options:
-          - 'All Fields (No Filter)'
-          - 'Computer Science & AI (AI, ML, Deep Learning, NLP)'
-          - 'Medicine & Health (Clinical, Medical Research, Public Health)'
-          - 'Engineering (Electrical, Mechanical, Civil, Chemical)'
-          - 'Business & Economics (Management, Finance, Marketing)'
-          - 'Social Sciences (Sociology, Psychology, Anthropology)'
-          - 'Education (Pedagogy, E-Learning, Curriculum)'
-          - 'Law & Legal Studies (International Law, Human Rights)'
-          - 'Arts & Humanities (History, Literature, Philosophy)'
-          - 'Sciences (Physics, Chemistry, Biology, Mathematics)'
-          - 'Environmental Science (Climate, Sustainability, Ecology)'
-          - 'Agriculture & Food Science (Crops, Soil, Food Security)'
-          - 'Economics & Econometrics'
-          - 'Political Science & International Relations'
-          - 'Communication & Media Studies'
-          - 'Mathematics & Statistics'
-          - 'Physics & Astronomy'
-          - 'Chemistry & Materials Science'
-          - 'Biology & Life Sciences'
-          - 'Earth Sciences & Geology'
-          - 'Energy & Renewable Energy'
-          - 'Information Technology & Systems'
-          - 'Cybersecurity & Cryptography'
-          - 'Data Science & Big Data'
-          - 'Robotics & Automation'
-          - 'Telecommunications & Networking'
-          - 'Aerospace & Aviation'
-          - 'Biotechnology & Bioinformatics'
-          - 'Pharmaceutical Sciences & Drug Development'
-          - 'Nursing & Healthcare Management'
-          - 'Dentistry & Oral Health'
-          - 'Veterinary Sciences'
-          - 'Architecture & Urban Planning'
-          - 'Transportation & Logistics'
-          - 'Manufacturing & Industrial Engineering'
-          - 'Nanotechnology & Materials'
-        default: 'All Fields (No Filter)'
-      
-      # Study Type - Detailed options
-      study_type:
-        description: '📄 Study / Publication Type'
-        required: false
-        type: choice
-        options:
-          - 'Any Type (All Publications)'
-          - 'Journal Articles (Peer-Reviewed Research Papers)'
-          - 'Conference Papers (Conference Proceedings)'
-          - 'Theses & Dissertations (Master/PhD Thesis)'
-          - 'Books & Book Chapters'
-          - 'Preprints (arXiv, bioRxiv, etc.)'
-          - 'Systematic Reviews & Meta-Analyses'
-          - 'Clinical Trials & Case Studies'
-          - 'Technical Reports & White Papers'
-          - 'Government Documents & Policy Papers'
-          - 'Working Papers & Discussion Papers'
-          - 'Patents & Intellectual Property'
-        default: 'Any Type (All Publications)'
-      
-      # Language Selection - Detailed with flags
-      language:
-        description: '🌐 Search Language(s) (Academic Paper Language)'
+        description: '🎓 STEP 1: Academic Field (278+ fields)'
         required: true
         type: choice
         options:
-          - '1 - English (🇬🇧) - UK, USA, International'
-          - '2 - Arabic (🇸🇦) - العربية - Middle East, North Africa'
-          - '3 - French (🇫🇷) - Français - France, Africa, Canada'
-          - '4 - Spanish (🇪🇸) - Español - Spain, Latin America'
-          - '5 - German (🇩🇪) - Deutsch - Germany, Austria, Switzerland'
-          - '6 - Chinese (🇨🇳) - 中文 - China, Taiwan, Singapore'
-          - '7 - Portuguese (🇵🇹) - Português - Portugal, Brazil'
-          - '8 - Persian/Farsi (🇮🇷) - فارسی - Iran, Afghanistan'
-          - '9 - Turkish (🇹🇷) - Türkçe - Turkey, Cyprus'
-          - '10 - Japanese (🇯🇵) - 日本語 - Japan'
-          - '11 - Korean (🇰🇷) - 한국어 - South Korea'
-          - '12 - Russian (🇷🇺) - Русский - Russia, CIS'
-          - '13 - Italian (🇮🇹) - Italiano - Italy'
-          - '14 - Dutch (🇳🇱) - Nederlands - Netherlands, Belgium'
-          - '15 - Polish (🇵🇱) - Polski - Poland'
-          - '16 - Ukrainian (🇺🇦) - Українська - Ukraine'
-          - '17 - Hindi (🇮🇳) - हिन्दी - India'
-          - '18 - Urdu (🇵🇰) - اردو - Pakistan'
-          - '19 - Indonesian (🇮🇩) - Bahasa Indonesia - Indonesia'
-          - '20 - Vietnamese (🇻🇳) - Tiếng Việt - Vietnam'
-          - '21 - Thai (🇹🇭) - ไทย - Thailand'
-          - '22 - Greek (🇬🇷) - Ελληνικά - Greece'
-          - '23 - Hebrew (🇮🇱) - עברית - Israel'
-          - '24 - Swedish (🇸🇪) - Svenska - Scandinavia'
-          - '25 - Norwegian (🇳🇴) - Norsk - Scandinavia'
-          - '26 - Danish (🇩🇰) - Dansk - Scandinavia'
-          - '27 - Finnish (🇫🇮) - Suomi - Scandinavia'
-          - '28 - Czech (🇨🇿) - Čeština - Czech Republic'
-          - '29 - Hungarian (🇭🇺) - Magyar - Hungary'
-          - '30 - Romanian (🇷🇴) - Română - Romania'
-          - '31 - Bulgarian (🇧🇬) - Български - Bulgaria'
-          - '32 - Croatian (🇭🇷) - Hrvatski - Croatia'
-          - '33 - Serbian (🇷🇸) - Српски - Serbia'
-          - '34 - Slovenian (🇸🇮) - Slovenščina - Slovenia'
-          - '35 - Slovak (🇸🇰) - Slovenčina - Slovakia'
-          - '36 - Lithuanian (🇱🇹) - Lietuvių - Lithuania'
-          - '37 - Latvian (🇱🇻) - Latviešu - Latvia'
-          - '38 - Estonian (🇪🇪) - Eesti - Estonia'
-          - '39 - Malay (🇲🇾) - Bahasa Malaysia - Malaysia'
-          - '40 - Filipino (🇵🇭) - Tagalog - Philippines'
-          - '41 - Bangla (🇧🇩) - বাংলা - Bangladesh'
-          - '42 - Tamil (🇮🇳) - தமிழ் - India, Sri Lanka'
-          - '43 - Ukrainian (🇺🇦) - Українська - Ukraine'
-          - '44 - Catalan (🇦🇩) - Català - Catalonia'
-          - '45 - Welsh (🏴󠁧󠁢󠁷󠁬󠁳󠁿) - Cymraeg - Wales'
-          - '46 - Basque (🇪🇸) - Euskara - Basque Country'
-          - '47 - Galician (🇪🇸) - Galego - Galicia'
-          - '48 - Afrikaans (🇿🇦) - Afrikaans - South Africa'
-          - '49 - Amharic (🇪🇹) - አማርኛ - Ethiopia'
-          - '50 - Swahili (🇰🇪) - Kiswahili - East Africa'
-          - '51 - Yoruba (🇳🇬) - Yoruba - Nigeria'
-          - '52 - Zulu (🇿🇦) - isiZulu - South Africa'
-          - '53 - All Languages (🌍 Comprehensive - All Academic Papers)'
-        default: '1 - English (🇬🇧) - UK, USA, International'
-      
-      # Year Range - Selectable options
+          - '1. Applied Linguistics'
+          - '2. Sociolinguistics'
+          - '3. Psycholinguistics'
+          - '4. Neurolinguistics'
+          - '5. Bilingualism & Multilingualism'
+          - '6. Corpus Linguistics'
+          - '7. Discourse Analysis'
+          - '8. Phonetics & Phonology'
+          - '9. Morphology'
+          - '10. Syntax'
+          - '11. Semantics'
+          - '12. Pragmatics'
+          - '13. TESOL (Teaching English to Speakers of Other Languages)'
+          - '14. TEFL (Teaching English as a Foreign Language)'
+          - '15. ESL (English as a Second Language)'
+          - '16. EFL (English as a Foreign Language)'
+          - '17. Language Teaching Methodology'
+          - '18. Language Assessment & Testing'
+          - '19. Curriculum Design in Language Education'
+          - '20. Second Language Acquisition (SLA)'
+          - '21. Language Teacher Education'
+          - '22. Computer-Assisted Language Learning (CALL)'
+          - '23. Translation Studies'
+          - '24. Interpreting Studies'
+          - '25. Subtitling & Dubbing'
+          - '26. Translation Technology (CAT Tools)'
+          - '27. Literary Translation'
+          - '28. Technical & Scientific Translation'
+          - '29. Legal Translation'
+          - '30. Medical Translation'
+          - '31. Computational Linguistics'
+          - '32. Historical Linguistics'
+          - '33. Typological Linguistics'
+          - '34. Language Documentation'
+          - '35. Forensic Linguistics'
+          - '36. General Education'
+          - '37. Early Childhood Education'
+          - '38. Primary Education'
+          - '39. Secondary Education'
+          - '40. Higher Education'
+          - '41. Adult Education'
+          - '42. Distance Education / E-Learning'
+          - '43. Educational Technology'
+          - '44. Instructional Design'
+          - '45. Curriculum & Instruction'
+          - '46. Educational Psychology'
+          - '47. Educational Leadership'
+          - '48. Educational Policy'
+          - '49. Comparative Education'
+          - '50. Special Education / Inclusive Education'
+          - '51. Gifted Education'
+          - '52. Language Education Policy'
+          - '53. Psychology (General)'
+          - '54. Clinical Psychology'
+          - '55. Counseling Psychology'
+          - '56. Educational Psychology'
+          - '57. Social Psychology'
+          - '58. Developmental Psychology'
+          - '59. Cognitive Psychology'
+          - '60. Industrial/Organizational Psychology'
+          - '61. Health Psychology'
+          - '62. Forensic Psychology'
+          - '63. Sociology (General)'
+          - '64. Medical Sociology'
+          - '65. Sociology of Education'
+          - '66. Rural Sociology'
+          - '67. Urban Sociology'
+          - '68. Cultural Sociology'
+          - '69. Anthropology (General)'
+          - '70. Cultural Anthropology'
+          - '71. Physical Anthropology'
+          - '72. Archaeology'
+          - '73. Linguistic Anthropology'
+          - '74. Political Science'
+          - '75. International Relations'
+          - '76. Public Policy'
+          - '77. Security Studies'
+          - '78. Governance'
+          - '79. Communication Studies'
+          - '80. Media Studies'
+          - '81. Journalism'
+          - '82. Film & Television Studies'
+          - '83. Advertising & Public Relations'
+          - '84. Cultural Studies'
+          - '85. Gender Studies'
+          - '86. Women''s Studies'
+          - '87. LGBTQ+ Studies'
+          - '88. History'
+          - '89. Archaeological Studies'
+          - '90. Economic History'
+          - '91. Social History'
+          - '92. Diplomatic History'
+          - '93. Business Administration'
+          - '94. Marketing'
+          - '95. Human Resource Management'
+          - '96. Organizational Behavior'
+          - '97. Entrepreneurship'
+          - '98. International Business'
+          - '99. Supply Chain Management'
+          - '100. Operations Management'
+          - '101. Strategic Management'
+          - '102. Economics (General)'
+          - '103. Microeconomics'
+          - '104. Macroeconomics'
+          - '105. Econometrics'
+          - '106. Development Economics'
+          - '107. International Economics'
+          - '108. Labor Economics'
+          - '109. Public Finance'
+          - '110. Environmental Economics'
+          - '111. Finance (General)'
+          - '112. Banking & Financial Services'
+          - '113. Investment & Portfolio Management'
+          - '114. Corporate Finance'
+          - '115. Islamic Finance'
+          - '116. Insurance & Risk Management'
+          - '117. Accounting (General)'
+          - '118. Auditing'
+          - '119. Management Accounting'
+          - '120. Taxation'
+          - '121. Management (General)'
+          - '122. Project Management'
+          - '123. Quality Management'
+          - '124. Knowledge Management'
+          - '125. Tourism & Hospitality Management'
+          - '126. Sports Management'
+          - '127. Law (General)'
+          - '128. Constitutional Law'
+          - '129. Criminal Law'
+          - '130. Civil Law'
+          - '131. International Law'
+          - '132. Human Rights Law'
+          - '133. Environmental Law'
+          - '134. Corporate Law'
+          - '135. Intellectual Property Law'
+          - '136. Family Law'
+          - '137. Islamic Law (Sharia)'
+          - '138. Maritime Law'
+          - '139. Sports Law'
+          - '140. Forensic Science (Legal)'
+          - '141. Philosophy (General)'
+          - '142. Ethics'
+          - '143. Metaphysics'
+          - '144. Epistemology'
+          - '145. Logic'
+          - '146. Political Philosophy'
+          - '147. Literature (General)'
+          - '148. English Literature'
+          - '149. Comparative Literature'
+          - '150. American Literature'
+          - '151. Postcolonial Literature'
+          - '152. Creative Writing'
+          - '153. Classical Studies'
+          - '154. Medieval Studies'
+          - '155. Renaissance Studies'
+          - '156. Theology & Religious Studies'
+          - '157. Islamic Studies'
+          - '158. Christian Studies'
+          - '159. Jewish Studies'
+          - '160. Buddhist Studies'
+          - '161. Arts (General)'
+          - '162. Visual Arts'
+          - '163. Music Studies'
+          - '164. Theater & Performing Arts'
+          - '165. Film Studies'
+          - '166. Photography'
+          - '167. Graphic Design'
+          - '168. Fashion Design'
+          - '169. Interior Design'
+          - '170. Architecture'
+          - '171. Computer Science (General)'
+          - '172. Artificial Intelligence (AI)'
+          - '173. Machine Learning'
+          - '174. Deep Learning'
+          - '175. Natural Language Processing (NLP)'
+          - '176. Computer Vision'
+          - '177. Robotics'
+          - '178. Software Engineering'
+          - '179. Data Science'
+          - '180. Big Data Analytics'
+          - '181. Cybersecurity'
+          - '182. Information Systems'
+          - '183. Database Systems'
+          - '184. Computer Networks'
+          - '185. Cloud Computing'
+          - '186. Internet of Things (IoT)'
+          - '187. Blockchain Technology'
+          - '188. Human-Computer Interaction (HCI)'
+          - '189. Engineering (General)'
+          - '190. Civil Engineering'
+          - '191. Mechanical Engineering'
+          - '192. Electrical Engineering'
+          - '193. Electronic Engineering'
+          - '194. Chemical Engineering'
+          - '195. Aerospace Engineering'
+          - '196. Biomedical Engineering'
+          - '197. Environmental Engineering'
+          - '198. Petroleum Engineering'
+          - '199. Industrial Engineering'
+          - '200. Materials Engineering'
+          - '201. Mathematics (General)'
+          - '202. Applied Mathematics'
+          - '203. Statistics'
+          - '204. Pure Mathematics'
+          - '205. Physics (General)'
+          - '206. Chemistry (General)'
+          - '207. Organic Chemistry'
+          - '208. Inorganic Chemistry'
+          - '209. Physical Chemistry'
+          - '210. Analytical Chemistry'
+          - '211. Biochemistry'
+          - '212. Biology (General)'
+          - '213. Molecular Biology'
+          - '214. Genetics'
+          - '215. Microbiology'
+          - '216. Zoology'
+          - '217. Botany'
+          - '218. Ecology'
+          - '219. Environmental Science'
+          - '220. Marine Biology'
+          - '221. Neuroscience'
+          - '222. Astronomy & Astrophysics'
+          - '223. Geology'
+          - '224. Geophysics'
+          - '225. Medicine (General)'
+          - '226. Public Health'
+          - '227. Epidemiology'
+          - '228. Nursing (General)'
+          - '229. Pediatric Nursing'
+          - '230. Mental Health Nursing'
+          - '231. Pharmacy'
+          - '232. Dentistry'
+          - '233. Physical Therapy'
+          - '234. Occupational Therapy'
+          - '235. Veterinary Medicine'
+          - '236. Nutrition & Dietetics'
+          - '237. Sports Science'
+          - '238. Agriculture (General)'
+          - '239. Agronomy'
+          - '240. Horticulture'
+          - '241. Animal Science'
+          - '242. Food Science & Technology'
+          - '243. Agricultural Economics'
+          - '244. Library & Information Science'
+          - '245. Archival Studies'
+          - '246. Documentation Studies'
+          - '247. Knowledge Management'
+          - '248. Information Literacy'
+          - '249. Digital Humanities'
+          - '250. Data Curation'
+          - '251. Mass Communication'
+          - '252. Strategic Communication'
+          - '253. Digital Media'
+          - '254. Social Media Studies'
+          - '255. Game Studies'
+          - '256. Augmented/Virtual Reality Studies'
+          - '257. Environmental Studies'
+          - '258. Climate Change Studies'
+          - '259. Sustainability Science'
+          - '260. Renewable Energy'
+          - '261. Waste Management'
+          - '262. Water Resources Management'
+          - '263. Conservation Biology'
+          - '264. Disaster Risk Management'
+          - '265. Gender & Sexuality Studies'
+          - '266. Race & Ethnic Studies'
+          - '267. Migration Studies'
+          - '268. Development Studies'
+          - '269. Peace & Conflict Studies'
+          - '270. International Development'
+          - '271. Urban Planning'
+          - '272. Rural Development'
+          - '273. Gerontology'
+          - '274. Youth Studies'
+          - '275. Disability Studies'
+          - '276. Ageing Studies'
+          - '277. Global Studies'
+          - '278. Area Studies (MENA, Africa, Asia, etc.)'
+          - '0. All Fields (No Filter)'
+        default: '1. Applied Linguistics'
+
+      # ─────────────────────────────────────────────────────────────────────
+      # STEP 2: PUBLICATION / STUDY TYPE (49 types)
+      # ─────────────────────────────────────────────────────────────────────
+      publication_type:
+        description: '📄 STEP 2: Publication / Study Type (49 types)'
+        required: true
+        type: choice
+        options:
+          - '1. Research Article (Journal)'
+          - '2. Review Article'
+          - '3. Systematic Review'
+          - '4. Meta-Analysis'
+          - '5. Scoping Review'
+          - '6. Narrative Review'
+          - '7. Conference Paper / Proceeding'
+          - '8. Conference Poster'
+          - '9. Book (Monograph)'
+          - '10. Book Chapter'
+          - '11. Edited Volume'
+          - '12. Encyclopedia Entry'
+          - '13. Encyclopedia / Dictionary'
+          - '14. Working Paper'
+          - '15. Policy Brief'
+          - '16. Technical Report'
+          - '17. White Paper'
+          - '18. Thesis / Dissertation (General)'
+          - '19. PhD Dissertation'
+          - "20. Master's Thesis (MA/MSc)"
+          - '21. Honours Thesis'
+          - '22. Undergraduate Thesis'
+          - '23. Doctoral Capstone'
+          - '24. Research Report'
+          - '25. Case Study'
+          - '26. Technical Manual'
+          - '27. Clinical Practice Guideline'
+          - '28. Clinical Trial Report'
+          - '29. Preprint (e.g., arXiv, bioRxiv)'
+          - '30. Dataset / Data Paper'
+          - '31. Software Paper'
+          - '32. Methodology Paper'
+          - '33. Protocol Paper'
+          - '34. Short Communication / Letter'
+          - '35. Editorial / Commentary'
+          - '36. News Article'
+          - '37. Book Review'
+          - '38. Magazine Article'
+          - '39. Blog Post / Web Article'
+          - '40. Podcast / Video Content'
+          - '41. Patent'
+          - '42. Standard Document'
+          - '43. Government Publication'
+          - '44. NGO Report'
+          - '45. Consultancy Report'
+          - '46. Grant Proposal'
+          - '47. Thesis Abstract'
+          - '48. Dissertation Proposal'
+          - '49. Any / All Publication Types'
+        default: '49. Any / All Publication Types'
+
+      # ─────────────────────────────────────────────────────────────────────
+      # STEP 3: STUDY LEVEL (12 levels)
+      # ─────────────────────────────────────────────────────────────────────
+      study_level:
+        description: '🎓 STEP 3: Study Level / Degree Type (12 levels)'
+        required: true
+        type: choice
+        options:
+          - '1. PhD (Doctor of Philosophy)'
+          - '2. EdD (Doctor of Education)'
+          - '3. DBA (Doctor of Business Administration)'
+          - '4. MD/PhD (Medical Doctor / Philosophy)'
+          - '5. Professional Doctorate (e.g., DClinPsy, DBA)'
+          - "6. Master's Degree (MA / MSc / MBA / MLIS / MEduc / etc.)"
+          - '7. Postgraduate Diploma / Certificate'
+          - '8. Honours Degree (BA/BSc Hons)'
+          - "9. Bachelor's Degree (BA / BSc / BEd / etc.)"
+          - '10. Associate Degree / Foundation'
+          - '11. Research Article / Academic Paper'
+          - '12. Any / All Levels'
+        default: '12. Any / All Levels'
+
+      # ─────────────────────────────────────────────────────────────────────
+      # STEP 4: RESEARCH METHODOLOGY (51 types)
+      # ─────────────────────────────────────────────────────────────────────
+      research_methodology:
+        description: '🔬 STEP 4: Research Methodology / Design (51 types)'
+        required: true
+        type: choice
+        options:
+          - '1. Experimental Study'
+          - '2. Quasi-Experimental Study'
+          - '3. True Experimental / RCT (Randomized Controlled Trial)'
+          - '4. Non-Experimental / Correlational Study'
+          - '5. Qualitative Study'
+          - '6. Quantitative Study'
+          - '7. Mixed-Methods Study'
+          - '8. Case Study'
+          - '9. Ethnographic Study'
+          - '10. Phenomenological Study'
+          - '11. Grounded Theory Study'
+          - '12. Narrative Inquiry / Narrative Study'
+          - '13. Action Research'
+          - '14. Survey Research'
+          - '15. Longitudinal Study'
+          - '16. Cross-Sectional Study'
+          - '17. Cohort Study'
+          - '18. Cross-Cultural Study'
+          - '19. Comparative Study'
+          - '20. Historical Research'
+          - '21. Content Analysis Study'
+          - '22. Discourse Analysis Study'
+          - '23. Conversational Analysis'
+          - '24. Corpus-Based Study'
+          - '25. Grounded Theory Methodology'
+          - '26. Interpretive Phenomenological Analysis (IPA)'
+          - '27. Framework Analysis'
+          - '28. Thematic Analysis'
+          - '29. Constant Comparative Method'
+          - '30. Design-Based Research'
+          - '31. Design Science Research'
+          - '32. Delphi Study'
+          - '33. Focus Group Study'
+          - '34. Interview-Based Study'
+          - '35. Observation Study'
+          - '36. Triangulation Study'
+          - '37. Replication Study'
+          - '38. Systematic Review & Meta-Analysis'
+          - '39. Bibliometric Analysis'
+          - '40. Scientometric Study'
+          - '41. Network Analysis Study'
+          - '42. Simulation Study'
+          - '43. Modelling Study'
+          - '44. Computational Study'
+          - '45. Theoretical / Conceptual Study'
+          - '46. Philosophical Study'
+          - '47. Critical Theory Study'
+          - '48. Feminist Research'
+          - '49. Participatory Action Research (PAR)'
+          - '50. Community-Based Participatory Research (CBPR)'
+          - '51. Any / All Methodologies'
+        default: '51. Any / All Methodologies'
+
+      # ─────────────────────────────────────────────────────────────────────
+      # STEP 5: DISSERTATION / THESIS PART (28 parts)
+      # ─────────────────────────────────────────────────────────────────────
+      dissertation_part:
+        description: '📑 STEP 5: Dissertation / Thesis Part (28 parts)'
+        required: true
+        type: choice
+        options:
+          - '1. Abstract / Executive Summary'
+          - '2. Introduction / Chapter 1'
+          - '3. Literature Review / Chapter 2'
+          - '4. Theoretical Framework'
+          - '5. Methodology / Chapter 3'
+          - '6. Results / Findings / Chapter 4'
+          - '7. Discussion / Chapter 5'
+          - '8. Conclusion & Recommendations'
+          - '9. References / Bibliography'
+          - '10. Appendices'
+          - '11. Introduction (Article)'
+          - '12. Literature Review (Article)'
+          - '13. Methods (Article)'
+          - '14. Results (Article)'
+          - '15. Discussion (Article)'
+          - '16. Conclusion (Article)'
+          - '17. Preface / Foreword'
+          - '18. Introduction (Book)'
+          - '19. Chapter Content (Book)'
+          - '20. Conclusion (Book)'
+          - '21. Epilogue / Afterword'
+          - '22. Executive Summary (Report)'
+          - '23. Introduction (Report)'
+          - '24. Methodology (Report)'
+          - '25. Findings (Report)'
+          - '26. Conclusions (Report)'
+          - '27. Recommendations (Report)'
+          - '28. Any / All Parts'
+        default: '28. Any / All Parts'
+
+      # ─────────────────────────────────────────────────────────────────────
+      # STEP 6: SEARCH LANGUAGE (Filters ALL PDFs!)
+      # ─────────────────────────────────────────────────────────────────────
+      search_language:
+        description: '🌐 STEP 6: Search Language (Filters ALL PDFs!)'
+        required: true
+        type: choice
+        options:
+          - '1. English — Search English papers only'
+          - '2. Arabic — Search Arabic papers only'
+          - '3. French — Search French papers only'
+          - '4. Spanish — Search Spanish papers only'
+          - '5. German — Search German papers only'
+          - '6. Chinese — Search Chinese papers only'
+          - '7. Portuguese — Search Portuguese papers only'
+          - '8. Turkish — Search Turkish papers only'
+          - '9. Russian — Search Russian papers only'
+          - '10. Japanese — Search Japanese papers only'
+          - '11. Korean — Search Korean papers only'
+          - '12. English + Arabic — Search in both'
+          - '13. English + French — Search in both'
+          - '14. Arabic + French — Search in both'
+          - '15. English + Arabic + French — Search in EN, AR, FR'
+          - '16. All European Languages (EN, FR, ES, DE, PT, IT)'
+          - '17. All Asian Languages (ZH, JA, KO, AR, TR)'
+          - '18. All Languages — Maximum coverage'
+        default: '1. English — Search English papers only'
+
+      # ─────────────────────────────────────────────────────────────────────
+      # STEP 7: QUARTILE / RANKING (12 options)
+      # ─────────────────────────────────────────────────────────────────────
+      quartile_filter:
+        description: '📊 STEP 7: Journal Quartile / Ranking (12 options)'
+        required: true
+        type: choice
+        options:
+          - '1. Q1 (Top 25% - Highest Impact)'
+          - '2. Q2 (50-75% - Above Average)'
+          - '3. Q3 (25-50% - Average Impact)'
+          - '4. Q4 (Bottom 25% - Lower Impact)'
+          - '5. Q1 + Q2 (Top Tier Only)'
+          - '6. Q1 + Q2 + Q3 (Mid-High Tier)'
+          - '7. All Quartiles (Q1-Q4)'
+          - '8. Not Indexed / Unknown Quartile'
+          - '9. Indexed Only (Any Quartile)'
+          - '10. Scopus-Indexed Only'
+          - '11. Web of Science-Indexed Only'
+          - '12. All Indexes'
+        default: '7. All Quartiles (Q1-Q4)'
+
+      # ─────────────────────────────────────────────────────────────────────
+      # STEP 8: PAPER LIMIT (User-Friendly)
+      # ─────────────────────────────────────────────────────────────────────
+      paper_limit:
+        description: '📦 STEP 8: Paper Limit (User-Friendly)'
+        required: true
+        type: choice
+        options:
+          - '1. Light — 50 papers (~30 min)'
+          - '2. Standard — 150 papers (~1-2 hrs)'
+          - '3. Medium — 300 papers (~3-4 hrs)'
+          - '4. Extended — 500 papers (~5-6 hrs) [RECOMMENDED]'
+          - '5. Deep — 800 papers (~8-10 hrs)'
+          - '6. Maximum — 1200+ papers (~12+ hrs)'
+          - '7. Unlimited — All available papers'
+        default: '4. Extended — 500 papers (~5-6 hrs) [RECOMMENDED]'
+
+      # ─────────────────────────────────────────────────────────────────────
+      # STEP 9: SEARCH DEPTH & PLATFORMS (100+ platforms)
+      # ─────────────────────────────────────────────────────────────────────
+      search_mode:
+        description: '⚡ STEP 9: Search Depth & Platforms (100+ platforms)'
+        required: true
+        type: choice
+        options:
+          - 'Sample (~10-15 min) — 4 platforms'
+          - 'Quick (~30 min) — 8 platforms'
+          - 'Field (~2 hours) — 28 platforms'
+          - 'Deep (~4-8 hours) — 70+ platforms [RECOMMENDED]'
+          - 'Ultra (~12-24 hours) — 100+ platforms'
+          - 'Custom — Pick specific platforms'
+        default: 'Deep (~4-8 hours) — 70+ platforms [RECOMMENDED]'
+
+      # ─────────────────────────────────────────────────────────────────────
+      # YEAR RANGE
+      # ─────────────────────────────────────────────────────────────────────
       year_from:
         description: '📅 Year From (Publication Year Start)'
         required: false
@@ -192,7 +622,7 @@ on:
           - '1980 (Last 45 Years)'
           - '1975 (Last 50 Years)'
         default: 'All Years (No Limit)'
-      
+
       year_to:
         description: '📅 Year To (Publication Year End)'
         required: false
@@ -215,25 +645,12 @@ on:
           - '1995'
           - '1990'
         default: '2025 (Current Year)'
-      
-      # Search Mode - Detailed with time and paper estimates
-      search_mode:
-        description: '⚡ Search Depth & Time (Platforms, Duration, Papers)'
-        required: true
-        type: choice
-        options:
-          - 'Sample (🔬 Test Run) - 4 platforms, ~10 min, ~80 papers - Quick test of your topic'
-          - 'Quick (⚡ Standard) - 8 platforms, ~30 min, ~1,000 papers - Good for most research'
-          - 'Field (📊 Comprehensive) - 28 platforms, ~2 hours, ~3,000 papers - Deep academic search'
-          - 'Deep (🌐 Maximum) - 70+ platforms, ~4-8 hours, ~10,000 papers - Maximum coverage'
-          - 'Ultra (🚀 Extreme) - 100+ platforms, ~12-24 hours, ~25,000 papers - Exhaustive search'
-          - 'Minimal (🐢 Minimal) - 2 platforms, ~5 min, ~40 papers - Fastest option'
-          - 'Extended (⏱️ Extended) - 50 platforms, ~6 hours, ~8,000 papers - Extended deep search'
-        default: 'Quick (⚡ Standard) - 8 platforms, ~30 min, ~1,000 papers - Good for most research'
-      
-      # Geographic Areas - Comprehensive list
+
+      # ─────────────────────────────────────────────────────────────────────
+      # GEOGRAPHIC AREA
+      # ─────────────────────────────────────────────────────────────────────
       geographic_area:
-        description: '🌍 Geographic Area / Region (Where research was published)'
+        description: '🌍 Geographic Area / Region'
         required: false
         type: choice
         options:
@@ -248,60 +665,57 @@ on:
           - '🇦🇷 Argentina'
           - '🇨🇱 Chile'
           - '🇨🇴 Colombia'
-          - '🇵🇪 Peru'
           - '🇻🇪 Venezuela'
-          - '🇪🇨 Ecuador'
+          - '🇵🇪 Peru'
           - '🌍 Europe'
-          - '🇬🇧 United Kingdom (UK)'
+          - '🇬🇧 United Kingdom'
           - '🇩🇪 Germany'
           - '🇫🇷 France'
           - '🇮🇹 Italy'
           - '🇪🇸 Spain'
-          - '🇵🇹 Portugal'
           - '🇳🇱 Netherlands'
           - '🇧🇪 Belgium'
           - '🇨🇭 Switzerland'
           - '🇦🇹 Austria'
           - '🇵🇱 Poland'
-          - '🇨🇿 Czech Republic'
-          - '🇭🇺 Hungary'
-          - '🇷🇴 Romania'
           - '🇸🇪 Sweden'
           - '🇳🇴 Norway'
           - '🇩🇰 Denmark'
           - '🇫🇮 Finland'
+          - '🇵🇹 Portugal'
           - '🇬🇷 Greece'
-          - '🇹🇷 Turkey'
-          - '🇷🇺 Russia'
-          - '🇺🇦 Ukraine'
-          - '🌍 Middle East & North Africa (MENA)'
+          - '🇨🇿 Czech Republic'
+          - '🇭🇺 Hungary'
+          - '🇷🇴 Romania'
+          - '🇧🇬 Bulgaria'
+          - '🌍 Middle East'
           - '🇸🇦 Saudi Arabia'
-          - '🇦🇪 United Arab Emirates (UAE)'
+          - '🇦🇪 United Arab Emirates'
           - '🇶🇦 Qatar'
           - '🇰🇼 Kuwait'
           - '🇧🇭 Bahrain'
           - '🇴🇲 Oman'
           - '🇯🇴 Jordan'
           - '🇱🇧 Lebanon'
-          - '🇸🇾 Syria'
-          - '🇮🇶 Iraq'
+          - '🇮🇱 Israel'
+          - '🇹🇷 Turkey'
           - '🇮🇷 Iran'
+          - '🇮🇶 Iraq'
+          - '🌍 North Africa'
           - '🇪🇬 Egypt'
-          - '🇲🇦 Morocco'
+          - '🇱🇾 Libya'
           - '🇹🇳 Tunisia'
           - '🇩🇿 Algeria'
-          - '🇱🇾 Libya'
+          - '🇲🇦 Morocco'
           - '🇸🇩 Sudan'
-          - '🌍 Africa'
+          - '🌍 Sub-Saharan Africa'
           - '🇿🇦 South Africa'
           - '🇳🇬 Nigeria'
           - '🇰🇪 Kenya'
           - '🇪🇹 Ethiopia'
           - '🇬🇭 Ghana'
-          - '🇸🇳 Senegal'
           - '🇹🇿 Tanzania'
           - '🇺🇬 Uganda'
-          - '🇨🇲 Cameroon'
           - '🌏 Asia Pacific'
           - '🇨🇳 China'
           - '🇯🇵 Japan'
@@ -317,61 +731,25 @@ on:
           - '🇮🇩 Indonesia'
           - '🇹🇭 Thailand'
           - '🇻🇳 Vietnam'
-          - '🇵🇰 Pakistan'
-          - '🇧🇩 Bangladesh'
-          - '🇱🇰 Sri Lanka'
-          - '🇳🇵 Nepal'
-          - '🇧🇹 Bhutan'
-          - '🌏 Central Asia'
-          - '🇰🇿 Kazakhstan'
-          - '🇺🇿 Uzbekistan'
-          - '🇹🇲 Turkmenistan'
-          - '🇰🇬 Kyrgyzstan'
-          - '🇹🇯 Tajikistan'
         default: '🌍 Worldwide (All Countries)'
-      
-      # Max Batches
-      max_batches:
-        description: '📦 Paper Limit (0=All, 12=600 papers in ~6hrs)'
-        required: false
-        type: string
-        default: '12'
-      
-      # Enable Sci-Hub
-      enable_scihub:
-        description: '🔓 Enable Shadow Libraries (Sci-Hub for paid papers)?'
-        required: false
-        type: boolean
-        default: true
-      
-      # Output Folder Mode
-      output_mode:
-        description: '📁 Output Folder Structure'
-        required: false
-        type: choice
-        options:
-          - 'Hierarchical (16 folders - by Year/Topic/Author)'
-          - 'Single Folder (All files in one directory)'
-          - 'Flat (Simple list - no subfolders)'
-        default: 'Hierarchical (16 folders - by Year/Topic/Author)'
-      
-      # Custom Keywords
+
+      # ─────────────────────────────────────────────────────────────────────
+      # CUSTOM KEYWORDS
+      # ─────────────────────────────────────────────────────────────────────
       custom_keywords:
         description: '🔑 Custom Focus Keywords (comma-separated, optional)'
         required: false
         type: string
         default: ''
-      
-      # Proxy
-      proxy:
-        description: '🌐 Proxy / VPN Settings'
+
+      # ─────────────────────────────────────────────────────────────────────
+      # ENABLE SCIHUB
+      # ─────────────────────────────────────────────────────────────────────
+      enable_scihub:
+        description: '🔓 Enable Shadow Libraries (Sci-Hub for paid papers)?'
         required: false
-        type: choice
-        options:
-          - 'y - Auto (Built-in proxy for restricted sites)'
-          - 'p - Custom URL (Provide your own proxy)'
-          - 'n - Skip (Direct connection, no proxy)'
-        default: 'y - Auto (Built-in proxy for restricted sites)'
+        type: boolean
+        default: false
 
 jobs:
   research-search:
@@ -380,20 +758,20 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      
+
       - name: Install Dependencies
         run: |
           pip install -r requirements.txt
-      
+
       - name: Display Configuration
         run: |
           echo "========================================="
-          echo "   🔬 Research Hunter - Search Config"
+          echo "   🔬 Research Hunter v7 — Search Config"
           echo "========================================="
           echo ""
           echo "📚 RESEARCH TOPIC:"
@@ -409,11 +787,29 @@ jobs:
           echo "🎓 ACADEMIC FIELD:"
           echo "   ${{ github.event.inputs.academic_field }}"
           echo ""
-          echo "📄 STUDY TYPE:"
-          echo "   ${{ github.event.inputs.study_type }}"
+          echo "📄 PUBLICATION TYPE:"
+          echo "   ${{ github.event.inputs.publication_type }}"
+          echo ""
+          echo "🎓 STUDY LEVEL:"
+          echo "   ${{ github.event.inputs.study_level }}"
+          echo ""
+          echo "🔬 RESEARCH METHODOLOGY:"
+          echo "   ${{ github.event.inputs.research_methodology }}"
+          echo ""
+          echo "📑 DISSERTATION PART:"
+          echo "   ${{ github.event.inputs.dissertation_part }}"
           echo ""
           echo "🌐 SEARCH LANGUAGE:"
-          echo "   ${{ github.event.inputs.language }}"
+          echo "   ${{ github.event.inputs.search_language }}"
+          echo ""
+          echo "📊 QUARTILE FILTER:"
+          echo "   ${{ github.event.inputs.quartile_filter }}"
+          echo ""
+          echo "📦 PAPER LIMIT:"
+          echo "   ${{ github.event.inputs.paper_limit }}"
+          echo ""
+          echo "⚡ SEARCH MODE:"
+          echo "   ${{ github.event.inputs.search_mode }}"
           echo ""
           echo "🌍 GEOGRAPHIC AREA:"
           echo "   ${{ github.event.inputs.geographic_area }}"
@@ -422,74 +818,156 @@ jobs:
           echo "   From: ${{ github.event.inputs.year_from }}"
           echo "   To:   ${{ github.event.inputs.year_to }}"
           echo ""
-          echo "⚡ SEARCH MODE:"
-          echo "   ${{ github.event.inputs.search_mode }}"
-          echo ""
-          echo "📦 MAX BATCHES: ${{ github.event.inputs.max_batches }}"
-          echo "   (Each batch = 50 papers)"
-          echo "   0 = Unlimited, 12 = 600 papers in ~6 hours"
-          echo ""
           echo "🔓 SCI-HUB/SHADOW LIBRARIES: ${{ github.event.inputs.enable_scihub }}"
-          echo "📁 OUTPUT MODE: ${{ github.event.inputs.output_mode }}"
           echo "🔑 CUSTOM KEYWORDS: ${{ github.event.inputs.custom_keywords }}"
-          echo "🌐 PROXY: ${{ github.event.inputs.proxy }}"
           echo ""
           echo "========================================="
-      
+
       - name: Execute Search
         env:
           RESEARCH_TOPIC: ${{ github.event.inputs.research_topic }}
-          RESEARCH_QUESTION_1: ${{ github.event.inputs.research_question_1 }}
-          RESEARCH_QUESTION_2: ${{ github.event.inputs.research_question_2 }}
-          RESEARCH_QUESTION_3: ${{ github.event.inputs.research_question_3 }}
-          RESEARCH_QUESTION_4: ${{ github.event.inputs.research_question_4 }}
-          RESEARCH_QUESTION_5: ${{ github.event.inputs.research_question_5 }}
+          RQ1: ${{ github.event.inputs.research_question_1 }}
+          RQ2: ${{ github.event.inputs.research_question_2 }}
+          RQ3: ${{ github.event.inputs.research_question_3 }}
+          RQ4: ${{ github.event.inputs.research_question_4 }}
+          RQ5: ${{ github.event.inputs.research_question_5 }}
           ACADEMIC_FIELD: ${{ github.event.inputs.academic_field }}
-          STUDY_TYPE: ${{ github.event.inputs.study_type }}
-          LANGUAGE: ${{ github.event.inputs.language }}
-          YEAR_FROM: ${{ github.event.inputs.year_from }}
-          YEAR_TO: ${{ github.event.inputs.year_to }}
+          PUBLICATION_TYPE: ${{ github.event.inputs.publication_type }}
+          STUDY_LEVEL: ${{ github.event.inputs.study_level }}
+          RESEARCH_METHODOLOGY: ${{ github.event.inputs.research_methodology }}
+          DISSERTATION_PART: ${{ github.event.inputs.dissertation_part }}
+          SEARCH_LANGUAGE: ${{ github.event.inputs.search_language }}
+          QUARTILE_FILTER: ${{ github.event.inputs.quartile_filter }}
+          PAPER_LIMIT: ${{ github.event.inputs.paper_limit }}
           SEARCH_MODE: ${{ github.event.inputs.search_mode }}
           GEOGRAPHIC_AREA: ${{ github.event.inputs.geographic_area }}
-          MAX_BATCHES: ${{ github.event.inputs.max_batches }}
-          ENABLE_SCIHUB: ${{ github.event.inputs.enable_scihub }}
-          OUTPUT_MODE: ${{ github.event.inputs.output_mode }}
+          YEAR_FROM: ${{ github.event.inputs.year_from }}
+          YEAR_TO: ${{ github.event.inputs.year_to }}
           CUSTOM_KEYWORDS: ${{ github.event.inputs.custom_keywords }}
-          PROXY: ${{ github.event.inputs.proxy }}
+          ENABLE_SCIHUB: ${{ github.event.inputs.enable_scihub }}
         run: |
-          echo "🚀 Starting search execution..."
+          echo "🚀 Starting Research Hunter v7 — Ultra Comprehensive Search..."
           echo ""
-          echo "Configuration parsed:"
+          echo "Configuration:"
           echo "  - Topic: $RESEARCH_TOPIC"
-          echo "  - Languages: $LANGUAGE"
-          echo "  - Geography: $GEOGRAPHIC_AREA"
-          echo "  - Year range: $YEAR_FROM to $YEAR_TO"
-          echo "  - Search mode: $SEARCH_MODE"
+          echo "  - Field: $ACADEMIC_FIELD"
+          echo "  - Publication Type: $PUBLICATION_TYPE"
+          echo "  - Study Level: $STUDY_LEVEL"
+          echo "  - Methodology: $RESEARCH_METHODOLOGY"
+          echo "  - Language: $SEARCH_LANGUAGE"
+          echo "  - Quartile: $QUARTILE_FILTER"
+          echo "  - Paper Limit: $PAPER_LIMIT"
+          echo "  - Search Mode: $SEARCH_MODE"
           echo ""
           echo "⏳ This may take several minutes to hours depending on search mode..."
-          # Run the actual search
-          python run.py search "$RESEARCH_TOPIC" \
-            --year-from "$YEAR_FROM" \
-            --year-to "$YEAR_TO" \
-            --limit 50 || echo "Search completed (or failed - check logs)"
-      
+          
+          # Build command arguments
+          CMD="python research_hunter_v2-4.py"
+          CMD="$CMD --title "$RESEARCH_TOPIC""
+          
+          # Add research questions if provided
+          [[ -n "$RQ1" ]] && CMD="$CMD --rq1 "$RQ1""
+          [[ -n "$RQ2" ]] && CMD="$CMD --rq2 "$RQ2""
+          [[ -n "$RQ3" ]] && CMD="$CMD --rq3 "$RQ3""
+          [[ -n "$RQ4" ]] && CMD="$CMD --rq4 "$RQ4""
+          [[ -n "$RQ5" ]] && CMD="$CMD --rq5 "$RQ5""
+          
+          # Add field (extract number from "1. Field Name" format)
+          FIELD_NUM=$(echo "$ACADEMIC_FIELD" | cut -d. -f1)
+          if [[ "$FIELD_NUM" != "0" ]]; then
+            CMD="$CMD --field $FIELD_NUM"
+          fi
+          
+          # Add publication type (extract number)
+          PUB_NUM=$(echo "$PUBLICATION_TYPE" | cut -d. -f1)
+          if [[ "$PUB_NUM" != "49" ]]; then
+            CMD="$CMD --study-type $PUB_NUM"
+          fi
+          
+          # Add study level (extract number)
+          LVL_NUM=$(echo "$STUDY_LEVEL" | cut -d. -f1)
+          if [[ "$LVL_NUM" != "12" ]]; then
+            CMD="$CMD --study-level $LVL_NUM"
+          fi
+          
+          # Add methodology (extract number)
+          METH_NUM=$(echo "$RESEARCH_METHODOLOGY" | cut -d. -f1)
+          if [[ "$METH_NUM" != "51" ]]; then
+            CMD="$CMD --methodology $METH_NUM"
+          fi
+          
+          # Add dissertation part (extract number)
+          PART_NUM=$(echo "$DISSERTATION_PART" | cut -d. -f1)
+          if [[ "$PART_NUM" != "28" ]]; then
+            CMD="$CMD --dissertation-part $PART_NUM"
+          fi
+          
+          # Add language (extract number)
+          LANG_NUM=$(echo "$SEARCH_LANGUAGE" | cut -d. -f1)
+          CMD="$CMD --language $LANG_NUM"
+          
+          # Add search mode
+          MODE=""
+          case "$SEARCH_MODE" in
+            "Sample"*) MODE="sample" ;;
+            "Quick"*) MODE="quick" ;;
+            "Field"*) MODE="field" ;;
+            "Deep"*) MODE="deep" ;;
+            "Ultra"*) MODE="ultra" ;;
+            *) MODE="deep" ;;
+          esac
+          CMD="$CMD --mode $MODE"
+          
+          # Add year range
+          YEAR_FROM_NUM=$(echo "$YEAR_FROM" | grep -oE '[0-9]{4}' | head -1)
+          if [[ -n "$YEAR_FROM_NUM" ]]; then
+            CMD="$CMD --year-from $YEAR_FROM_NUM"
+          fi
+          YEAR_TO_NUM=$(echo "$YEAR_TO" | grep -oE '[0-9]{4}' | head -1)
+          if [[ -n "$YEAR_TO_NUM" ]]; then
+            CMD="$CMD --year-to $YEAR_TO_NUM"
+          fi
+          
+          # Add paper limit
+          PAPER_NUM=$(echo "$PAPER_LIMIT" | cut -d. -f1)
+          case "$PAPER_NUM" in
+            1) CMD="$CMD --max-batches 1" ;;
+            2) CMD="$CMD --max-batches 3" ;;
+            3) CMD="$CMD --max-batches 6" ;;
+            4) CMD="$CMD --max-batches 10" ;;
+            5) CMD="$CMD --max-batches 16" ;;
+            6) CMD="$CMD --max-batches 24" ;;
+            7) CMD="$CMD --max-batches 0" ;;
+          esac
+          
+          # Add custom keywords
+          [[ -n "$CUSTOM_KEYWORDS" ]] && CMD="$CMD --keywords "$CUSTOM_KEYWORDS""
+          
+          # Add scihub if enabled
+          [[ "$ENABLE_SCIHUB" == "true" ]] && CMD="$CMD --scihub"
+          
+          echo "Executing: $CMD"
+          echo ""
+          eval $CMD || echo "Search completed (check logs for details)"
+
       - name: Upload Results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: research-results-${{ github.run_number }}
           path: |
-            results/**/*.pdf
+            pdf_files/**/*.pdf
             results/**/*.json
             search.log
           retention-days: 30
-      
+          continue-on-error: true
+
       - name: Summary
         if: always()
         run: |
           echo ""
           echo "========================================="
-          echo "   ✅ Search Execution Complete"
+          echo "   ✅ Research Hunter v7 — Search Complete"
           echo "========================================="
           echo ""
           echo "🔢 Workflow Run: #${{ github.run_number }}"
