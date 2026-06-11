@@ -29,6 +29,64 @@ v6 SUPER LOADED enhancements:
 """
 
 # ── Imports ───────────────────────────────────────────────────────────────────
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# LLM 1.3 INTEGRATION - AI-Powered Research Capabilities
+# Using Ollama with qwen2.5vl:3b model
+# ═══════════════════════════════════════════════════════════════════════════════
+try:
+    from llm_research_hunter import LLMResearchHunter
+    llm = LLMResearchHunter()
+    if llm.available:
+        print(f"✅ LLM Integration: {llm.status} ({llm.config.model})")
+        HAS_LLM = True
+    else:
+        print(f"⚠️ LLM not available: {llm.status}")
+        HAS_LLM = False
+except ImportError:
+    llm = None
+    HAS_LLM = False
+    print("⚠️ LLM module not found - AI features disabled")
+
+# LLM-enhanced functions
+def llm_analyze_paper(paper: dict, analysis_type: str = "comprehensive") -> dict:
+    """Analyze a paper using LLM for enhanced insights"""
+    if not HAS_LLM or not llm or not llm.available:
+        return paper
+    return llm.analyze_paper(paper, analysis_type)
+
+def llm_enhance_search(query: str, papers: list, top_k: int = 20) -> list:
+    """Use LLM to improve search relevance ranking"""
+    if not HAS_LLM or not llm or not llm.available:
+        return papers[:top_k]
+    result = llm.semantic_search(query, papers)
+    return result.get("ranked_papers", papers[:top_k])
+
+def llm_generate_abstract(papers: list) -> str:
+    """Generate AI-powered abstract synthesis"""
+    if not HAS_LLM or not llm or not llm.available:
+        return ""
+    return llm.generate_abstract(papers)
+
+def llm_generate_literature_review(papers: list, topic: str) -> str:
+    """Generate AI-powered literature review"""
+    if not HAS_LLM or not llm or not llm.available:
+        return ""
+    return llm.generate_literature_review(papers, topic)
+
+def llm_compare_papers(papers: list) -> dict:
+    """Compare and synthesize multiple papers using LLM"""
+    if not HAS_LLM or not llm or not llm.available:
+        return {"error": "LLM not available"}
+    return llm.compare_papers(papers)
+
+def llm_identify_themes(papers: list) -> dict:
+    """Identify themes across research papers using LLM"""
+    if not HAS_LLM or not llm or not llm.available:
+        return {"error": "LLM not available"}
+    return llm.identify_themes(papers)
+
+
 import os, sys, re, json, time, hashlib, shutil, subprocess, threading
 import unicodedata, csv, difflib, random, string
 from pathlib  import Path
