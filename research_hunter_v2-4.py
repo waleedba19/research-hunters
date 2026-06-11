@@ -5142,156 +5142,6 @@ def build_apa(paper: dict) -> str:
 
 
 # ── Search Orchestrator ────────────────────────────────────────────────────────
-PLATFORM_FNS = {
-    # ── Core API platforms ──────────────────────────────────────────────────────
-    "Semantic Scholar": search_semantic_scholar,
-    "OpenAlex":         search_openalex,
-    "CORE":             search_core,
-    "CORE API":         search_core_api,
-    "CrossRef":         search_crossref,
-    "ERIC":             search_eric,
-    "DOAJ":             search_doaj,
-    "HAL Archives":     search_hal,
-    "BASE":             search_base,
-    "PubMed":           search_pubmed,
-    "arXiv":            search_arxiv,
-    "Zenodo":           search_zenodo,
-    "Zenodo Extended":  search_zenodo_extended,
-    "SciELO":           search_scielo,
-    # ── Major publisher platforms ───────────────────────────────────────────────
-    "Europe PMC":       search_europepmc,
-    "PLoS ONE":         search_plos,
-    "Oxford UP":        search_oup,
-    "Springer Open":    search_springer_open,
-    "Wiley Open":       search_wiley_open,
-    "Taylor & Francis": search_tandfonline,
-    "ScienceDirect":    search_sciencedirect,
-    "SSRN":             search_ssrn,
-    # ── Preprint repositories ───────────────────────────────────────────────────
-    "bioRxiv":          search_biorxiv,
-    "medRxiv":          search_medrxiv,
-    "PsyArXiv":         search_psyarxiv,
-    "SocArXiv":         search_socarxiv,
-    "OSF Preprints":    search_osf_preprints,
-    # ── Open Access publishers & infrastructure ─────────────────────────────────
-    "MDPI":             search_mdpi,
-    "OpenAIRE":         search_openaire,
-    "WorldWideScience": search_worldwidescience,
-    "CERN Document":    search_cern_server,
-    "Science.gov":      search_science_gov,
-    "NASA NTRS":        search_nasa_ntrs,
-    "Digital Commons":  search_digital_commons,
-    "JSTOR Open":       search_jstor_open,
-    "EBSCO Dissertations": search_ebsco_dissertations,
-    "SSOAR":            search_ssoar,
-    # ── Academic social networks ────────────────────────────────────────────────
-    "Academia.edu":     search_academia_edu,
-    "PaperPanda":       search_paperpanda,
-    # ── Regional open access ────────────────────────────────────────────────────
-    "Redalyc":          search_redalyc,
-    "Bioline Int'l":    search_bioline,
-    # ── Domain-specific platforms ───────────────────────────────────────────────
-    "PhilPapers":       search_philpapers,
-    "Directory of OA Books": search_doab,
-    "CogPrints":        search_cogprints,
-    "AJOL":             search_ajol,
-    "SciELO Brazil":    search_scieelo_bra,
-    "Dialnet":          search_dialnet,
-    "BioLine Int'l":    search_bialitic,
-    # ── Shadow libraries & alternative sources ─────────────────────────────────
-    "Anna's Archive":   search_annas_archive_enhanced,
-    "Sci-Hub Multi":    search_scihub_multi,
-    "Genemedi":         search_genemedi,
-    "Shadow Libraries": search_shadow_libraries,
-    # ── Discovery & mirror platforms ────────────────────────────────────────────
-    "SciNet":           search_scinet,
-    "SciBay":           search_scibay,
-    "Grokipedia":       search_grokipedia,
-    "Internet Archive": search_internet_archive,
-    # ── Browser-based platforms ─────────────────────────────────────────────────
-    "Google Scholar":   search_google_scholar,
-    "ResearchGate":     search_researchgate,
-    "Z-Library":        search_zlibrary,
-    "LibGen":           search_libgen,
-    "DuckDuckGo":       search_duckduckgo_pdfs,
-    "Perplexica":       search_perplexica,
-    "OATD":             search_oatd,
-    "EThOS":            search_ethos,
-    # ── Extended coverage (v6 additions) ────────────────────────────────────────
-    "OhioLINK ETD":     search_etd_ohiolink,
-    "Nature":           search_nature_linguistics,
-    "AcademicianHelp":  search_academicianhelp,
-    "eLife Sciences":   search_elife_sciences,
-    "ScienceOpen":      search_scienceopen,
-    "OA.mg":            search_oa_mg,
-    # ── Additional Academic Search Engines ──────────────────────────────────────
-    "Microsoft Academic": search_microsoft_academic,
-    "Baidu Scholar":     search_baidu_scholar,
-    "Yandex Scholar":    search_yandex_scholar,
-    "Korean SIN":        search_korean_sin,
-    "Cqjd":              search_cqjd,          # ChineseQJ
-    # ── Regional & Subject-Specific Repositories ────────────────────────────────
-    "CAIRN":             search_cairn,          # French social sciences
-    "Persee":            search_persee,         # French open access
-    "Dspace/BR":         search_dspace_br,      # Brazilian repositories
-    "CLASE":             search_clase,          # Latin American social sciences
-    "REDIB":             search_redib,          # Spanish/Portuguese
-    "Scielo Mexico":     search_scielo_mexico,
-    "CONCYTEC":          search_concytec,       # Peru
-    "BINASSS":          search_binasss,         # Health Sciences Costa Rica
-    # ── African Open Access ─────────────────────────────────────────────────────
-    "AJOL":              search_ajol_full,      # African Journals Online
-    "African Digital":   search_african_digital,
-    "UWC":               search_uwc,            # University of Western Cape
-    # ── Middle Eastern & Arabic ─────────────────────────────────────────────────
-    "Shamaa":           search_shamaa,          # Arabic database
-    "ArabPsyc":         search_arab_psyc,       # Arabic psychology
-    "Arab Digital":     search_arab_digital,
-    "Maktabk":          search_maktabk,         # Iranian
-    "Civilica":         search_civilica,         # Iranian
-    "Magiran":          search_magiran,          # Iranian
-    "Noormags":         search_noormags,         # Iranian
-    # ── Indian Subcontinent ─────────────────────────────────────────────────────
-    "INFLIBNET":        search_inflibnet,       # Indian ETD
-    "Shodhganga":       search_shodhganga,      # Indian thesis
-    "Cochrane":         search_cochrane,        # Medical systematic reviews
-    # ── European National Repositories ──────────────────────────────────────────
-    "TIB Hannover":     search_tib_hannover,    # German technical
-    "HAL ENSAE":        search_hal_ensae,
-    "OAI Harvester":    search_oai_harvester,
-    "OPUS Bayern":      search_opus_bayern,
-    "DARIAH":           search_dariah,          # Digital research infrastructure
-    # ── Specialized Subject Databases ───────────────────────────────────────────
-    "IEEE Xplore":       search_ieee_xplore,
-    "ACM Digital":      search_acm_digital,
-    "ECONSTOR":         search_econstor,        # Economics
-    "SSRN PREPRINT":    search_ssrn_preprint,
-    "Research4Life":    search_research4life,
-    "ELSEVIER":         search_elsevier_sciencedirect,
-    "Wiley Online":    search_wiley_online,
-    "Springer":         search_springer,
-    "Frontiers":        search_frontiers,
-    "Cambridge UP":     search_cambridge_up,
-    "Oxford Academic":  search_oxford_academic,
-    "Sage Journals":    search_sage_journals,
-    "Taylor Francis":   search_taylor_francis,
-    "Emerald":          search_emerald,
-    "De Gruyter":       search_de_gruyter,
-    "Nature Publishing": search_nature_publishing,
-    "Cell Press":       search_cell_press,
-    # ── Additional Open Access ─────────────────────────────────────────────────
-    "PMC":              search_pubmed_central,
-    "Europe PMC":       search_europe_pmc,
-    "HINARI":           search_hinari,
-    "Bireme":           search_bireme,          # Latin American health
-    "Whois":            search_whois_scholar,    # Who is who
-    # ── Preprint Servers ────────────────────────────────────────────────────────
-    "arxiv.org":        search_arxiv_org,
-    "chemRxiv":         search_chemrxiv,
-    "sXiv":             search_sxiv,            # Social science
-    "EarthArXiv":       search_eartharxiv,
-    "BioOne":           search_bioone,
-}
 
 BROWSER_PLATS = {
     "Google Scholar", "Z-Library", "LibGen", "DuckDuckGo",
@@ -9051,6 +8901,162 @@ def main_headless(params: dict):
         print(f"   Folder: {out_folder}")
         print(f"{'='*65}")
 
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PLATFORM_FNS - Moved here to ensure all functions are defined first
+# ─────────────────────────────────────────────────────────────────────────────
+
+PLATFORM_FNS = {
+    # ── Core API platforms ──────────────────────────────────────────────────────
+    "Semantic Scholar": search_semantic_scholar,
+    "OpenAlex":         search_openalex,
+    "CORE":             search_core,
+    "CORE API":         search_core_api,
+    "CrossRef":         search_crossref,
+    "ERIC":             search_eric,
+    "DOAJ":             search_doaj,
+    "HAL Archives":     search_hal,
+    "BASE":             search_base,
+    "PubMed":           search_pubmed,
+    "arXiv":            search_arxiv,
+    "Zenodo":           search_zenodo,
+    "Zenodo Extended":  search_zenodo_extended,
+    "SciELO":           search_scielo,
+    # ── Major publisher platforms ───────────────────────────────────────────────
+    "Europe PMC":       search_europepmc,
+    "PLoS ONE":         search_plos,
+    "Oxford UP":        search_oup,
+    "Springer Open":    search_springer_open,
+    "Wiley Open":       search_wiley_open,
+    "Taylor & Francis": search_tandfonline,
+    "ScienceDirect":    search_sciencedirect,
+    "SSRN":             search_ssrn,
+    # ── Preprint repositories ───────────────────────────────────────────────────
+    "bioRxiv":          search_biorxiv,
+    "medRxiv":          search_medrxiv,
+    "PsyArXiv":         search_psyarxiv,
+    "SocArXiv":         search_socarxiv,
+    "OSF Preprints":    search_osf_preprints,
+    # ── Open Access publishers & infrastructure ─────────────────────────────────
+    "MDPI":             search_mdpi,
+    "OpenAIRE":         search_openaire,
+    "WorldWideScience": search_worldwidescience,
+    "CERN Document":    search_cern_server,
+    "Science.gov":      search_science_gov,
+    "NASA NTRS":        search_nasa_ntrs,
+    "Digital Commons":  search_digital_commons,
+    "JSTOR Open":       search_jstor_open,
+    "EBSCO Dissertations": search_ebsco_dissertations,
+    "SSOAR":            search_ssoar,
+    # ── Academic social networks ────────────────────────────────────────────────
+    "Academia.edu":     search_academia_edu,
+    "PaperPanda":       search_paperpanda,
+    # ── Regional open access ────────────────────────────────────────────────────
+    "Redalyc":          search_redalyc,
+    "Bioline Int'l":    search_bioline,
+    # ── Domain-specific platforms ───────────────────────────────────────────────
+    "PhilPapers":       search_philpapers,
+    "Directory of OA Books": search_doab,
+    "CogPrints":        search_cogprints,
+    "AJOL":             search_ajol,
+    "SciELO Brazil":    search_scieelo_bra,
+    "Dialnet":          search_dialnet,
+    "BioLine Int'l":    search_bialitic,
+    # ── Shadow libraries & alternative sources ─────────────────────────────────
+    "Anna's Archive":   search_annas_archive_enhanced,
+    "Sci-Hub Multi":    search_scihub_multi,
+    "Genemedi":         search_genemedi,
+    "Shadow Libraries": search_shadow_libraries,
+    # ── Discovery & mirror platforms ────────────────────────────────────────────
+    "SciNet":           search_scinet,
+    "SciBay":           search_scibay,
+    "Grokipedia":       search_grokipedia,
+    "Internet Archive": search_internet_archive,
+    # ── Browser-based platforms ─────────────────────────────────────────────────
+    "Google Scholar":   search_google_scholar,
+    "ResearchGate":     search_researchgate,
+    "Z-Library":        search_zlibrary,
+    "LibGen":           search_libgen,
+    "DuckDuckGo":       search_duckduckgo_pdfs,
+    "Perplexica":       search_perplexica,
+    "OATD":             search_oatd,
+    "EThOS":            search_ethos,
+    # ── Extended coverage (v6 additions) ────────────────────────────────────────
+    "OhioLINK ETD":     search_etd_ohiolink,
+    "Nature":           search_nature_linguistics,
+    "AcademicianHelp":  search_academicianhelp,
+    "eLife Sciences":   search_elife_sciences,
+    "ScienceOpen":      search_scienceopen,
+    "OA.mg":            search_oa_mg,
+    # ── Additional Academic Search Engines ──────────────────────────────────────
+    "Microsoft Academic": search_microsoft_academic,
+    "Baidu Scholar":     search_baidu_scholar,
+    "Yandex Scholar":    search_yandex_scholar,
+    "Korean SIN":        search_korean_sin,
+    "Cqjd":              search_cqjd,          # ChineseQJ
+    # ── Regional & Subject-Specific Repositories ────────────────────────────────
+    "CAIRN":             search_cairn,          # French social sciences
+    "Persee":            search_persee,         # French open access
+    "Dspace/BR":         search_dspace_br,      # Brazilian repositories
+    "CLASE":             search_clase,          # Latin American social sciences
+    "REDIB":             search_redib,          # Spanish/Portuguese
+    "Scielo Mexico":     search_scielo_mexico,
+    "CONCYTEC":          search_concytec,       # Peru
+    "BINASSS":          search_binasss,         # Health Sciences Costa Rica
+    # ── African Open Access ─────────────────────────────────────────────────────
+    "AJOL":              search_ajol_full,      # African Journals Online
+    "African Digital":   search_african_digital,
+    "UWC":               search_uwc,            # University of Western Cape
+    # ── Middle Eastern & Arabic ─────────────────────────────────────────────────
+    "Shamaa":           search_shamaa,          # Arabic database
+    "ArabPsyc":         search_arab_psyc,       # Arabic psychology
+    "Arab Digital":     search_arab_digital,
+    "Maktabk":          search_maktabk,         # Iranian
+    "Civilica":         search_civilica,         # Iranian
+    "Magiran":          search_magiran,          # Iranian
+    "Noormags":         search_noormags,         # Iranian
+    # ── Indian Subcontinent ─────────────────────────────────────────────────────
+    "INFLIBNET":        search_inflibnet,       # Indian ETD
+    "Shodhganga":       search_shodhganga,      # Indian thesis
+    "Cochrane":         search_cochrane,        # Medical systematic reviews
+    # ── European National Repositories ──────────────────────────────────────────
+    "TIB Hannover":     search_tib_hannover,    # German technical
+    "HAL ENSAE":        search_hal_ensae,
+    "OAI Harvester":    search_oai_harvester,
+    "OPUS Bayern":      search_opus_bayern,
+    "DARIAH":           search_dariah,          # Digital research infrastructure
+    # ── Specialized Subject Databases ───────────────────────────────────────────
+    "IEEE Xplore":       search_ieee_xplore,
+    "ACM Digital":      search_acm_digital,
+    "ECONSTOR":         search_econstor,        # Economics
+    "SSRN PREPRINT":    search_ssrn_preprint,
+    "Research4Life":    search_research4life,
+    "ELSEVIER":         search_elsevier_sciencedirect,
+    "Wiley Online":    search_wiley_online,
+    "Springer":         search_springer,
+    "Frontiers":        search_frontiers,
+    "Cambridge UP":     search_cambridge_up,
+    "Oxford Academic":  search_oxford_academic,
+    "Sage Journals":    search_sage_journals,
+    "Taylor Francis":   search_taylor_francis,
+    "Emerald":          search_emerald,
+    "De Gruyter":       search_de_gruyter,
+    "Nature Publishing": search_nature_publishing,
+    "Cell Press":       search_cell_press,
+    # ── Additional Open Access ─────────────────────────────────────────────────
+    "PMC":              search_pubmed_central,
+    "Europe PMC":       search_europe_pmc,
+    "HINARI":           search_hinari,
+    "Bireme":           search_bireme,          # Latin American health
+    "Whois":            search_whois_scholar,    # Who is who
+    # ── Preprint Servers ────────────────────────────────────────────────────────
+    "arxiv.org":        search_arxiv_org,
+    "chemRxiv":         search_chemrxiv,
+    "sXiv":             search_sxiv,            # Social science
+    "EarthArXiv":       search_eartharxiv,
+    "BioOne":           search_bioone,
+}
 
 if __name__ == "__main__":
     # ── GitHub Actions / CLI mode ────────────────────────────────────────────
