@@ -1026,7 +1026,6 @@ jobs:
             results/**/*.json
             search.log
           retention-days: 30
-          continue-on-error: true
 
       - name: Summary
         if: always()
