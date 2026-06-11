@@ -5661,7 +5661,9 @@ def _write_master_xlsx(all_papers: list, out_folder: Path, search_terms: list = 
             "PDF URL", "Source Platform", "Quartile", "SJR", "Impact Factor",
             "Citations (Google)", "Citations (Scopus)", "Relevance %",
             "Primary Section", "Methodology", "Geographic Focus", "Open Access",
-            "Download Status", "File Path"
+            "Download Status", "File Path",
+            # v8: Paid source tracking
+            "Access Status", "Alternative Link", "Notes"
         ]
         
         for col, header in enumerate(meta_headers, 1):
@@ -5671,8 +5673,8 @@ def _write_master_xlsx(all_papers: list, out_folder: Path, search_terms: list = 
         ws_meta.row_dimensions[1].height = 30
         ws_meta.freeze_panes = 'A2'
         
-        # Column widths
-        widths = [5, 50, 35, 8, 30, 20, 22, 35, 35, 20, 10, 8, 10, 12, 12, 10, 18, 15, 15, 12, 15, 40]
+        # Column widths (now 25 columns)
+        widths = [5, 50, 35, 8, 30, 20, 22, 35, 35, 20, 10, 8, 10, 12, 12, 10, 18, 15, 15, 12, 15, 40, 15, 40, 30]
         for i, w in enumerate(widths, 1):
             ws_meta.column_dimensions[get_column_letter(i)].width = w
         
@@ -5722,6 +5724,24 @@ def _write_master_xlsx(all_papers: list, out_folder: Path, search_terms: list = 
             sq = paper.get("scopus_quartile", {}) or {}
             quartile = sq.get("quartile", "N/A") if isinstance(sq, dict) else "N/A"
             
+            # v8: Determine access status
+            if paper.get("downloaded"):
+                access_status = "Downloaded ✓"
+                alt_link = paper.get("file_path", "")
+                notes = ""
+            elif paper.get("pdf_url"):
+                access_status = "Free OA Available"
+                alt_link = paper.get("pdf_url", "")
+                notes = "Try direct PDF link"
+            elif paper.get("url"):
+                access_status = "Requires Purchase 💰"
+                alt_link = paper.get("url", "")
+                notes = "Paid source - link stored for reference"
+            else:
+                access_status = "Unverified"
+                alt_link = ""
+                notes = "Check manually"
+            
             row_data = [
                 idx, paper.get("title", ""), ", ".join(paper.get("authors", [])),
                 paper.get("year", ""), paper.get("journal", ""), "",
@@ -5732,9 +5752,11 @@ def _write_master_xlsx(all_papers: list, out_folder: Path, search_terms: list = 
                 "Open Access" if paper.get("pdf_url") else "Restricted",
                 "Downloaded" if paper.get("downloaded") else "Pending",
                 paper.get("file_path", ""),
+                # v8: New columns
+                access_status, alt_link, notes
             ]
             
-            for col, value in enumerate(row_data[:22], 1):
+            for col, value in enumerate(row_data, 1):  # v8: Use all 25 columns
                 cell = ws_meta.cell(row=idx+1, column=col, value=value)
                 cell.border = thin_border
                 cell.alignment = Alignment(vertical='center', wrap_text=True)
@@ -5760,6 +5782,15 @@ def _write_master_xlsx(all_papers: list, out_folder: Path, search_terms: list = 
                                    "Mixed Methods": colors["mixed_methods"]}
                     cell.fill = PatternFill(start_color=meth_colors.get(meth, "FFFFFF"),
                                            end_color=meth_colors.get(meth, "FFFFFF"), fill_type="solid")
+                elif col == 23:  # v8: Access Status
+                    if "Downloaded" in str(access_status):
+                        cell.fill = PatternFill(start_color=colors["q1_light"], end_color=colors["q1_light"], fill_type="solid")
+                        cell.font = Font(bold=True, color="006100")
+                    elif "Free OA" in str(access_status):
+                        cell.fill = PatternFill(start_color="DDEBF7", end_color="DDEBF7", fill_type="solid")
+                    elif "Requires Purchase" in str(access_status):
+                        cell.fill = PatternFill(start_color="FCE4D6", end_color="FCE4D6", fill_type="solid")
+                        cell.font = Font(bold=True, color="C00000")
             
             if idx % 50 == 0:
                 print(f"  Processed {idx}/{len(all_papers)} papers...")
@@ -5813,6 +5844,55 @@ def _write_master_xlsx(all_papers: list, out_folder: Path, search_terms: list = 
             ws_q234.cell(row=i+2, column=5, value=p.get("year", ""))
         
         print(f"✅ Q2-Q4 Quality: {len(q234_papers)} papers")
+        
+        # ═══ v8: SHEET - Paid Sources Tracker ═══
+        ws_paid = wb.create_sheet("PAID SOURCES - Manual Action")
+        ws_paid['A1'] = "💰 PAPERS REQUIRING PURCHASE OR MANUAL DOWNLOAD"
+        ws_paid['A1'].font = Font(size=16, bold=True, color="C00000")
+        ws_paid['A1'].fill = PatternFill(start_color="FCE4D6", end_color="FCE4D6", fill_type="solid")
+        ws_paid.merge_cells('A1:G1')
+        ws_paid.row_dimensions[1].height = 35
+        
+        ws_paid['A3'] = "These papers could not be auto-downloaded. You can manually purchase or access them via the links below."
+        ws_paid['A3'].font = Font(italic=True)
+        ws_paid.merge_cells('A3:G3')
+        
+        paid_headers = ["Row", "Title", "Authors", "Year", "Journal", "DOI", "Direct Link", "Notes"]
+        for col, h in enumerate(paid_headers, 1):
+            cell = ws_paid.cell(row=5, column=col, value=h)
+            style_header(cell, "C00000")
+        
+        ws_paid.column_dimensions['A'].width = 5
+        ws_paid.column_dimensions['B'].width = 50
+        ws_paid.column_dimensions['C'].width = 30
+        ws_paid.column_dimensions['D'].width = 8
+        ws_paid.column_dimensions['E'].width = 30
+        ws_paid.column_dimensions['F'].width = 20
+        ws_paid.column_dimensions['G'].width = 45
+        ws_paid.column_dimensions['H'].width = 30
+        
+        # Collect papers that couldn't be downloaded
+        paid_papers = []
+        for p in all_papers:
+            if not p.get("downloaded") and p.get("url"):
+                paid_papers.append(p)
+        
+        for i, p in enumerate(paid_papers, 1):
+            ws_paid.cell(row=i+5, column=1, value=i)
+            ws_paid.cell(row=i+5, column=2, value=p.get("title", ""))
+            ws_paid.cell(row=i+5, column=3, value=", ".join(p.get("authors", [])[:3]))
+            ws_paid.cell(row=i+5, column=4, value=p.get("year", ""))
+            ws_paid.cell(row=i+5, column=5, value=p.get("journal", ""))
+            ws_paid.cell(row=i+5, column=6, value=p.get("doi", ""))
+            # Make link clickable
+            link = p.get("url", "")
+            ws_paid.cell(row=i+5, column=7, value=link)
+            if link:
+                ws_paid.cell(row=i+5, column=7).hyperlink = link
+                ws_paid.cell(row=i+5, column=7).font = Font(color="0563C1", underline="single")
+            ws_paid.cell(row=i+5, column=8, value="Requires purchase or institutional access")
+        
+        print(f"✅ PAID SOURCES sheet created: {len(paid_papers)} papers need manual action")
         
         # ═══ SHEET 5: Abstract Synthesis ═══
         ws_abs = wb.create_sheet("Abstract Synthesis")
@@ -10076,49 +10156,52 @@ PLATFORM_FNS = {
 DEEP_PLATS = list(PLATFORM_FNS.keys())
 ULTRA_PLATS = list(PLATFORM_FNS.keys())
 
-# Search mode time estimates and configurations (must be after DEEP_PLATS/ULTRA_PLATS)
+# ═══════════════════════════════════════════════════════════════════════════════
+# v8 SEARCH MODE CONFIGURATIONS - ALL MODES USE 128 PLATFORMS
+# Only difference is paper limit (like a "promo" tier system)
+# ═══════════════════════════════════════════════════════════════════════════════
 MODE_TIME_ESTIMATES = {
     "sample": {
-        "label": "Sample (~10-15 min) — 4 platforms — 80 papers",
-        "platforms": SAMPLE_PLATS,
-        "time": "10-15 min",
+        "label": "Sample (~15-30 min) — 128 platforms — 80 papers — Light exploration",
+        "platforms": DEEP_PLATS,  # ALL 128 platforms, just fewer papers
+        "time": "15-30 min",
         "max_papers": 80,
     },
     "quick": {
-        "label": "Quick (~20-30 min) — 8 platforms — 200 papers",
-        "platforms": QUICK_PLATS,
-        "time": "20-30 min",
-        "max_papers": 200,
+        "label": "Quick (~30-45 min) — 128 platforms — 150 papers — Standard starter",
+        "platforms": DEEP_PLATS,
+        "time": "30-45 min",
+        "max_papers": 150,
     },
     "field": {
-        "label": "Field (~45-60 min) — 29 platforms — 500 papers",
-        "platforms": FIELD_PLATS,
-        "time": "45-60 min",
-        "max_papers": 500,
+        "label": "Field (~1-2 hrs) — 128 platforms — 300 papers — Good coverage",
+        "platforms": DEEP_PLATS,
+        "time": "1-2 hrs",
+        "max_papers": 300,
     },
     "extended": {
-        "label": "Extended (~1-2 hrs) — 50 platforms — 1,000 papers",
-        "platforms": EXTENDED_PLATS,
-        "time": "1-2 hrs",
-        "max_papers": 1000,
-    },
-    "deep": {
-        "label": "Deep (~2-4 hrs) — 128 platforms — 2,500 papers",
+        "label": "Extended (~2-4 hrs) — 128 platforms — 500 papers — Recommended [RECOMMENDED]",
         "platforms": DEEP_PLATS,
         "time": "2-4 hrs",
-        "max_papers": 2500,
+        "max_papers": 500,
+    },
+    "deep": {
+        "label": "Deep (~4-8 hrs) — 128 platforms — 800 papers — Comprehensive",
+        "platforms": DEEP_PLATS,
+        "time": "4-8 hrs",
+        "max_papers": 800,
     },
     "ultra": {
-        "label": "Ultra (~4-8 hrs) — 128+ platforms — 5,000 papers",
-        "platforms": ULTRA_PLATS,
-        "time": "4-8 hrs",
-        "max_papers": 5000,
-    },
-    "maximum": {
-        "label": "Maximum (~8-16 hrs) — 128+ all platforms — 10,000 papers",
+        "label": "Ultra (~8-16 hrs) — 128 platforms — 2,000 papers — Extensive",
         "platforms": ULTRA_PLATS,
         "time": "8-16 hrs",
-        "max_papers": 10000,
+        "max_papers": 2000,
+    },
+    "maximum": {
+        "label": "Maximum (~16-32 hrs) — 128 platforms — 5,000 papers — Exhaustive",
+        "platforms": ULTRA_PLATS,
+        "time": "16-32 hrs",
+        "max_papers": 5000,
     },
 }
 

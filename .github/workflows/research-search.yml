@@ -599,19 +599,18 @@ on:
       # - All platforms are REAL and tested - no fake or generated platforms
       
       search_mode:
-        description: '⚡ STEP 9: Search Depth & Platforms (128+ REAL platforms)'
+        description: '⚡ STEP 9: Search Depth & Paper Limit (128 platforms on ALL modes!)'
         required: true
         type: choice
         options:
-          - 'Sample (~10-15 min) — 4 platforms — 80 papers — Quick test'
-          - 'Quick (~20-40 min) — 8 platforms — 1,000 papers — Small projects'
-          - 'Field (~1.5-3 hrs) — 29 platforms — 3,000 papers — Standard academic'
-          - 'Extended (~4-6 hrs) — 50 platforms — 8,000 papers — Deep academic'
-          - 'Deep (~8-12 hrs) — 128 platforms — 20,000 papers — Maximum standard [RECOMMENDED]'
-          - 'Ultra (~24-48 hrs) — 128 platforms — 50,000 papers — Maximum with duplicates'
-          - 'Maximum (~48-72 hrs) — 128 platforms — 100,000 papers — Exhaustive search'
-          - 'Custom — Pick specific platforms from all 128+'
-        default: 'Deep (~8-12 hrs) — 128 platforms — 20,000 papers — Maximum standard [RECOMMENDED]'
+          - 'Sample (~15-30 min) — 128 platforms — 80 papers — Light exploration'
+          - 'Quick (~30-45 min) — 128 platforms — 150 papers — Standard starter'
+          - 'Field (~1-2 hrs) — 128 platforms — 300 papers — Good coverage'
+          - 'Extended (~2-4 hrs) — 128 platforms — 500 papers — Recommended'
+          - 'Deep (~4-8 hrs) — 128 platforms — 800 papers — Comprehensive'
+          - 'Ultra (~8-16 hrs) — 128 platforms — 2,000 papers — Extensive'
+          - 'Maximum (~16-32 hrs) — 128 platforms — 5,000 papers — Exhaustive'
+        default: 'Extended (~2-4 hrs) — 128 platforms — 500 papers — Recommended'
 
       # ─────────────────────────────────────────────────────────────────────
       # YEAR RANGE
