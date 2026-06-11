@@ -5203,6 +5203,73 @@ PLATFORM_FNS = {
     "eLife Sciences":   search_elife_sciences,
     "ScienceOpen":      search_scienceopen,
     "OA.mg":            search_oa_mg,
+    # ── Additional Academic Search Engines ──────────────────────────────────────
+    "Microsoft Academic": search_microsoft_academic,
+    "Baidu Scholar":     search_baidu_scholar,
+    "Yandex Scholar":    search_yandex_scholar,
+    "Korean SIN":        search_korean_sin,
+    "Cqjd":              search_cqjd,          # ChineseQJ
+    # ── Regional & Subject-Specific Repositories ────────────────────────────────
+    "CAIRN":             search_cairn,          # French social sciences
+    "Persee":            search_persee,         # French open access
+    "Dspace/BR":         search_dspace_br,      # Brazilian repositories
+    "CLASE":             search_clase,          # Latin American social sciences
+    "REDIB":             search_redib,          # Spanish/Portuguese
+    "Scielo Mexico":     search_scielo_mexico,
+    "CONCYTEC":          search_concytec,       # Peru
+    "BINASSS":          search_binasss,         # Health Sciences Costa Rica
+    # ── African Open Access ─────────────────────────────────────────────────────
+    "AJOL":              search_ajol_full,      # African Journals Online
+    "African Digital":   search_african_digital,
+    "UWC":               search_uwc,            # University of Western Cape
+    # ── Middle Eastern & Arabic ─────────────────────────────────────────────────
+    "Shamaa":           search_shamaa,          # Arabic database
+    "ArabPsyc":         search_arab_psyc,       # Arabic psychology
+    "Arab Digital":     search_arab_digital,
+    "Maktabk":          search_maktabk,         # Iranian
+    "Civilica":         search_civilica,         # Iranian
+    "Magiran":          search_magiran,          # Iranian
+    "Noormags":         search_noormags,         # Iranian
+    # ── Indian Subcontinent ─────────────────────────────────────────────────────
+    "INFLIBNET":        search_inflibnet,       # Indian ETD
+    "Shodhganga":       search_shodhganga,      # Indian thesis
+    "Cochrane":         search_cochrane,        # Medical systematic reviews
+    # ── European National Repositories ──────────────────────────────────────────
+    "TIB Hannover":     search_tib_hannover,    # German technical
+    "HAL ENSAE":        search_hal_ensae,
+    "OAI Harvester":    search_oai_harvester,
+    "OPUS Bayern":      search_opus_bayern,
+    "DARIAH":           search_dariah,          # Digital research infrastructure
+    # ── Specialized Subject Databases ───────────────────────────────────────────
+    "IEEE Xplore":       search_ieee_xplore,
+    "ACM Digital":      search_acm_digital,
+    "ECONSTOR":         search_econstor,        # Economics
+    "SSRN PREPRINT":    search_ssrn_preprint,
+    "Research4Life":    search_research4life,
+    "ELSEVIER":         search_elsevier_sciencedirect,
+    "Wiley Online":    search_wiley_online,
+    "Springer":         search_springer,
+    "Frontiers":        search_frontiers,
+    "Cambridge UP":     search_cambridge_up,
+    "Oxford Academic":  search_oxford_academic,
+    "Sage Journals":    search_sage_journals,
+    "Taylor Francis":   search_taylor_francis,
+    "Emerald":          search_emerald,
+    "De Gruyter":       search_de_gruyter,
+    "Nature Publishing": search_nature_publishing,
+    "Cell Press":       search_cell_press,
+    # ── Additional Open Access ─────────────────────────────────────────────────
+    "PMC":              search_pubmed_central,
+    "Europe PMC":       search_europe_pmc,
+    "HINARI":           search_hinari,
+    "Bireme":           search_bireme,          # Latin American health
+    "Whois":            search_whois_scholar,    # Who is who
+    # ── Preprint Servers ────────────────────────────────────────────────────────
+    "arxiv.org":        search_arxiv_org,
+    "chemRxiv":         search_chemrxiv,
+    "sXiv":             search_sxiv,            # Social science
+    "EarthArXiv":       search_eartharxiv,
+    "BioOne":           search_bioone,
 }
 
 BROWSER_PLATS = {
@@ -5390,46 +5457,531 @@ def generate_docx_report(report_data: dict, out_folder: Path) -> Path | None:
         return None
 
 
-# ── Wizard ──────────────────────────────────────────────────────────────────────
+# ════════════════════════════════════════════════════════════════════════════════
+#  ENHANCED WIZARD CONFIGURATIONS — v7 ULTRA COMPREHENSIVE
+# ════════════════════════════════════════════════════════════════════════════════
+
+# ── 🎓 ACADEMIC FIELDS — Expanded with English Language Studies & More ─────────
 FIELDS = {
-    # ── Language & Linguistics ──────────────────────────────────────────────────
-    "1":"Applied Linguistics","2":"Second Language Acquisition",
-    "3":"TESOL / EFL / ESL","4":"Discourse Analysis",
-    "5":"Sociolinguistics","6":"Psycholinguistics",
-    "7":"Translation Studies","8":"Language Teaching Methods",
-    "9":"Computational Linguistics","10":"Historical Linguistics",
-    # ── Education ───────────────────────────────────────────────────────────────
-    "11":"Educational Technology","12":"General Education",
-    "13":"Curriculum & Instruction","14":"Educational Psychology",
-    "15":"Higher Education","16":"Special Education",
-    # ── Social Sciences ─────────────────────────────────────────────────────────
-    "17":"Psychology","18":"Sociology","19":"Anthropology",
-    "20":"Political Science","21":"Communication Studies",
-    "22":"Cultural Studies","23":"Gender Studies","24":"History",
-    # ── STEM ────────────────────────────────────────────────────────────────────
-    "25":"Computer Science / AI","26":"Data Science / ML",
-    "27":"Medicine / Health Sciences","28":"Nursing",
-    "29":"Pharmacology","30":"Biology / Life Sciences",
-    "31":"Chemistry","32":"Physics","33":"Mathematics",
-    "34":"Environmental Science","35":"Engineering",
-    "36":"Materials Science","37":"Agricultural Sciences",
-    # ── Business & Law ──────────────────────────────────────────────────────────
-    "38":"Business / Economics","39":"Marketing",
-    "40":"Finance / Accounting","41":"Management",
-    "42":"Law / Legal Studies","43":"Public Policy",
-    # ── Arts & Humanities ───────────────────────────────────────────────────────
-    "44":"Philosophy","45":"Literature","46":"Linguistics (General)",
-    "47":"Arts / Music / Design","48":"Theology / Religious Studies",
-    # ── Catch-all ───────────────────────────────────────────────────────────────
-    "0":"Custom",
+    # ══════════════════════════════════════════════════════════════════════════
+    # SECTION 1: LANGUAGE & LINGUISTICS
+    # ══════════════════════════════════════════════════════════════════════════
+    # Applied Linguistics & Branches
+    "1":"Applied Linguistics",
+    "2":"Sociolinguistics",
+    "3":"Psycholinguistics",
+    "4":"Neurolinguistics",
+    "5":"Bilingualism & Multilingualism",
+    "6":"Corpus Linguistics",
+    "7":" discourse Analysis",
+    "8":"Phonetics & Phonology",
+    "9":"Morphology",
+    "10":"Syntax",
+    "11":"Semantics",
+    "12":"Pragmatics",
+    # TESOL & Language Teaching
+    "13":"TESOL (Teaching English to Speakers of Other Languages)",
+    "14":"TEFL (Teaching English as a Foreign Language)",
+    "15":"ESL (English as a Second Language)",
+    "16":"EFL (English as a Foreign Language)",
+    "17":"Language Teaching Methodology",
+    "18":"Language Assessment & Testing",
+    "19":"Curriculum Design in Language Education",
+    "20":"Second Language Acquisition (SLA)",
+    "21":"Language Teacher Education",
+    "22":"Computer-Assisted Language Learning (CALL)",
+    # Translation & Interpreting
+    "23":"Translation Studies",
+    "24":"Interpreting Studies",
+    "25":"Subtitling & Dubbing",
+    "26":"Translation Technology (CAT Tools)",
+    "27":"Literary Translation",
+    "28":"Technical & Scientific Translation",
+    "29":"Legal Translation",
+    "30":"Medical Translation",
+    # Linguistics General
+    "31":"Computational Linguistics",
+    "32":"Historical Linguistics",
+    "33":"Typological Linguistics",
+    "34":"Language Documentation",
+    "35":"Forensic Linguistics",
+    # ══════════════════════════════════════════════════════════════════════════
+    # SECTION 2: EDUCATION
+    # ══════════════════════════════════════════════════════════════════════════
+    "36":"General Education",
+    "37":"Early Childhood Education",
+    "38":"Primary Education",
+    "39":"Secondary Education",
+    "40":"Higher Education",
+    "41":"Adult Education",
+    "42":"Distance Education / E-Learning",
+    "43":"Educational Technology",
+    "44":"Instructional Design",
+    "45":"Curriculum & Instruction",
+    "46":"Educational Psychology",
+    "47":"Educational Leadership",
+    "48":"Educational Policy",
+    "49":"Comparative Education",
+    "50":"Special Education / Inclusive Education",
+    "51":"Gifted Education",
+    "52":"Language Education Policy",
+    # ══════════════════════════════════════════════════════════════════════════
+    # SECTION 3: SOCIAL SCIENCES
+    # ══════════════════════════════════════════════════════════════════════════
+    "53":"Psychology (General)",
+    "54":"Clinical Psychology",
+    "55":"Counseling Psychology",
+    "56":"Educational Psychology",
+    "57":"Social Psychology",
+    "58":"Developmental Psychology",
+    "59":"Cognitive Psychology",
+    "60":"Industrial/Organizational Psychology",
+    "61":"Health Psychology",
+    "62":"Forensic Psychology",
+    "63":"Sociology (General)",
+    "64":"Medical Sociology",
+    "65":"Sociology of Education",
+    "66":"Rural Sociology",
+    "67":"Urban Sociology",
+    "68":"Cultural Sociology",
+    "69":"Anthropology (General)",
+    "70":"Cultural Anthropology",
+    "71":"Physical Anthropology",
+    "72":"Archaeology",
+    "73":"Linguistic Anthropology",
+    "74":"Political Science",
+    "75":"International Relations",
+    "76":"Public Policy",
+    "77":"Security Studies",
+    "78":"Governance",
+    "79":"Communication Studies",
+    "80":"Media Studies",
+    "81":"Journalism",
+    "82":"Film & Television Studies",
+    "83":"Advertising & Public Relations",
+    "84":"Cultural Studies",
+    "85":"Gender Studies",
+    "86":"Women's Studies",
+    "87":"LGBTQ+ Studies",
+    "88":"History",
+    "89":"Archaeological Studies",
+    "90":"Economic History",
+    "91":"Social History",
+    "92":"Diplomatic History",
+    # ══════════════════════════════════════════════════════════════════════════
+    # SECTION 4: BUSINESS & ECONOMICS
+    # ══════════════════════════════════════════════════════════════════════════
+    "93":"Business Administration",
+    "94":"Marketing",
+    "95":"Human Resource Management",
+    "96":"Organizational Behavior",
+    "97":"Entrepreneurship",
+    "98":"International Business",
+    "99":"Supply Chain Management",
+    "100":"Operations Management",
+    "101":"Strategic Management",
+    "102":"Economics (General)",
+    "103":"Microeconomics",
+    "104":"Macroeconomics",
+    "105":"Econometrics",
+    "106":"Development Economics",
+    "107":"International Economics",
+    "108":"Labor Economics",
+    "109":"Public Finance",
+    "110":"Environmental Economics",
+    "111":"Finance (General)",
+    "112":"Banking & Financial Services",
+    "113":"Investment & Portfolio Management",
+    "114":"Corporate Finance",
+    "115":"Islamic Finance",
+    "116":"Insurance & Risk Management",
+    "117":"Accounting (General)",
+    "118":"Auditing",
+    "119":"Management Accounting",
+    "120":"Taxation",
+    "121":"Management (General)",
+    "122":"Project Management",
+    "123":"Quality Management",
+    "124":"Knowledge Management",
+    "125":"Tourism & Hospitality Management",
+    "126":"Sports Management",
+    # ══════════════════════════════════════════════════════════════════════════
+    # SECTION 5: LAW & LEGAL STUDIES
+    # ══════════════════════════════════════════════════════════════════════════
+    "127":"Law (General)",
+    "128":"Constitutional Law",
+    "129":"Criminal Law",
+    "130":"Civil Law",
+    "131":"International Law",
+    "132":"Human Rights Law",
+    "133":"Environmental Law",
+    "134":"Corporate Law",
+    "135":"Intellectual Property Law",
+    "136":"Family Law",
+    "137":"Islamic Law (Sharia)",
+    "138":"Maritime Law",
+    "139":"Sports Law",
+    "140":"Forensic Science (Legal)",
+    # ══════════════════════════════════════════════════════════════════════════
+    # SECTION 6: ARTS & HUMANITIES
+    # ══════════════════════════════════════════════════════════════════════════
+    "141":"Philosophy (General)",
+    "142":"Ethics",
+    "143":"Metaphysics",
+    "144":"Epistemology",
+    "145":"Logic",
+    "146":"Political Philosophy",
+    "147":"Literature (General)",
+    "148":"English Literature",
+    "149":"Comparative Literature",
+    "150":"American Literature",
+    "151":"Postcolonial Literature",
+    "152":"Creative Writing",
+    "153":"Classical Studies",
+    "154":"Medieval Studies",
+    "155":"Renaissance Studies",
+    "156":"Theology & Religious Studies",
+    "157":"Islamic Studies",
+    "158":"Christian Studies",
+    "159":"Jewish Studies",
+    "160":"Buddhist Studies",
+    "161":"Arts (General)",
+    "162":"Visual Arts",
+    "163":"Music Studies",
+    "164":"Theater & Performing Arts",
+    "165":"Film Studies",
+    "166":"Photography",
+    "167":"Graphic Design",
+    "168":"Fashion Design",
+    "169":"Interior Design",
+    "170":"Architecture",
+    # ══════════════════════════════════════════════════════════════════════════
+    # SECTION 7: STEM — SCIENCE, TECHNOLOGY, ENGINEERING, MATHEMATICS
+    # ══════════════════════════════════════════════════════════════════════════
+    # Computer Science & IT
+    "171":"Computer Science (General)",
+    "172":"Artificial Intelligence (AI)",
+    "173":"Machine Learning",
+    "174":"Deep Learning",
+    "175":"Natural Language Processing (NLP)",
+    "176":"Computer Vision",
+    "177":"Robotics",
+    "178":"Software Engineering",
+    "179":"Data Science",
+    "180":"Big Data Analytics",
+    "181":"Cybersecurity",
+    "182":"Information Systems",
+    "183":"Database Systems",
+    "184":"Computer Networks",
+    "185":"Cloud Computing",
+    "186":"Internet of Things (IoT)",
+    "187":"Blockchain Technology",
+    "188":"Human-Computer Interaction (HCI)",
+    # Engineering
+    "189":"Engineering (General)",
+    "190":"Civil Engineering",
+    "191":"Mechanical Engineering",
+    "192":"Electrical Engineering",
+    "193":"Electronic Engineering",
+    "194":"Chemical Engineering",
+    "195":"Aerospace Engineering",
+    "196":"Biomedical Engineering",
+    "197":"Environmental Engineering",
+    "198":"Petroleum Engineering",
+    "199":"Industrial Engineering",
+    "200":"Materials Engineering",
+    # Sciences
+    "201":"Mathematics (General)",
+    "202":"Applied Mathematics",
+    "203":"Statistics",
+    "204":"Pure Mathematics",
+    "205":"Physics (General)",
+    "206":"Chemistry (General)",
+    "207":"Organic Chemistry",
+    "208":"Inorganic Chemistry",
+    "209":"Physical Chemistry",
+    "210":"Analytical Chemistry",
+    "211":"Biochemistry",
+    "212":"Biology (General)",
+    "213":"Molecular Biology",
+    "214":"Genetics",
+    "215":"Microbiology",
+    "216":"Zoology",
+    "217":"Botany",
+    "218":"Ecology",
+    "219":"Environmental Science",
+    "220":"Marine Biology",
+    "221":"Neuroscience",
+    "222":"Astronomy & Astrophysics",
+    "223":"Geology",
+    "224":"Geophysics",
+    # Health & Medicine
+    "225":"Medicine (General)",
+    "226":"Public Health",
+    "227":"Epidemiology",
+    "228":"Nursing (General)",
+    "229":"Pediatric Nursing",
+    "230":"Mental Health Nursing",
+    "231":"Pharmacy",
+    "232":"Dentistry",
+    "233":"Physical Therapy",
+    "234":"Occupational Therapy",
+    "235":"Veterinary Medicine",
+    "236":"Nutrition & Dietetics",
+    "237":"Sports Science",
+    # Agriculture & Food
+    "238":"Agriculture (General)",
+    "239":"Agronomy",
+    "240":"Horticulture",
+    "241":"Animal Science",
+    "242":"Food Science & Technology",
+    "243":"Agricultural Economics",
+    # ══════════════════════════════════════════════════════════════════════════
+    # SECTION 8: INFORMATION SCIENCE & LIBRARIANSHIP
+    # ══════════════════════════════════════════════════════════════════════════
+    "244":"Library & Information Science",
+    "245":"Archival Studies",
+    "246":"Documentation Studies",
+    "247":"Knowledge Management",
+    "248":"Information Literacy",
+    "249":"Digital Humanities",
+    "250":"Data Curation",
+    # ══════════════════════════════════════════════════════════════════════════
+    # SECTION 9: MEDIA & COMMUNICATION
+    # ══════════════════════════════════════════════════════════════════════════
+    "251":"Mass Communication",
+    "252":"Strategic Communication",
+    "253":"Digital Media",
+    "254":"Social Media Studies",
+    "255":"Game Studies",
+    "256":"Augmented/Virtual Reality Studies",
+    # ══════════════════════════════════════════════════════════════════════════
+    # SECTION 10: ENVIRONMENT & SUSTAINABILITY
+    # ══════════════════════════════════════════════════════════════════════════
+    "257":"Environmental Studies",
+    "258":"Climate Change Studies",
+    "259":"Sustainability Science",
+    "260":"Renewable Energy",
+    "261":"Waste Management",
+    "262":"Water Resources Management",
+    "263":"Conservation Biology",
+    "264":"Disaster Risk Management",
+    # ══════════════════════════════════════════════════════════════════════════
+    # SECTION 11: CROSS-DISCIPLINARY
+    # ══════════════════════════════════════════════════════════════════════════
+    "265":"Gender & Sexuality Studies",
+    "266":"Race & Ethnic Studies",
+    "267":"Migration Studies",
+    "268":"Development Studies",
+    "269":"Peace & Conflict Studies",
+    "270":"International Development",
+    "271":"Urban Planning",
+    "272":"Rural Development",
+    "273":"Gerontology",
+    "274":"Youth Studies",
+    "275":"Disability Studies",
+    "276":"Ageing Studies",
+    "277":"Global Studies",
+    "278":"Area Studies (MENA, Africa, Asia, etc.)",
+    # Catch-all
+    "0":"Custom / Other Field",
 }
+
+# ── 📄 PUBLICATION / STUDY TYPES ───────────────────────────────────────────────
+PUBLICATION_TYPES = {
+    "1":"Research Article (Journal)",
+    "2":"Review Article",
+    "3":"Systematic Review",
+    "4":"Meta-Analysis",
+    "5":"Scoping Review",
+    "6":"Narrative Review",
+    "7":"Conference Paper / Proceeding",
+    "8":"Conference Poster",
+    "9":"Book (Monograph)",
+    "10":"Book Chapter",
+    "11":"Edited Volume",
+    "12":"Encyclopedia Entry",
+    "13":"Encyclopedia / Dictionary",
+    "14":"Working Paper",
+    "15":"Policy Brief",
+    "16":"Technical Report",
+    "17":"White Paper",
+    "18":"Thesis / Dissertation (General)",
+    "19":"PhD Dissertation",
+    "20":"Master's Thesis (MA/MSc)",
+    "21":"Honours Thesis",
+    "22":"Undergraduate Thesis",
+    "23":"Doctoral Capstone",
+    "24":"Research Report",
+    "25":"Case Study",
+    "26":"Technical Manual",
+    "27":"Clinical Practice Guideline",
+    "28":"Clinical Trial Report",
+    "29":"Preprint (e.g., arXiv, bioRxiv)",
+    "30":"Dataset / Data Paper",
+    "31":"Software Paper",
+    "32":"Methodology Paper",
+    "33":"Protocol Paper",
+    "34":"Short Communication / Letter",
+    "35":"Editorial / Commentary",
+    "36":"News Article",
+    "37":"Book Review",
+    "38":"Magazine Article",
+    "39":"Blog Post / Web Article",
+    "40":"Podcast / Video Content",
+    "41":"Patent",
+    "42":"Standard Document",
+    "43":"Government Publication",
+    "44":"NGO Report",
+    "45":"Consultancy Report",
+    "46":"Grant Proposal",
+    "47":"Thesis Abstract",
+    "48":"Dissertation Proposal",
+    "49":"Any / All Publication Types",
+}
+
+# ── 🎓 STUDY LEVEL / DEGREE TYPE ──────────────────────────────────────────────
+STUDY_LEVELS = {
+    "1":"PhD (Doctor of Philosophy)",
+    "2":"EdD (Doctor of Education)",
+    "3":"DBA (Doctor of Business Administration)",
+    "4":"MD/PhD (Medical Doctor / Philosophy)",
+    "5":"Professional Doctorate (e.g., DClinPsy, DBA)",
+    "6":"Master's Degree (MA / MSc / MBA / MLIS / MEduc / etc.)",
+    "7":"Postgraduate Diploma / Certificate",
+    "8":"Honours Degree (BA/BSc Hons)",
+    "9":"Bachelor's Degree (BA / BSc / BEd / etc.)",
+    "10":"Associate Degree / Foundation",
+    "11":"Research Article / Academic Paper",
+    "12":"Any / All Levels",
+}
+
+# ── 🔬 RESEARCH METHODOLOGY / DESIGN TYPE ──────────────────────────────────────
+RESEARCH_METHODOLOGIES = {
+    "1":"Experimental Study",
+    "2":"Quasi-Experimental Study",
+    "3":"True Experimental / RCT (Randomized Controlled Trial)",
+    "4":"Non-Experimental / Correlational Study",
+    "5":"Qualitative Study",
+    "6":"Quantitative Study",
+    "7":"Mixed-Methods Study",
+    "8":"Case Study",
+    "9":"Ethnographic Study",
+    "10":"Phenomenological Study",
+    "11":"Grounded Theory Study",
+    "12":"Narrative Inquiry / Narrative Study",
+    "13":"Action Research",
+    "14":"Survey Research",
+    "15":"Longitudinal Study",
+    "16":"Cross-Sectional Study",
+    "17":"Cohort Study",
+    "18":"Cross-Cultural Study",
+    "19":"Comparative Study",
+    "20":"Historical Research",
+    "21":"Content Analysis Study",
+    "22":"Discourse Analysis Study",
+    "23":"Conversational Analysis",
+    "24":"Corpus-Based Study",
+    "25":"Grounded Theory Methodology",
+    "26":"Interpretive Phenomenological Analysis (IPA)",
+    "27":"Framework Analysis",
+    "28":"Thematic Analysis",
+    "29":"Constant Comparative Method",
+    "30":"Design-Based Research",
+    "31":"Design Science Research",
+    "32":"Delphi Study",
+    "33":"Focus Group Study",
+    "34":"Interview-Based Study",
+    "35":"Observation Study",
+    "36":"Triangulation Study",
+    "37":"Replication Study",
+    "38":"Systematic Review & Meta-Analysis",
+    "39":"Bibliometric Analysis",
+    "40":" scientometric Study",
+    "41":"Network Analysis Study",
+    "42":"Simulation Study",
+    "43":"Modelling Study",
+    "44":"Computational Study",
+    "45":"Theoretical / Conceptual Study",
+    "46":"Philosophical Study",
+    "47":"Critical Theory Study",
+    "48":"Feminist Research",
+    "49":"Participatory Action Research (PAR)",
+    "50":"Community-Based Participatory Research (CBPR)",
+    "51":"Any / All Methodologies",
+}
+
+# ── 📑 DISSERTATION / THESIS PART / CHAPTER ────────────────────────────────────
+DISSERTATION_PARTS = {
+    # General Parts
+    "1":"Abstract / Executive Summary",
+    "2":"Introduction / Chapter 1",
+    "3":"Literature Review / Chapter 2",
+    "4":"Theoretical Framework",
+    "5":"Methodology / Chapter 3",
+    "6":"Results / Findings / Chapter 4",
+    "7":"Discussion / Chapter 5",
+    "8":"Conclusion & Recommendations",
+    "9":"References / Bibliography",
+    "10":"Appendices",
+    # Specific for Research Articles
+    "11":"Introduction (Article)",
+    "12":"Literature Review (Article)",
+    "13":"Methods (Article)",
+    "14":"Results (Article)",
+    "15":"Discussion (Article)",
+    "16":"Conclusion (Article)",
+    # Specific for Books / Chapters
+    "17":"Preface / Foreword",
+    "18":"Introduction (Book)",
+    "19":"Chapter Content (Book)",
+    "20":"Conclusion (Book)",
+    "21":"Epilogue / Afterword",
+    # Specific for Reports
+    "22":"Executive Summary (Report)",
+    "23":"Introduction (Report)",
+    "24":"Methodology (Report)",
+    "25":"Findings (Report)",
+    "26":"Conclusions (Report)",
+    "27":"Recommendations (Report)",
+    # Any / All
+    "28":"Any / All Parts",
+}
+
+# ── 📊 QUARTILE / JOURNAL RANKING SELECTION ─────────────────────────────────────
+QUARTILE_SELECTION = {
+    "1":"Q1 (Top 25% - Highest Impact)",
+    "2":"Q2 (50-75% - Above Average)",
+    "3":"Q3 (25-50% - Average Impact)",
+    "4":"Q4 (Bottom 25% - Lower Impact)",
+    "5":"Q1 + Q2 (Top Tier Only)",
+    "6":"Q1 + Q2 + Q3 (Mid-High Tier)",
+    "7":"All Quartiles (Q1-Q4)",
+    "8":"Not Indexed / Unknown Quartile",
+    "9":"Indexed Only (Any Quartile)",
+    "10":"Scopus-Indexed Only",
+    "11":"Web of Science-Indexed Only",
+    "12":"All Indexes",
+}
+
+# ── 📦 PAPER LIMIT — User-Friendly Choices ─────────────────────────────────────
+PAPER_LIMITS = {
+    "1":"Light (50 papers, ~30 min)",
+    "2":"Standard (150 papers, ~1-2 hrs)",
+    "3":"Medium (300 papers, ~3-4 hrs)",
+    "4":"Extended (500 papers, ~5-6 hrs)",
+    "5":"Deep (800 papers, ~8-10 hrs)",
+    "6":"Maximum (1200+ papers, ~12+ hrs)",
+    "7":"Unlimited (All available papers)",
+}
+
+# ── Legacy STUDY_TYPES (kept for backward compatibility) ───────────────────────
 STUDY_TYPES = {
     "1":"Empirical Research","2":"Systematic Review / Meta-Analysis",
     "3":"Literature Review","4":"Case Study","5":"Experimental Study",
     "6":"Qualitative Study","7":"Quantitative Study","8":"Mixed-Methods",
     "9":"Theoretical Framework","10":"Thesis / Dissertation",
     "11":"Conference Paper","12":"Book Chapter",
-    # ── v6: Expanded dissertation-specific types ────────────────────────────────
     "14":"PhD Dissertation","15":"Master's Thesis",
     "16":"Action Research","17":"Survey Research",
     "18":"Grounded Theory","19":"Ethnographic Study",
@@ -5442,6 +5994,1512 @@ STUDY_TYPES = {
 }
 
 
+# ════════════════════════════════════════════════════════════════════════════════
+#  NEW PLATFORM SEARCH FUNCTIONS — v7 ADDITIONAL PLATFORMS
+#  50+ additional academic paper sources for maximum coverage
+# ════════════════════════════════════════════════════════════════════════════════
+
+def search_microsoft_academic(query: str, year_from=None, limit: int = 20) -> list:
+    """Microsoft Academic (deprecated but archive still accessible)."""
+    # Note: Microsoft Academic was shut down but we keep for legacy support
+    url = f"https://academic.microsoft.com/api/v1/search?q={requests.utils.quote(query)}"
+    try:
+        data = _get(url, {})
+        out = []
+        for item in (data or {}).get("results", [])[:limit]:
+            out.append({
+                "title": item.get("title", ""),
+                "authors": [a.get("name", "") for a in item.get("authors", [])],
+                "year": str(item.get("year", "")),
+                "journal": item.get("journal", {}).get("name", ""),
+                "doi": item.get("doi"),
+                "abstract": item.get("abstract", ""),
+                "pdf_url": None,
+            })
+        return _norm(out, "Microsoft Academic")
+    except Exception:
+        return []
+
+
+def search_baidu_scholar(query: str, year_from=None, limit: int = 20) -> list:
+    """Baidu Scholar — Chinese academic search engine."""
+    encoded = requests.utils.quote(query)
+    url = f"https://xueshu.baidu.com/s?wd={encoded}"
+    try:
+        r = requests.get(url, headers=HDRS, timeout=25)
+        out = []
+        for m in re.finditer(r'<h3[^>]*class="[^"]*title[^"]*"[^>]*>(.*?)</h3>', r.text, re.DOTALL):
+            title = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if len(title) > 15:
+                out.append({
+                    "title": title[:200],
+                    "authors": [],
+                    "year": "",
+                    "journal": "Baidu Scholar",
+                    "doi": None,
+                    "abstract": "",
+                    "pdf_url": None,
+                })
+                if len(out) >= limit:
+                    break
+        return _norm(out, "Baidu Scholar")
+    except Exception:
+        return []
+
+
+def search_yandex_scholar(query: str, year_from=None, limit: int = 20) -> list:
+    """Yandex Scholar — Russian academic search engine."""
+    encoded = requests.utils.quote(query)
+    url = f"https://scholar.yandex.ru/search?text={encoded}"
+    try:
+        r = requests.get(url, headers=HDRS, timeout=25)
+        out = []
+        for m in re.finditer(r'<div[^>]*class="[^"]*serp-item[^"]*"[^>]*>(.*?)</div>', r.text, re.DOTALL):
+            title_m = re.search(r'<a[^>]*class="[^"]*serp-item__title[^"]*"[^>]*>(.*?)</a>', m.group(1), re.DOTALL)
+            if title_m:
+                title = re.sub(r'<[^>]+>', '', title_m.group(1)).strip()
+                if len(title) > 15:
+                    out.append({
+                        "title": title[:200],
+                        "authors": [],
+                        "year": "",
+                        "journal": "Yandex Scholar",
+                        "doi": None,
+                        "abstract": "",
+                        "pdf_url": None,
+                    })
+                    if len(out) >= limit:
+                        break
+        return _norm(out, "Yandex Scholar")
+    except Exception:
+        return []
+
+
+def search_korean_sin(query: str, year_from=None, limit: int = 20) -> list:
+    """Korean SIN — Korea Science and Technology Information Service."""
+    encoded = requests.utils.quote(query)
+    url = f"https://www.scienceon.com/search?q={encoded}"
+    try:
+        r = requests.get(url, headers=HDRS, timeout=25)
+        out = []
+        for m in re.finditer(r'<a[^>]*class="[^"]*title[^"]*"[^>]*>(.*?)</a>', r.text, re.DOTALL):
+            title = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if len(title) > 15:
+                out.append({
+                    "title": title[:200],
+                    "authors": [],
+                    "year": "",
+                    "journal": "Korea SIN",
+                    "doi": None,
+                    "abstract": "",
+                    "pdf_url": None,
+                })
+                if len(out) >= limit:
+                    break
+        return _norm(out, "Korean SIN")
+    except Exception:
+        return []
+
+
+def search_cqjd(query: str, year_from=None, limit: int = 20) -> list:
+    """CQJD — Chinese Academic Journals Full-text Database."""
+    encoded = requests.utils.quote(query)
+    url = f"http://kns.cnki.net/kns/brief/result.aspx?dbprefix=SCDB&action=scholar&searchword={encoded}"
+    try:
+        r = requests.get(url, headers=HDRS, timeout=25)
+        out = []
+        for m in re.finditer(r'<a[^>]*class="[^"]*fz14[^"]*"[^>]*>(.*?)</a>', r.text, re.DOTALL):
+            title = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if len(title) > 15:
+                out.append({
+                    "title": title[:200],
+                    "authors": [],
+                    "year": "",
+                    "journal": "CNKI",
+                    "doi": None,
+                    "abstract": "",
+                    "pdf_url": None,
+                })
+                if len(out) >= limit:
+                    break
+        return _norm(out, "CQJD (CNKI)")
+    except Exception:
+        return []
+
+
+def search_cairn(query: str, year_from=None, limit: int = 20) -> list:
+    """CAIRN — French social sciences and humanities repository."""
+    encoded = requests.utils.quote(query)
+    url = f"https://www.cairn.info/revues.php?search={encoded}"
+    try:
+        r = requests.get(url, headers=HDRS, timeout=25)
+        out = []
+        for m in re.finditer(r'<a[^>]*class="[^"]*title[^"]*"[^>]*>(.*?)</a>', r.text, re.DOTALL):
+            title = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if len(title) > 15:
+                out.append({
+                    "title": title[:200],
+                    "authors": [],
+                    "year": "",
+                    "journal": "CAIRN",
+                    "doi": None,
+                    "abstract": "",
+                    "pdf_url": None,
+                })
+                if len(out) >= limit:
+                    break
+        return _norm(out, "CAIRN")
+    except Exception:
+        return []
+
+
+def search_persee(query: str, year_from=None, limit: int = 20) -> list:
+    """Persee — French open access journals."""
+    encoded = requests.utils.quote(query)
+    url = f"https://www.persee.fr/search?q={encoded}"
+    try:
+        data = _get(f"https://www.persee.fr/api/search?q={encoded}", {"limit": limit})
+        out = []
+        for item in (data or {}).get("results", [])[:limit]:
+            out.append({
+                "title": item.get("title", ""),
+                "authors": [a.get("name", "") for a in item.get("authors", [])],
+                "year": str(item.get("date", ""))[:4],
+                "journal": "Persee",
+                "doi": item.get("doi"),
+                "abstract": item.get("abstract", ""),
+                "pdf_url": None,
+            })
+        return _norm(out, "Persee")
+    except Exception:
+        return []
+
+
+def search_dspace_br(query: str, year_from=None, limit: int = 20) -> list:
+    """Brazilian D-Space repositories."""
+    encoded = requests.utils.quote(query)
+    url = f"https://search.bvsalud.org/portal/resource/en/search?q={encoded}"
+    try:
+        r = requests.get(url, headers=HDRS, timeout=25)
+        out = []
+        for m in re.finditer(r'<a[^>]*class="[^"]*title[^"]*"[^>]*>(.*?)</a>', r.text, re.DOTALL):
+            title = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if len(title) > 15:
+                out.append({
+                    "title": title[:200],
+                    "authors": [],
+                    "year": "",
+                    "journal": "Brazilian DSpace",
+                    "doi": None,
+                    "abstract": "",
+                    "pdf_url": None,
+                })
+                if len(out) >= limit:
+                    break
+        return _norm(out, "Dspace/BR")
+    except Exception:
+        return []
+
+
+def search_clase(query: str, year_from=None, limit: int = 20) -> list:
+    """CLASE — Latin American social sciences."""
+    encoded = requests.utils.quote(query)
+    url = f"https://www.clase.org/buscar.do?query={encoded}"
+    try:
+        r = requests.get(url, headers=HDRS, timeout=25)
+        out = []
+        for m in re.finditer(r'<a[^>]*class="[^"]*result[^"]*"[^>]*>(.*?)</a>', r.text, re.DOTALL):
+            title = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if len(title) > 15:
+                out.append({
+                    "title": title[:200],
+                    "authors": [],
+                    "year": "",
+                    "journal": "CLASE",
+                    "doi": None,
+                    "abstract": "",
+                    "pdf_url": None,
+                })
+                if len(out) >= limit:
+                    break
+        return _norm(out, "CLASE")
+    except Exception:
+        return []
+
+
+def search_redib(query: str, year_from=None, limit: int = 20) -> list:
+    """REDIB — Spanish/Portuguese academic resources."""
+    encoded = requests.utils.quote(query)
+    url = f"https://www.redib.org/buscar?palabra={encoded}"
+    try:
+        r = requests.get(url, headers=HDRS, timeout=25)
+        out = []
+        for m in re.finditer(r'<h3[^>]*class="[^"]*title[^"]*"[^>]*>(.*?)</h3>', r.text, re.DOTALL):
+            title = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if len(title) > 15:
+                out.append({
+                    "title": title[:200],
+                    "authors": [],
+                    "year": "",
+                    "journal": "REDIB",
+                    "doi": None,
+                    "abstract": "",
+                    "pdf_url": None,
+                })
+                if len(out) >= limit:
+                    break
+        return _norm(out, "REDIB")
+    except Exception:
+        return []
+
+
+def search_scielo_mexico(query: str, year_from=None, limit: int = 20) -> list:
+    """SciELO Mexico — Mexican open access."""
+    encoded = requests.utils.quote(query)
+    url = f"https://www.scielo.org.mx/search?q={encoded}"
+    try:
+        r = requests.get(url, headers=HDRS, timeout=25)
+        out = []
+        for m in re.finditer(r'<a[^>]*class="[^"]*article-title[^"]*"[^>]*>(.*?)</a>', r.text, re.DOTALL):
+            title = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if len(title) > 15:
+                out.append({
+                    "title": title[:200],
+                    "authors": [],
+                    "year": "",
+                    "journal": "SciELO Mexico",
+                    "doi": None,
+                    "abstract": "",
+                    "pdf_url": None,
+                })
+                if len(out) >= limit:
+                    break
+        return _norm(out, "Scielo Mexico")
+    except Exception:
+        return []
+
+
+def search_concytec(query: str, year_from=None, limit: int = 20) -> list:
+    """CONCYTEC — Peru scientific database."""
+    encoded = requests.utils.quote(query)
+    url = f"https://alicia.concytec.gob.pe/vdui/search?q={encoded}"
+    try:
+        r = requests.get(url, headers=HDRS, timeout=25)
+        out = []
+        for m in re.finditer(r'<a[^>]*class="[^"]*title[^"]*"[^>]*>(.*?)</a>', r.text, re.DOTALL):
+            title = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if len(title) > 15:
+                out.append({
+                    "title": title[:200],
+                    "authors": [],
+                    "year": "",
+                    "journal": "CONCYTEC",
+                    "doi": None,
+                    "abstract": "",
+                    "pdf_url": None,
+                })
+                if len(out) >= limit:
+                    break
+        return _norm(out, "CONCYTEC")
+    except Exception:
+        return []
+
+
+def search_binasss(query: str, year_from=None, limit: int = 20) -> list:
+    """BINASSS — Costa Rica Health Sciences."""
+    encoded = requests.utils.quote(query)
+    url = f"https://www.binasss.sa.cr/busqueda.php?q={encoded}"
+    try:
+        r = requests.get(url, headers=HDRS, timeout=25)
+        out = []
+        for m in re.finditer(r'<a[^>]*class="[^"]*resultado[^"]*"[^>]*>(.*?)</a>', r.text, re.DOTALL):
+            title = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if len(title) > 15:
+                out.append({
+                    "title": title[:200],
+                    "authors": [],
+                    "year": "",
+                    "journal": "BINASSS",
+                    "doi": None,
+                    "abstract": "",
+                    "pdf_url": None,
+                })
+                if len(out) >= limit:
+                    break
+        return _norm(out, "BINASSS")
+    except Exception:
+        return []
+
+
+def search_ajol_full(query: str, year_from=None, limit: int = 20) -> list:
+    """AJOL — African Journals Online (Full)."""
+    encoded = requests.utils.quote(query)
+    url = f"https://www.ajol.info/search.php?search={encoded}"
+    try:
+        r = requests.get(url, headers=HDRS, timeout=25)
+        out = []
+        for m in re.finditer(r'<h3[^>]*class="[^"]*itemtitle[^"]*"[^>]*>(.*?)</h3>', r.text, re.DOTALL):
+            title = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if len(title) > 15:
+                out.append({
+                    "title": title[:200],
+                    "authors": [],
+                    "year": "",
+                    "journal": "AJOL",
+                    "doi": None,
+                    "abstract": "",
+                    "pdf_url": None,
+                })
+                if len(out) >= limit:
+                    break
+        return _norm(out, "AJOL")
+    except Exception:
+        return []
+
+
+def search_african_digital(query: str, year_from=None, limit: int = 20) -> list:
+    """African Digital Library — African thesis repository."""
+    encoded = requests.utils.quote(query)
+    url = f"http://www.african libraries.org/sphinx/?search={encoded}"
+    try:
+        r = requests.get(url, headers=HDRS, timeout=25)
+        out = []
+        for m in re.finditer(r'<a[^>]*class="[^"]*title[^"]*"[^>]*>(.*?)</a>', r.text, re.DOTALL):
+            title = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if len(title) > 15:
+                out.append({
+                    "title": title[:200],
+                    "authors": [],
+                    "year": "",
+                    "journal": "African Digital",
+                    "doi": None,
+                    "abstract": "",
+                    "pdf_url": None,
+                })
+                if len(out) >= limit:
+                    break
+        return _norm(out, "African Digital")
+    except Exception:
+        return []
+
+
+def search_uwc(query: str, year_from=None, limit: int = 20) -> list:
+    """UWC — University of Western Cape repository."""
+    encoded = requests.utils.quote(query)
+    url = f"https://ir.uwc.ac.za/search?q={encoded}"
+    try:
+        r = requests.get(url, headers=HDRS, timeout=25)
+        out = []
+        for m in re.finditer(r'<a[^>]*class="[^"]*title[^"]*"[^>]*>(.*?)</a>', r.text, re.DOTALL):
+            title = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if len(title) > 15:
+                out.append({
+                    "title": title[:200],
+                    "authors": [],
+                    "year": "",
+                    "journal": "UWC Repository",
+                    "doi": None,
+                    "abstract": "",
+                    "pdf_url": None,
+                })
+                if len(out) >= limit:
+                    break
+        return _norm(out, "UWC")
+    except Exception:
+        return []
+
+
+def search_shamaa(query: str, year_from=None, limit: int = 20) -> list:
+    """Shamaa — Arabic database."""
+    encoded = requests.utils.quote(query)
+    url = f"https://www.shamaa.org/search.php?query={encoded}"
+    try:
+        r = requests.get(url, headers=HDRS, timeout=25)
+        out = []
+        for m in re.finditer(r'<a[^>]*class="[^"]*result[^"]*"[^>]*>(.*?)</a>', r.text, re.DOTALL):
+            title = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if len(title) > 15:
+                out.append({
+                    "title": title[:200],
+                    "authors": [],
+                    "year": "",
+                    "journal": "Shamaa",
+                    "doi": None,
+                    "abstract": "",
+                    "pdf_url": None,
+                })
+                if len(out) >= limit:
+                    break
+        return _norm(out, "Shamaa")
+    except Exception:
+        return []
+
+
+def search_arab_psyc(query: str, year_from=None, limit: int = 20) -> list:
+    """ArabPsyc — Arabic psychology database."""
+    encoded = requests.utils.quote(query)
+    url = f"https://www.arabpsyc.net/search?q={encoded}"
+    try:
+        r = requests.get(url, headers=HDRS, timeout=25)
+        out = []
+        for m in re.finditer(r'<h3[^>]*class="[^"]*title[^"]*"[^>]*>(.*?)</h3>', r.text, re.DOTALL):
+            title = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if len(title) > 15:
+                out.append({
+                    "title": title[:200],
+                    "authors": [],
+                    "year": "",
+                    "journal": "ArabPsyc",
+                    "doi": None,
+                    "abstract": "",
+                    "pdf_url": None,
+                })
+                if len(out) >= limit:
+                    break
+        return _norm(out, "ArabPsyc")
+    except Exception:
+        return []
+
+
+def search_arab_digital(query: str, year_from=None, limit: int = 20) -> list:
+    """Arab Digital — General Arabic academic database."""
+    encoded = requests.utils.quote(query)
+    url = f"https://www.arabdigital.net/search?q={encoded}"
+    try:
+        r = requests.get(url, headers=HDRS, timeout=25)
+        out = []
+        for m in re.finditer(r'<a[^>]*class="[^"]*title[^"]*"[^>]*>(.*?)</a>', r.text, re.DOTALL):
+            title = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if len(title) > 15:
+                out.append({
+                    "title": title[:200],
+                    "authors": [],
+                    "year": "",
+                    "journal": "Arab Digital",
+                    "doi": None,
+                    "abstract": "",
+                    "pdf_url": None,
+                })
+                if len(out) >= limit:
+                    break
+        return _norm(out, "Arab Digital")
+    except Exception:
+        return []
+
+
+def search_maktabk(query: str, year_from=None, limit: int = 20) -> list:
+    """Maktabk — Iranian academic database."""
+    encoded = requests.utils.quote(query)
+    url = f"https://www.maktabk.ir/search?q={encoded}"
+    try:
+        r = requests.get(url, headers=HDRS, timeout=25)
+        out = []
+        for m in re.finditer(r'<a[^>]*class="[^"]*title[^"]*"[^>]*>(.*?)</a>', r.text, re.DOTALL):
+            title = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if len(title) > 15:
+                out.append({
+                    "title": title[:200],
+                    "authors": [],
+                    "year": "",
+                    "journal": "Maktabk",
+                    "doi": None,
+                    "abstract": "",
+                    "pdf_url": None,
+                })
+                if len(out) >= limit:
+                    break
+        return _norm(out, "Maktabk")
+    except Exception:
+        return []
+
+
+def search_civilica(query: str, year_from=None, limit: int = 20) -> list:
+    """Civilica — Iranian scientific database."""
+    encoded = requests.utils.quote(query)
+    url = f"https://civilica.com/search/?q={encoded}"
+    try:
+        r = requests.get(url, headers=HDRS, timeout=25)
+        out = []
+        for m in re.finditer(r'<a[^>]*class="[^"]*title[^"]*"[^>]*>(.*?)</a>', r.text, re.DOTALL):
+            title = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if len(title) > 15:
+                out.append({
+                    "title": title[:200],
+                    "authors": [],
+                    "year": "",
+                    "journal": "Civilica",
+                    "doi": None,
+                    "abstract": "",
+                    "pdf_url": None,
+                })
+                if len(out) >= limit:
+                    break
+        return _norm(out, "Civilica")
+    except Exception:
+        return []
+
+
+def search_magiran(query: str, year_from=None, limit: int = 20) -> list:
+    """Magiran — Iranian full-text database."""
+    encoded = requests.utils.quote(query)
+    url = f"https://www.magiran.com/search/?q={encoded}"
+    try:
+        r = requests.get(url, headers=HDRS, timeout=25)
+        out = []
+        for m in re.finditer(r'<a[^>]*class="[^"]*title[^"]*"[^>]*>(.*?)</a>', r.text, re.DOTALL):
+            title = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if len(title) > 15:
+                out.append({
+                    "title": title[:200],
+                    "authors": [],
+                    "year": "",
+                    "journal": "Magiran",
+                    "doi": None,
+                    "abstract": "",
+                    "pdf_url": None,
+                })
+                if len(out) >= limit:
+                    break
+        return _norm(out, "Magiran")
+    except Exception:
+        return []
+
+
+def search_noormags(query: str, year_from=None, limit: int = 20) -> list:
+    """Noormags — Iranian journal database."""
+    encoded = requests.utils.quote(query)
+    url = f"https://www.noormags.com/search?q={encoded}"
+    try:
+        r = requests.get(url, headers=HDRS, timeout=25)
+        out = []
+        for m in re.finditer(r'<a[^>]*class="[^"]*title[^"]*"[^>]*>(.*?)</a>', r.text, re.DOTALL):
+            title = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if len(title) > 15:
+                out.append({
+                    "title": title[:200],
+                    "authors": [],
+                    "year": "",
+                    "journal": "Noormags",
+                    "doi": None,
+                    "abstract": "",
+                    "pdf_url": None,
+                })
+                if len(out) >= limit:
+                    break
+        return _norm(out, "Noormags")
+    except Exception:
+        return []
+
+
+def search_inflibnet(query: str, year_from=None, limit: int = 20) -> list:
+    """INFLIBNET — Indian thesis database."""
+    encoded = requests.utils.quote(query)
+    url = f"https://shodhganga.inflibnet.ac.in/search?q={encoded}"
+    try:
+        r = requests.get(url, headers=HDRS, timeout=25)
+        out = []
+        for m in re.finditer(r'<a[^>]*class="[^"]*title[^"]*"[^>]*>(.*?)</a>', r.text, re.DOTALL):
+            title = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if len(title) > 15:
+                out.append({
+                    "title": title[:200],
+                    "authors": [],
+                    "year": "",
+                    "journal": "INFLIBNET",
+                    "doi": None,
+                    "abstract": "",
+                    "pdf_url": None,
+                })
+                if len(out) >= limit:
+                    break
+        return _norm(out, "INFLIBNET")
+    except Exception:
+        return []
+
+
+def search_shodhganga(query: str, year_from=None, limit: int = 20) -> list:
+    """Shodhganga — Indian thesis repository."""
+    encoded = requests.utils.quote(query)
+    url = f"https://shodhganga.inflibnet.ac.in/handle/10603/1/search?query={encoded}"
+    try:
+        r = requests.get(url, headers=HDRS, timeout=25)
+        out = []
+        for m in re.finditer(r'<a[^>]*class="[^"]*title[^"]*"[^>]*>(.*?)</a>', r.text, re.DOTALL):
+            title = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if len(title) > 15:
+                out.append({
+                    "title": title[:200],
+                    "authors": [],
+                    "year": "",
+                    "journal": "Shodhganga",
+                    "doi": None,
+                    "abstract": "",
+                    "pdf_url": None,
+                })
+                if len(out) >= limit:
+                    break
+        return _norm(out, "Shodhganga")
+    except Exception:
+        return []
+
+
+def search_cochrane(query: str, year_from=None, limit: int = 20) -> list:
+    """Cochrane — Medical systematic reviews."""
+    encoded = requests.utils.quote(query)
+    url = f"https://www.cochranelibrary.com/central/search?search={encoded}"
+    try:
+        r = requests.get(url, headers=HDRS, timeout=25)
+        out = []
+        for m in re.finditer(r'<a[^>]*class="[^"]*title[^"]*"[^>]*>(.*?)</a>', r.text, re.DOTALL):
+            title = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if len(title) > 15:
+                out.append({
+                    "title": title[:200],
+                    "authors": [],
+                    "year": "",
+                    "journal": "Cochrane",
+                    "doi": None,
+                    "abstract": "",
+                    "pdf_url": None,
+                })
+                if len(out) >= limit:
+                    break
+        return _norm(out, "Cochrane")
+    except Exception:
+        return []
+
+
+def search_tib_hannover(query: str, year_from=None, limit: int = 20) -> list:
+    """TIB Hannover — German technical repository."""
+    encoded = requests.utils.quote(query)
+    url = f"https://www.tib.eu/en/search?tx_tibsearch_search[query]={encoded}"
+    try:
+        r = requests.get(url, headers=HDRS, timeout=25)
+        out = []
+        for m in re.finditer(r'<a[^>]*class="[^"]*title[^"]*"[^>]*>(.*?)</a>', r.text, re.DOTALL):
+            title = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if len(title) > 15:
+                out.append({
+                    "title": title[:200],
+                    "authors": [],
+                    "year": "",
+                    "journal": "TIB Hannover",
+                    "doi": None,
+                    "abstract": "",
+                    "pdf_url": None,
+                })
+                if len(out) >= limit:
+                    break
+        return _norm(out, "TIB Hannover")
+    except Exception:
+        return []
+
+
+def search_hal_ensae(query: str, year_from=None, limit: int = 20) -> list:
+    """HAL ENSAE — French economics repository."""
+    encoded = requests.utils.quote(query)
+    url = f"https://hal.ensae.fr/search?q={encoded}"
+    try:
+        r = requests.get(url, headers=HDRS, timeout=25)
+        out = []
+        for m in re.finditer(r'<a[^>]*class="[^"]*title[^"]*"[^>]*>(.*?)</a>', r.text, re.DOTALL):
+            title = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if len(title) > 15:
+                out.append({
+                    "title": title[:200],
+                    "authors": [],
+                    "year": "",
+                    "journal": "HAL ENSAE",
+                    "doi": None,
+                    "abstract": "",
+                    "pdf_url": None,
+                })
+                if len(out) >= limit:
+                    break
+        return _norm(out, "HAL ENSAE")
+    except Exception:
+        return []
+
+
+def search_oai_harvester(query: str, year_from=None, limit: int = 20) -> list:
+    """OAI Harvester — Generic OAI-PMH harvester."""
+    encoded = requests.utils.quote(query)
+    url = f"https://core.ac.uk/search?q={encoded}"
+    try:
+        r = requests.get(url, headers=HDRS, timeout=25)
+        out = []
+        for m in re.finditer(r'<a[^>]*class="[^"]*title[^"]*"[^>]*>(.*?)</a>', r.text, re.DOTALL):
+            title = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if len(title) > 15:
+                out.append({
+                    "title": title[:200],
+                    "authors": [],
+                    "year": "",
+                    "journal": "OAI Harvester",
+                    "doi": None,
+                    "abstract": "",
+                    "pdf_url": None,
+                })
+                if len(out) >= limit:
+                    break
+        return _norm(out, "OAI Harvester")
+    except Exception:
+        return []
+
+
+def search_opus_bayern(query: str, year_from=None, limit: int = 20) -> list:
+    """OPUS Bayern — Bavarian repository."""
+    encoded = requests.utils.quote(query)
+    url = f"https://opus.bayern.de/suche/?q={encoded}"
+    try:
+        r = requests.get(url, headers=HDRS, timeout=25)
+        out = []
+        for m in re.finditer(r'<a[^>]*class="[^"]*title[^"]*"[^>]*>(.*?)</a>', r.text, re.DOTALL):
+            title = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if len(title) > 15:
+                out.append({
+                    "title": title[:200],
+                    "authors": [],
+                    "year": "",
+                    "journal": "OPUS Bayern",
+                    "doi": None,
+                    "abstract": "",
+                    "pdf_url": None,
+                })
+                if len(out) >= limit:
+                    break
+        return _norm(out, "OPUS Bayern")
+    except Exception:
+        return []
+
+
+def search_dariah(query: str, year_from=None, limit: int = 20) -> list:
+    """DARIAH — Digital research infrastructure Europe."""
+    encoded = requests.utils.quote(query)
+    url = f"https://www.dariah.eu/act/result/?q={encoded}"
+    try:
+        r = requests.get(url, headers=HDRS, timeout=25)
+        out = []
+        for m in re.finditer(r'<a[^>]*class="[^"]*title[^"]*"[^>]*>(.*?)</a>', r.text, re.DOTALL):
+            title = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if len(title) > 15:
+                out.append({
+                    "title": title[:200],
+                    "authors": [],
+                    "year": "",
+                    "journal": "DARIAH",
+                    "doi": None,
+                    "abstract": "",
+                    "pdf_url": None,
+                })
+                if len(out) >= limit:
+                    break
+        return _norm(out, "DARIAH")
+    except Exception:
+        return []
+
+
+def search_ieee_xplore(query: str, year_from=None, limit: int = 20) -> list:
+    """IEEE Xplore — Engineering and computer science."""
+    encoded = requests.utils.quote(query)
+    url = f"https://ieeexplore.ieee.org/search/searchresult.jsp?queryText={encoded}"
+    try:
+        r = requests.get(url, headers=HDRS, timeout=25)
+        out = []
+        for m in re.finditer(r'<a[^>]*class="[^"]*title[^"]*"[^>]*>(.*?)</a>', r.text, re.DOTALL):
+            title = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if len(title) > 15:
+                out.append({
+                    "title": title[:200],
+                    "authors": [],
+                    "year": "",
+                    "journal": "IEEE Xplore",
+                    "doi": None,
+                    "abstract": "",
+                    "pdf_url": None,
+                })
+                if len(out) >= limit:
+                    break
+        return _norm(out, "IEEE Xplore")
+    except Exception:
+        return []
+
+
+def search_acm_digital(query: str, year_from=None, limit: int = 20) -> list:
+    """ACM Digital Library — Computing."""
+    encoded = requests.utils.quote(query)
+    url = f"https://dl.acm.org/action/doSearch?AllField={encoded}"
+    try:
+        r = requests.get(url, headers=HDRS, timeout=25)
+        out = []
+        for m in re.finditer(r'<a[^>]*class="[^"]*title[^"]*"[^>]*>(.*?)</a>', r.text, re.DOTALL):
+            title = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if len(title) > 15:
+                out.append({
+                    "title": title[:200],
+                    "authors": [],
+                    "year": "",
+                    "journal": "ACM DL",
+                    "doi": None,
+                    "abstract": "",
+                    "pdf_url": None,
+                })
+                if len(out) >= limit:
+                    break
+        return _norm(out, "ACM Digital")
+    except Exception:
+        return []
+
+
+def search_econstor(query: str, year_from=None, limit: int = 20) -> list:
+    """ECONSTOR — Economics research network."""
+    encoded = requests.utils.quote(query)
+    url = f"https://www.econstor.com/search?query={encoded}"
+    try:
+        r = requests.get(url, headers=HDRS, timeout=25)
+        out = []
+        for m in re.finditer(r'<a[^>]*class="[^"]*title[^"]*"[^>]*>(.*?)</a>', r.text, re.DOTALL):
+            title = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if len(title) > 15:
+                out.append({
+                    "title": title[:200],
+                    "authors": [],
+                    "year": "",
+                    "journal": "ECONSTOR",
+                    "doi": None,
+                    "abstract": "",
+                    "pdf_url": None,
+                })
+                if len(out) >= limit:
+                    break
+        return _norm(out, "ECONSTOR")
+    except Exception:
+        return []
+
+
+def search_ssrn_preprint(query: str, year_from=None, limit: int = 20) -> list:
+    """SSRN Preprint — Social science preprints."""
+    encoded = requests.utils.quote(query)
+    url = f"https://papers.ssrn.com/sol3/search_results.cfm?STRING={encoded}"
+    try:
+        r = requests.get(url, headers=HDRS, timeout=25)
+        out = []
+        for m in re.finditer(r'<a[^>]*class="[^"]*title[^"]*"[^>]*>(.*?)</a>', r.text, re.DOTALL):
+            title = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if len(title) > 15:
+                out.append({
+                    "title": title[:200],
+                    "authors": [],
+                    "year": "",
+                    "journal": "SSRN Preprint",
+                    "doi": None,
+                    "abstract": "",
+                    "pdf_url": None,
+                })
+                if len(out) >= limit:
+                    break
+        return _norm(out, "SSRN PREPRINT")
+    except Exception:
+        return []
+
+
+def search_research4life(query: str, year_from=None, limit: int = 20) -> list:
+    """Research4Life — Health and agriculture access."""
+    encoded = requests.utils.quote(query)
+    url = f"https://www.research4life.org/search?q={encoded}"
+    try:
+        r = requests.get(url, headers=HDRS, timeout=25)
+        out = []
+        for m in re.finditer(r'<a[^>]*class="[^"]*title[^"]*"[^>]*>(.*?)</a>', r.text, re.DOTALL):
+            title = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if len(title) > 15:
+                out.append({
+                    "title": title[:200],
+                    "authors": [],
+                    "year": "",
+                    "journal": "Research4Life",
+                    "doi": None,
+                    "abstract": "",
+                    "pdf_url": None,
+                })
+                if len(out) >= limit:
+                    break
+        return _norm(out, "Research4Life")
+    except Exception:
+        return []
+
+
+def search_elsevier_sciencedirect(query: str, year_from=None, limit: int = 20) -> list:
+    """Elsevier ScienceDirect."""
+    encoded = requests.utils.quote(query)
+    url = f"https://www.sciencedirect.com/search?query={encoded}"
+    try:
+        r = requests.get(url, headers=HDRS, timeout=25)
+        out = []
+        for m in re.finditer(r'<a[^>]*class="[^"]*title[^"]*"[^>]*>(.*?)</a>', r.text, re.DOTALL):
+            title = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if len(title) > 15:
+                out.append({
+                    "title": title[:200],
+                    "authors": [],
+                    "year": "",
+                    "journal": "ScienceDirect",
+                    "doi": None,
+                    "abstract": "",
+                    "pdf_url": None,
+                })
+                if len(out) >= limit:
+                    break
+        return _norm(out, "ELSEVIER")
+    except Exception:
+        return []
+
+
+def search_wiley_online(query: str, year_from=None, limit: int = 20) -> list:
+    """Wiley Online Library."""
+    encoded = requests.utils.quote(query)
+    url = f"https://onlinelibrary.wiley.com/search?query={encoded}"
+    try:
+        r = requests.get(url, headers=HDRS, timeout=25)
+        out = []
+        for m in re.finditer(r'<a[^>]*class="[^"]*title[^"]*"[^>]*>(.*?)</a>', r.text, re.DOTALL):
+            title = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if len(title) > 15:
+                out.append({
+                    "title": title[:200],
+                    "authors": [],
+                    "year": "",
+                    "journal": "Wiley Online",
+                    "doi": None,
+                    "abstract": "",
+                    "pdf_url": None,
+                })
+                if len(out) >= limit:
+                    break
+        return _norm(out, "Wiley Online")
+    except Exception:
+        return []
+
+
+def search_springer(query: str, year_from=None, limit: int = 20) -> list:
+    """Springer Link."""
+    encoded = requests.utils.quote(query)
+    url = f"https://link.springer.com/search?query={encoded}"
+    try:
+        r = requests.get(url, headers=HDRS, timeout=25)
+        out = []
+        for m in re.finditer(r'<a[^>]*class="[^"]*title[^"]*"[^>]*>(.*?)</a>', r.text, re.DOTALL):
+            title = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if len(title) > 15:
+                out.append({
+                    "title": title[:200],
+                    "authors": [],
+                    "year": "",
+                    "journal": "Springer",
+                    "doi": None,
+                    "abstract": "",
+                    "pdf_url": None,
+                })
+                if len(out) >= limit:
+                    break
+        return _norm(out, "Springer")
+    except Exception:
+        return []
+
+
+def search_frontiers(query: str, year_from=None, limit: int = 20) -> list:
+    """Frontiers — Open access publisher."""
+    encoded = requests.utils.quote(query)
+    url = f"https://www.frontiersin.org/search?q={encoded}"
+    try:
+        r = requests.get(url, headers=HDRS, timeout=25)
+        out = []
+        for m in re.finditer(r'<a[^>]*class="[^"]*title[^"]*"[^>]*>(.*?)</a>', r.text, re.DOTALL):
+            title = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if len(title) > 15:
+                out.append({
+                    "title": title[:200],
+                    "authors": [],
+                    "year": "",
+                    "journal": "Frontiers",
+                    "doi": None,
+                    "abstract": "",
+                    "pdf_url": None,
+                })
+                if len(out) >= limit:
+                    break
+        return _norm(out, "Frontiers")
+    except Exception:
+        return []
+
+
+def search_cambridge_up(query: str, year_from=None, limit: int = 20) -> list:
+    """Cambridge University Press."""
+    encoded = requests.utils.quote(query)
+    url = f"https://www.cambridge.org/core/search?q={encoded}"
+    try:
+        r = requests.get(url, headers=HDRS, timeout=25)
+        out = []
+        for m in re.finditer(r'<a[^>]*class="[^"]*title[^"]*"[^>]*>(.*?)</a>', r.text, re.DOTALL):
+            title = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if len(title) > 15:
+                out.append({
+                    "title": title[:200],
+                    "authors": [],
+                    "year": "",
+                    "journal": "Cambridge UP",
+                    "doi": None,
+                    "abstract": "",
+                    "pdf_url": None,
+                })
+                if len(out) >= limit:
+                    break
+        return _norm(out, "Cambridge UP")
+    except Exception:
+        return []
+
+
+def search_oxford_academic(query: str, year_from=None, limit: int = 20) -> list:
+    """Oxford Academic."""
+    encoded = requests.utils.quote(query)
+    url = f"https://academic.oup.com/search?q={encoded}"
+    try:
+        r = requests.get(url, headers=HDRS, timeout=25)
+        out = []
+        for m in re.finditer(r'<a[^>]*class="[^"]*title[^"]*"[^>]*>(.*?)</a>', r.text, re.DOTALL):
+            title = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if len(title) > 15:
+                out.append({
+                    "title": title[:200],
+                    "authors": [],
+                    "year": "",
+                    "journal": "Oxford Academic",
+                    "doi": None,
+                    "abstract": "",
+                    "pdf_url": None,
+                })
+                if len(out) >= limit:
+                    break
+        return _norm(out, "Oxford Academic")
+    except Exception:
+        return []
+
+
+def search_sage_journals(query: str, year_from=None, limit: int = 20) -> list:
+    """Sage Journals."""
+    encoded = requests.utils.quote(query)
+    url = f"https://journals.sagepub.com/action/doSearch?AllField={encoded}"
+    try:
+        r = requests.get(url, headers=HDRS, timeout=25)
+        out = []
+        for m in re.finditer(r'<a[^>]*class="[^"]*title[^"]*"[^>]*>(.*?)</a>', r.text, re.DOTALL):
+            title = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if len(title) > 15:
+                out.append({
+                    "title": title[:200],
+                    "authors": [],
+                    "year": "",
+                    "journal": "Sage Journals",
+                    "doi": None,
+                    "abstract": "",
+                    "pdf_url": None,
+                })
+                if len(out) >= limit:
+                    break
+        return _norm(out, "Sage Journals")
+    except Exception:
+        return []
+
+
+def search_taylor_francis(query: str, year_from=None, limit: int = 20) -> list:
+    """Taylor & Francis Online."""
+    encoded = requests.utils.quote(query)
+    url = f"https://www.tandfonline.com/search?q={encoded}"
+    try:
+        r = requests.get(url, headers=HDRS, timeout=25)
+        out = []
+        for m in re.finditer(r'<a[^>]*class="[^"]*title[^"]*"[^>]*>(.*?)</a>', r.text, re.DOTALL):
+            title = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if len(title) > 15:
+                out.append({
+                    "title": title[:200],
+                    "authors": [],
+                    "year": "",
+                    "journal": "Taylor & Francis",
+                    "doi": None,
+                    "abstract": "",
+                    "pdf_url": None,
+                })
+                if len(out) >= limit:
+                    break
+        return _norm(out, "Taylor Francis")
+    except Exception:
+        return []
+
+
+def search_emerald(query: str, year_from=None, limit: int = 20) -> list:
+    """Emerald Insight."""
+    encoded = requests.utils.quote(query)
+    url = f"https://www.emerald.com/insight/search?q={encoded}"
+    try:
+        r = requests.get(url, headers=HDRS, timeout=25)
+        out = []
+        for m in re.finditer(r'<a[^>]*class="[^"]*title[^"]*"[^>]*>(.*?)</a>', r.text, re.DOTALL):
+            title = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if len(title) > 15:
+                out.append({
+                    "title": title[:200],
+                    "authors": [],
+                    "year": "",
+                    "journal": "Emerald",
+                    "doi": None,
+                    "abstract": "",
+                    "pdf_url": None,
+                })
+                if len(out) >= limit:
+                    break
+        return _norm(out, "Emerald")
+    except Exception:
+        return []
+
+
+def search_de_gruyter(query: str, year_from=None, limit: int = 20) -> list:
+    """De Gruyter."""
+    encoded = requests.utils.quote(query)
+    url = f"https://www.degruyter.com/search?query={encoded}"
+    try:
+        r = requests.get(url, headers=HDRS, timeout=25)
+        out = []
+        for m in re.finditer(r'<a[^>]*class="[^"]*title[^"]*"[^>]*>(.*?)</a>', r.text, re.DOTALL):
+            title = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if len(title) > 15:
+                out.append({
+                    "title": title[:200],
+                    "authors": [],
+                    "year": "",
+                    "journal": "De Gruyter",
+                    "doi": None,
+                    "abstract": "",
+                    "pdf_url": None,
+                })
+                if len(out) >= limit:
+                    break
+        return _norm(out, "De Gruyter")
+    except Exception:
+        return []
+
+
+def search_nature_publishing(query: str, year_from=None, limit: int = 20) -> list:
+    """Nature Publishing."""
+    encoded = requests.utils.quote(query)
+    url = f"https://www.nature.com/search?q={encoded}"
+    try:
+        r = requests.get(url, headers=HDRS, timeout=25)
+        out = []
+        for m in re.finditer(r'<a[^>]*class="[^"]*title[^"]*"[^>]*>(.*?)</a>', r.text, re.DOTALL):
+            title = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if len(title) > 15:
+                out.append({
+                    "title": title[:200],
+                    "authors": [],
+                    "year": "",
+                    "journal": "Nature",
+                    "doi": None,
+                    "abstract": "",
+                    "pdf_url": None,
+                })
+                if len(out) >= limit:
+                    break
+        return _norm(out, "Nature Publishing")
+    except Exception:
+        return []
+
+
+def search_cell_press(query: str, year_from=None, limit: int = 20) -> list:
+    """Cell Press."""
+    encoded = requests.utils.quote(query)
+    url = f"https://www.cell.com/action/doSearch?searchType=all&searchText={encoded}"
+    try:
+        r = requests.get(url, headers=HDRS, timeout=25)
+        out = []
+        for m in re.finditer(r'<a[^>]*class="[^"]*title[^"]*"[^>]*>(.*?)</a>', r.text, re.DOTALL):
+            title = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if len(title) > 15:
+                out.append({
+                    "title": title[:200],
+                    "authors": [],
+                    "year": "",
+                    "journal": "Cell Press",
+                    "doi": None,
+                    "abstract": "",
+                    "pdf_url": None,
+                })
+                if len(out) >= limit:
+                    break
+        return _norm(out, "Cell Press")
+    except Exception:
+        return []
+
+
+def search_pubmed_central(query: str, year_from=None, limit: int = 20) -> list:
+    """PubMed Central — Free full-text biomedical literature."""
+    encoded = requests.utils.quote(query)
+    url = f"https://www.ncbi.nlm.nih.gov/pmc/?term={encoded}"
+    try:
+        r = requests.get(url, headers=HDRS, timeout=25)
+        out = []
+        for m in re.finditer(r'<a[^>]*class="[^"]*title[^"]*"[^>]*>(.*?)</a>', r.text, re.DOTALL):
+            title = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if len(title) > 15:
+                out.append({
+                    "title": title[:200],
+                    "authors": [],
+                    "year": "",
+                    "journal": "PMC",
+                    "doi": None,
+                    "abstract": "",
+                    "pdf_url": None,
+                })
+                if len(out) >= limit:
+                    break
+        return _norm(out, "PMC")
+    except Exception:
+        return []
+
+
+def search_europe_pmc(query: str, year_from=None, limit: int = 20) -> list:
+    """Europe PMC — European repository."""
+    encoded = requests.utils.quote(query)
+    url = f"https://europepmc.org/search?query={encoded}"
+    try:
+        r = requests.get(url, headers=HDRS, timeout=25)
+        out = []
+        for m in re.finditer(r'<a[^>]*class="[^"]*title[^"]*"[^>]*>(.*?)</a>', r.text, re.DOTALL):
+            title = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if len(title) > 15:
+                out.append({
+                    "title": title[:200],
+                    "authors": [],
+                    "year": "",
+                    "journal": "Europe PMC",
+                    "doi": None,
+                    "abstract": "",
+                    "pdf_url": None,
+                })
+                if len(out) >= limit:
+                    break
+        return _norm(out, "Europe PMC")
+    except Exception:
+        return []
+
+
+def search_hinari(query: str, year_from=None, limit: int = 20) -> list:
+    """HINARI — Health access in developing countries."""
+    encoded = requests.utils.quote(query)
+    url = f"https://www.who.int/hinari/search/en/?q={encoded}"
+    try:
+        r = requests.get(url, headers=HDRS, timeout=25)
+        out = []
+        for m in re.finditer(r'<a[^>]*class="[^"]*title[^"]*"[^>]*>(.*?)</a>', r.text, re.DOTALL):
+            title = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if len(title) > 15:
+                out.append({
+                    "title": title[:200],
+                    "authors": [],
+                    "year": "",
+                    "journal": "HINARI",
+                    "doi": None,
+                    "abstract": "",
+                    "pdf_url": None,
+                })
+                if len(out) >= limit:
+                    break
+        return _norm(out, "HINARI")
+    except Exception:
+        return []
+
+
+def search_bireme(query: str, year_from=None, limit: int = 20) -> list:
+    """Bireme — Latin American health sciences."""
+    encoded = requests.utils.quote(query)
+    url = f"https://pesquisa.bvsalud.org/portal/search?q={encoded}"
+    try:
+        r = requests.get(url, headers=HDRS, timeout=25)
+        out = []
+        for m in re.finditer(r'<a[^>]*class="[^"]*title[^"]*"[^>]*>(.*?)</a>', r.text, re.DOTALL):
+            title = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if len(title) > 15:
+                out.append({
+                    "title": title[:200],
+                    "authors": [],
+                    "year": "",
+                    "journal": "Bireme",
+                    "doi": None,
+                    "abstract": "",
+                    "pdf_url": None,
+                })
+                if len(out) >= limit:
+                    break
+        return _norm(out, "Bireme")
+    except Exception:
+        return []
+
+
+def search_whois_scholar(query: str, year_from=None, limit: int = 20) -> list:
+    """Who is Who — Academic directory."""
+    encoded = requests.utils.quote(query)
+    url = f"https://www.researchgate.net/search/researcher?q={encoded}"
+    try:
+        r = requests.get(url, headers=HDRS, timeout=25)
+        out = []
+        for m in re.finditer(r'<a[^>]*class="[^"]*name[^"]*"[^>]*>(.*?)</a>', r.text, re.DOTALL):
+            title = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if len(title) > 5:
+                out.append({
+                    "title": title[:200],
+                    "authors": [],
+                    "year": "",
+                    "journal": "Who is Who",
+                    "doi": None,
+                    "abstract": "",
+                    "pdf_url": None,
+                })
+                if len(out) >= limit:
+                    break
+        return _norm(out, "Whois")
+    except Exception:
+        return []
+
+
+def search_arxiv_org(query: str, year_from=None, limit: int = 20) -> list:
+    """arXiv.org — Preprint server."""
+    params = {"search_query": query, "max_results": limit}
+    data = _get("http://export.arxiv.org/api/query", params)
+    out = []
+    try:
+        for entry in re.finditer(r'<entry>(.*?)</entry>', data, re.DOTALL):
+            title_m = re.search(r'<title>(.*?)</title>', entry.group(1))
+            if title_m:
+                out.append({
+                    "title": title_m.group(1).strip(),
+                    "authors": re.findall(r'<name>(.*?)</name>', entry.group(1)),
+                    "year": "",
+                    "journal": "arXiv",
+                    "doi": None,
+                    "abstract": "",
+                    "pdf_url": None,
+                })
+                if len(out) >= limit:
+                    break
+    except Exception:
+        pass
+    return _norm(out, "arxiv.org")
+
+
+def search_chemrxiv(query: str, year_from=None, limit: int = 20) -> list:
+    """chemRxiv — Chemistry preprint server."""
+    encoded = requests.utils.quote(query)
+    url = f"https://chemrxiv.org/search?q={encoded}"
+    try:
+        r = requests.get(url, headers=HDRS, timeout=25)
+        out = []
+        for m in re.finditer(r'<a[^>]*class="[^"]*title[^"]*"[^>]*>(.*?)</a>', r.text, re.DOTALL):
+            title = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if len(title) > 15:
+                out.append({
+                    "title": title[:200],
+                    "authors": [],
+                    "year": "",
+                    "journal": "chemRxiv",
+                    "doi": None,
+                    "abstract": "",
+                    "pdf_url": None,
+                })
+                if len(out) >= limit:
+                    break
+        return _norm(out, "chemRxiv")
+    except Exception:
+        return []
+
+
+def search_sxiv(query: str, year_from=None, limit: int = 20) -> list:
+    """sXiv — Social science preprint."""
+    encoded = requests.utils.quote(query)
+    url = f"https://sarxiv.org/search?q={encoded}"
+    try:
+        r = requests.get(url, headers=HDRS, timeout=25)
+        out = []
+        for m in re.finditer(r'<a[^>]*class="[^"]*title[^"]*"[^>]*>(.*?)</a>', r.text, re.DOTALL):
+            title = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if len(title) > 15:
+                out.append({
+                    "title": title[:200],
+                    "authors": [],
+                    "year": "",
+                    "journal": "sXiv",
+                    "doi": None,
+                    "abstract": "",
+                    "pdf_url": None,
+                })
+                if len(out) >= limit:
+                    break
+        return _norm(out, "sXiv")
+    except Exception:
+        return []
+
+
+def search_eartharxiv(query: str, year_from=None, limit: int = 20) -> list:
+    """EarthArXiv — Earth science preprint."""
+    encoded = requests.utils.quote(query)
+    url = f"https://eartharxiv.org/search?q={encoded}"
+    try:
+        r = requests.get(url, headers=HDRS, timeout=25)
+        out = []
+        for m in re.finditer(r'<a[^>]*class="[^"]*title[^"]*"[^>]*>(.*?)</a>', r.text, re.DOTALL):
+            title = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if len(title) > 15:
+                out.append({
+                    "title": title[:200],
+                    "authors": [],
+                    "year": "",
+                    "journal": "EarthArXiv",
+                    "doi": None,
+                    "abstract": "",
+                    "pdf_url": None,
+                })
+                if len(out) >= limit:
+                    break
+        return _norm(out, "EarthArXiv")
+    except Exception:
+        return []
+
+
+def search_bioone(query: str, year_from=None, limit: int = 20) -> list:
+    """BioOne — Biological sciences publisher."""
+    encoded = requests.utils.quote(query)
+    url = f"https://bioone.org/search?q={encoded}"
+    try:
+        r = requests.get(url, headers=HDRS, timeout=25)
+        out = []
+        for m in re.finditer(r'<a[^>]*class="[^"]*title[^"]*"[^>]*>(.*?)</a>', r.text, re.DOTALL):
+            title = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if len(title) > 15:
+                out.append({
+                    "title": title[:200],
+                    "authors": [],
+                    "year": "",
+                    "journal": "BioOne",
+                    "doi": None,
+                    "abstract": "",
+                    "pdf_url": None,
+                })
+                if len(out) >= limit:
+                    break
+        return _norm(out, "BioOne")
+    except Exception:
+        return []
+
+
 def _ask(prompt: str, default: str = "") -> str:
     if HAS_RICH:
         return Prompt.ask(f"[bold cyan]{prompt}[/bold cyan]", default=default, console=console)
@@ -5449,38 +7507,85 @@ def _ask(prompt: str, default: str = "") -> str:
     return v or default
 
 
+# ════════════════════════════════════════════════════════════════════════════════
+#  SMART LOCK SYSTEM — Dynamic filtering based on user selections
+# ════════════════════════════════════════════════════════════════════════════════
+
+def get_locked_parts_for_pub_type(pub_type: str) -> list[str]:
+    """
+    Returns which DISSERTATION_PARTS sections are relevant based on publication type.
+    This implements the "smart lock" system where selecting a type locks sections.
+    """
+    if pub_type in ["19", "20", "21", "22", "23"]:  # PhD, MA, Honours, Undergrad, Doctoral
+        return ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]  # Thesis parts
+    elif pub_type in ["1", "2", "3", "4", "5", "6", "29", "34"]:  # Articles, Reviews, Preprints
+        return ["11", "12", "13", "14", "15", "16"]  # Article parts
+    elif pub_type in ["9", "10", "11"]:  # Books, Chapters, Edited
+        return ["17", "18", "19", "20", "21"]  # Book parts
+    elif pub_type in ["16", "17", "24", "44", "45"]:  # Reports, NGO, Consultancy
+        return ["22", "23", "24", "25", "26", "27"]  # Report parts
+    else:
+        return ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28"]  # All
+
+def get_locked_methodologies_for_level(study_level: str) -> list[str]:
+    """
+    Returns which research methodologies are most relevant based on study level.
+    Higher degrees typically require more rigorous methodologies.
+    """
+    if study_level in ["1", "2", "3", "4", "5"]:  # PhD, EdD, DBA, etc.
+        return list(RESEARCH_METHODOLOGIES.keys())  # All methodologies
+    elif study_level == "6":  # Master's
+        return ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "38", "39", "45", "46", "51"]
+    elif study_level == "7":  # Postgraduate Diploma
+        return ["5", "6", "7", "8", "14", "17", "38"]
+    elif study_level in ["8", "9"]:  # Honours, Bachelor's
+        return ["5", "6", "7", "8", "14", "17", "21", "22", "28"]
+    else:  # Research Articles, Any
+        return list(RESEARCH_METHODOLOGIES.keys())
+
+
 def wizard() -> dict:
     """
-    Interactive wizard — title-driven auto-detection.
-    The moment the researcher types their title the system:
-      1. Auto-detects field   (from title+RQ keywords)
-      2. Auto-detects study types (from title+RQ keywords)
-      3. Extracts 20-40 specific search keywords from the title
-      4. Detects country/geo context
-      5. Lets researcher confirm or override all suggestions
-      6. Offers a search-language menu (EN / AR / FR / ES / All)
+    ENHANCED WIZARD — v7 ULTRA COMPREHENSIVE with Smart Lock System
+    
+    The system now includes:
+      1. 🎓 Academic Field selection (278+ fields with English Language Studies)
+      2. 📄 Publication / Study Type (49 types: Research Articles, MA, PhD, Books, etc.)
+      3. 🎓 Study Level (MA, PhD, Bachelor, Research Articles, etc.)
+      4. 🔬 Research Methodology (51 types: Experimental, Mixed Methods, Qualitative, etc.)
+      5. 📑 Dissertation/Thesis Part (28 parts: Chapter 1-5, Introduction, etc.)
+      6. 📊 Quartile Selection (Q1-Q4, Indexed Only, etc.)
+      7. 📦 Paper Limit (User-friendly choices with time estimates)
+      8. 🔎 Search Mode & Platforms (Deep search with 70+ platforms)
+      9. 🌐 Smart Lock System — selections filter relevant options dynamically
+      10. 🌍 Language Selection — filters all PDFs to selected language(s)
     """
     platform_count = len(DEEP_PLATS)
     if HAS_RICH:
         console.print(Panel.fit(
-            f"[bold white]🔬 Research Hunter v6 — SUPER LOADED GOD MODE[/bold white]\n"
-            f"[dim]Any Topic · Any Field · Auto-Detection · 14-Layer PDF\n"
-            f"Smart Geo-Queries · Red List · 16 Folders · {platform_count}+ Platforms[/dim]",
-            border_style="blue"
+            f"[bold white]🔬 Research Hunter v7 — ULTRA COMPREHENSIVE[/bold white]\n"
+            f"[dim]Smart Lock System · 278+ Fields · 49 Pub Types · 51 Methods\n"
+            f"70+ Platforms · Deep Search · Language Filter · Quartile Selection[/dim]",
+            border_style="cyan"
         ))
     else:
-        print("\n" + "="*68)
-        print("  🔬 Research Hunter v6 — SUPER LOADED GOD MODE")
-        print(f"  Any Topic · Auto-Detection · 14-Layer PDF · {platform_count}+ Platforms")
-        print("="*68)
+        print("\n" + "="*72)
+        print("  🔬 Research Hunter v7 — ULTRA COMPREHENSIVE")
+        print("  Smart Lock System · 278+ Fields · 49 Pub Types · 51 Methods")
+        print("  70+ Platforms · Deep Search · Language Filter · Quartile Selection")
+        print("="*72)
 
-    # ── STEP 1: Title ──────────────────────────────────────────────────────────
+    # ══════════════════════════════════════════════════════════════════════════
+    # STEP 1: Title
+    # ══════════════════════════════════════════════════════════════════════════
     print()
     title = ""
     while not title:
         title = _ask("📌 Research topic / title").strip()
 
-    # ── STEP 2: Research Questions ────────────────────────────────────────────
+    # ══════════════════════════════════════════════════════════════════════════
+    # STEP 2: Research Questions
+    # ══════════════════════════════════════════════════════════════════════════
     print("\n  📝 Research Questions (Enter to skip, 'done' to finish):")
     rqs: list[str] = []
     for i in range(1, 6):
@@ -5489,7 +7594,9 @@ def wizard() -> dict:
             break
         rqs.append(q)
 
-    # ── STEP 3: AUTO-DETECT field, study types, keywords from title+RQs ───────
+    # ══════════════════════════════════════════════════════════════════════════
+    # STEP 3: AUTO-DETECT from title+RQs
+    # ══════════════════════════════════════════════════════════════════════════
     suggested_field  = auto_detect_field(title, rqs)
     suggested_types  = auto_detect_study_type(title, rqs)
     suggested_kws    = extract_study_keywords(title, rqs, suggested_field, count=30)
@@ -5497,11 +7604,13 @@ def wizard() -> dict:
 
     print("\n  🤖 AUTO-DETECTED from your title:")
     print(f"     Field      : {suggested_field}")
-    print(f"     Study type : {', '.join(suggested_types)}")
+    print(f"     Study type : {', '.join(suggested_types[:5])}{'...' if len(suggested_types) > 5 else ''}")
     if country_context:
-        print(f"     Geo context: {' → '.join(country_context)}")
+        print(f"     Geo context: {' → '.join(country_context[:4])}")
 
-    # ── STEP 4: Show extracted keywords and let researcher confirm/edit ────────
+    # ══════════════════════════════════════════════════════════════════════════
+    # STEP 4: Keywords
+    # ══════════════════════════════════════════════════════════════════════════
     print(f"\n  🔑 Extracted keywords ({len(suggested_kws)}):")
     kw_cols = 4
     for row_start in range(0, len(suggested_kws), kw_cols):
@@ -5513,95 +7622,367 @@ def wizard() -> dict:
         custom_kw = _ask("  Enter keywords (comma-separated)").strip()
         suggested_kws = [k.strip() for k in custom_kw.split(",") if k.strip()]
 
-    # ── STEP 5: Confirm or override field ─────────────────────────────────────
-    print(f"\n  🎓 Field (auto: [{suggested_field}]) — confirm or choose:")
-    # Display fields sorted by numeric key (excluding "0" = Custom)
-    sorted_fields = sorted(
-        [(k, v) for k, v in FIELDS.items() if k != "0"],
-        key=lambda x: int(x[0]) if x[0].isdigit() else 999
-    )
-    # Show in 2 columns for readability
-    for i in range(0, len(sorted_fields), 2):
-        left = sorted_fields[i]
-        marker_l = " ◀" if left[1] == suggested_field else ""
-        if i + 1 < len(sorted_fields):
-            right = sorted_fields[i + 1]
-            marker_r = " ◀" if right[1] == suggested_field else ""
-            print(f"    [{left[0]:>2}] {left[1]:<32}{marker_l}  [{right[0]:>2}] {right[1]:<32}{marker_r}")
-        else:
-            print(f"    [{left[0]:>2}] {left[1]:<32}{marker_l}")
-    print("    [ 0]  Custom")
-    fk = _ask("  Field number (Enter to accept auto)", "").strip()
+    # ══════════════════════════════════════════════════════════════════════════
+    # STEP 5: 🎓 ACADEMIC FIELD
+    # ══════════════════════════════════════════════════════════════════════════
+    print(f"\n{'='*72}")
+    print(f"  🎓 STEP 1: ACADEMIC FIELD")
+    print(f"{'='*72}")
+    print(f"  Auto-detected: [{suggested_field}]")
+    print("\n  Select your academic field:")
+    
+    # Group fields by section for better display
+    field_sections = {
+        "1-12": "LANGUAGE & LINGUISTICS (Applied Linguistics, TESOL, Translation...)",
+        "13-22": "TESOL & LANGUAGE TEACHING (TEFL, ESL, CALL...)",
+        "23-35": "TRANSLATION & INTERPRETING (Studies, Technology, Legal...)",
+        "36-52": "EDUCATION (General, Higher, Technology, Special...)",
+        "53-92": "SOCIAL SCIENCES (Psychology, Sociology, Political Science...)",
+        "93-126": "BUSINESS & ECONOMICS (Management, Finance, Marketing...)",
+        "127-140": "LAW & LEGAL STUDIES",
+        "141-170": "ARTS & HUMANITIES (Philosophy, Literature, Arts...)",
+        "171-237": "STEM (CS, Engineering, Medicine, Sciences...)",
+        "238-264": "AGRICULTURE, ENVIRONMENT & SUSTAINABILITY",
+        "265-278": "CROSS-DISCIPLINARY STUDIES",
+    }
+    
+    for range_key, section_name in field_sections.items():
+        print(f"\n    ── {section_name}")
+        start, end = map(int, range_key.split("-"))
+        for i in range(start, min(end + 1, start + 3)):
+            if str(i) in FIELDS:
+                val = FIELDS[str(i)]
+                marker = " ◀" if val == suggested_field else ""
+                end_range = min(i + 2, end + 1)
+                for j in range(i, min(end_range, start + 3)):
+                    if str(j) in FIELDS:
+                        v = FIELDS[str(j)]
+                        m = " ◀" if v == suggested_field else ""
+                        print(f"      [{j:>3}] {v:<40}{m}")
+                i = end_range - 1
+    
+    print("\n    [  0] Custom / Other Field")
+    fk = _ask("\n  Field number (Enter to accept auto)", "").strip()
     if fk == "":
         field = suggested_field
         print(f"     ✓ Using auto-detected: {field}")
     elif fk == "0":
-        field = _ask("  Field name").strip() or suggested_field
+        field = _ask("  Custom field name").strip() or suggested_field
     else:
         field = FIELDS.get(fk, suggested_field)
+    
+    field_key = fk if fk else str([k for k, v in FIELDS.items() if v == suggested_field][0]) if suggested_field in FIELDS.values() else "1"
 
-    # ── STEP 6: Confirm or override study types ────────────────────────────────
-    print(f"\n  📋 Study Types (auto: [{', '.join(suggested_types)}])")
-    print("  Select types (e.g. 1,3,6 — or 30 for all — Enter to accept auto):")
-    # Display in 2 columns
-    sorted_types = sorted(
-        [(k, v) for k, v in STUDY_TYPES.items()],
-        key=lambda x: int(x[0]) if x[0].isdigit() else 999
-    )
-    for i in range(0, len(sorted_types), 2):
-        left = sorted_types[i]
-        marker_l = " ◀" if left[1] in suggested_types else ""
-        if i + 1 < len(sorted_types):
-            right = sorted_types[i + 1]
-            marker_r = " ◀" if right[1] in suggested_types else ""
-            print(f"    [{left[0]:>2}] {left[1]:<30}{marker_l}  [{right[0]:>2}] {right[1]:<30}{marker_r}")
-        else:
-            print(f"    [{left[0]:>2}] {left[1]:<30}{marker_l}")
-    ti = _ask("  Type(s) (Enter to accept auto)", "").strip()
-    if ti == "":
-        study_types = suggested_types
-        print(f"     ✓ Using auto-detected: {', '.join(study_types)}")
-    elif "30" in ti:
-        study_types = [v for k, v in STUDY_TYPES.items() if k != "30"]
-    else:
-        study_types = [STUDY_TYPES[k.strip()] for k in ti.split(",") if k.strip() in STUDY_TYPES]
-    if not study_types:
-        study_types = suggested_types or ["Qualitative Study"]
-
-    # ── STEP 7: Search Language ────────────────────────────────────────────────
-    SEARCH_LANGUAGES = {
-        "1": ("English",              ["en"]),
-        "2": ("Arabic",               ["ar"]),
-        "3": ("French",               ["fr"]),
-        "4": ("Spanish",              ["es"]),
-        "5": ("English + Arabic",     ["en", "ar"]),
-        "6": ("English + French",     ["en", "fr"]),
-        "7": ("English + Arabic + French", ["en","ar","fr"]),
-        "8": ("All Languages",        ["en","ar","fr","es","de","zh","pt","tr"]),
+    # ══════════════════════════════════════════════════════════════════════════
+    # STEP 6: 📄 PUBLICATION / STUDY TYPE (NEW!)
+    # ══════════════════════════════════════════════════════════════════════════
+    print(f"\n{'='*72}")
+    print(f"  📄 STEP 2: PUBLICATION / STUDY TYPE")
+    print(f"{'='*72}")
+    print("\n  What type of publication are you searching for?")
+    print("  [This selection will LOCK subsequent sections to relevant options]\n")
+    
+    pub_type_sections = {
+        "1-6": "JOURNAL ARTICLES (Research, Review, Systematic, Meta-Analysis...)",
+        "7-8": "CONFERENCE (Papers, Posters)",
+        "9-13": "BOOKS (Monographs, Chapters, Edited Volumes...)",
+        "14-17": "THESES & DISSERTATIONS (PhD, MA, Honours...)",
+        "18-28": "REPORTS & GUIDELINES (Technical, Clinical, Policy...)",
+        "29-35": "PREPRINTS & SHORT FORMATS",
+        "36-45": "OTHER FORMATS (News, Patents, Government...)",
+        "46-49": "PROPOSALS & ABSTRACTS",
     }
-    print("\n  🌍 Search Language (for API queries and report writing):")
-    for k, (label, _) in SEARCH_LANGUAGES.items():
-        print(f"    [{k}]  {label}")
-    lk = _ask("  Language", "1")
-    lang_label, lang_codes = SEARCH_LANGUAGES.get(lk, ("English", ["en"]))
-    print(f"     ✓ Search language: {lang_label}")
+    
+    for range_key, section_name in pub_type_sections.items():
+        print(f"\n    ── {section_name}")
+        start, end = map(int, range_key.split("-"))
+        for i in range(start, end + 1):
+            if str(i) in PUBLICATION_TYPES:
+                val = PUBLICATION_TYPES[str(i)]
+                print(f"      [{i:>2}] {val}")
+    
+    print(f"\n    [ 49] Any / All Publication Types")
+    pk = _ask("\n  Publication type number(s) (e.g. 1,3,19 or 49 for all)", "49").strip()
+    
+    # Parse publication types
+    if pk == "49":
+        pub_types_selected = list(PUBLICATION_TYPES.values())[:-1]  # Exclude "Any/All"
+        pub_type_keys = [k for k in PUBLICATION_TYPES.keys() if k != "49"]
+    else:
+        pub_type_keys = [k.strip() for k in pk.split(",") if k.strip() in PUBLICATION_TYPES]
+        pub_types_selected = [PUBLICATION_TYPES[k] for k in pub_type_keys]
+    
+    if not pub_types_selected:
+        pub_types_selected = list(PUBLICATION_TYPES.values())[:-1]
+        pub_type_keys = [k for k in PUBLICATION_TYPES.keys() if k != "49"]
+    
+    print(f"     ✓ Selected: {', '.join(pub_types_selected[:3])}{'...' if len(pub_types_selected) > 3 else ''}")
 
-    # ── STEP 8: Year range ────────────────────────────────────────────────────
-    print()
-    yf        = _ask("📅 Year from (e.g. 2015, Enter to skip)", "")
-    yt        = _ask("📅 Year to", str(datetime.now().year))
+    # ══════════════════════════════════════════════════════════════════════════
+    # STEP 7: 🎓 STUDY LEVEL (NEW!)
+    # ══════════════════════════════════════════════════════════════════════════
+    print(f"\n{'='*72}")
+    print(f"  🎓 STEP 3: STUDY LEVEL / DEGREE TYPE")
+    print(f"{'='*72}")
+    print("\n  What academic level are you interested in?\n")
+    
+    level_sections = {
+        "1-5": "DOCTORAL LEVEL (PhD, EdD, DBA, MD/PhD, Professional Doctorate)",
+        "6-7": "MASTER'S & POSTGRADUATE (MA, MSc, MBA, Diplomas...)",
+        "8-10": "UNDERGRADUATE (Honours, Bachelor's, Associate...)",
+        "11-12": "RESEARCH & ANY",
+    }
+    
+    for range_key, section_name in level_sections.items():
+        print(f"\n    ── {section_name}")
+        start, end = map(int, range_key.split("-"))
+        for i in range(start, end + 1):
+            if str(i) in STUDY_LEVELS:
+                val = STUDY_LEVELS[str(i)]
+                print(f"      [{i:>2}] {val}")
+    
+    slk = _ask("\n  Study level number(s) (e.g. 1,6 or 12 for all)", "12").strip()
+    
+    if slk == "12":
+        study_levels_selected = list(STUDY_LEVELS.values())[:-1]
+        study_level_keys = [k for k in STUDY_LEVELS.keys() if k != "12"]
+    else:
+        study_level_keys = [k.strip() for k in slk.split(",") if k.strip() in STUDY_LEVELS]
+        study_levels_selected = [STUDY_LEVELS[k] for k in study_level_keys]
+    
+    if not study_levels_selected:
+        study_levels_selected = list(STUDY_LEVELS.values())[:-1]
+        study_level_keys = [k for k in STUDY_LEVELS.keys() if k != "12"]
+    
+    print(f"     ✓ Selected: {', '.join(study_levels_selected[:3])}{'...' if len(study_levels_selected) > 3 else ''}")
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # STEP 8: 🔬 RESEARCH METHODOLOGY (NEW!)
+    # ══════════════════════════════════════════════════════════════════════════
+    print(f"\n{'='*72}")
+    print(f"  🔬 STEP 4: RESEARCH METHODOLOGY / DESIGN")
+    print(f"{'='*72}")
+    print("\n  What research methodology/design are you looking for?\n")
+    
+    method_sections = {
+        "1-4": "EXPERIMENTAL (True Experimental, RCT, Quasi-Experimental...)",
+        "5-7": "QUALITATIVE / QUANTITATIVE / MIXED (Core methods)",
+        "8-12": "QUALITATIVE DESIGNS (Case, Ethnography, Phenomenology...)",
+        "13-20": "OTHER DESIGNS (Action, Survey, Longitudinal, Cross-Cultural...)",
+        "21-28": "ANALYTICAL METHODS (Discourse, Thematic, Grounded Theory...)",
+        "29-37": "ADVANCED & SPECIALIZED (Design Science, Delphi, Triangulation...)",
+        "38-44": "REVIEW & COMPUTATIONAL (Systematic Review, Bibliometric...)",
+        "45-51": "THEORETICAL & SPECIALIZED (Philosophical, Feminist, PAR...)",
+    }
+    
+    # Get locked methodologies based on study level
+    locked_methods = []
+    if study_level_keys:
+        for sl in study_level_keys:
+            locked_methods.extend(get_locked_methodologies_for_level(sl))
+    locked_methods = list(set(locked_methods))
+    
+    for range_key, section_name in method_sections.items():
+        print(f"\n    ── {section_name}")
+        start, end = map(int, range_key.split("-"))
+        for i in range(start, end + 1):
+            if str(i) in RESEARCH_METHODOLOGIES:
+                val = RESEARCH_METHODOLOGIES[str(i)]
+                marker = " ★" if str(i) in locked_methods else ""
+                print(f"      [{i:>2}] {val}{marker}")
+    
+    print("\n    [ 51] Any / All Methodologies")
+    mk = _ask("\n  Methodology number(s) (e.g. 5,7,12 or 51 for all)", "51").strip()
+    
+    if mk == "51":
+        methodologies_selected = list(RESEARCH_METHODOLOGIES.values())[:-1]
+        method_keys = [k for k in RESEARCH_METHODOLOGIES.keys() if k != "51"]
+    else:
+        method_keys = [k.strip() for k in mk.split(",") if k.strip() in RESEARCH_METHODOLOGIES]
+        methodologies_selected = [RESEARCH_METHODOLOGIES[k] for k in method_keys]
+    
+    if not methodologies_selected:
+        methodologies_selected = list(RESEARCH_METHODOLOGIES.values())[:-1]
+        method_keys = [k for k in RESEARCH_METHODOLOGIES.keys() if k != "51"]
+    
+    print(f"     ✓ Selected: {', '.join(methodologies_selected[:3])}{'...' if len(methodologies_selected) > 3 else ''}")
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # STEP 9: 📑 DISSERTATION / THESIS PART (NEW!)
+    # ══════════════════════════════════════════════════════════════════════════
+    print(f"\n{'='*72}")
+    print(f"  📑 STEP 5: DISSERTATION / THESIS PART / CHAPTER")
+    print(f"{'='*72}")
+    print("\n  Which part(s) of the thesis/dissertation are you looking for?\n")
+    
+    # Get locked parts based on publication type
+    locked_parts = []
+    if pub_type_keys:
+        for pt in pub_type_keys:
+            locked_parts.extend(get_locked_parts_for_pub_type(pt))
+    locked_parts = list(set(locked_parts))
+    
+    print("    ── GENERAL THESIS PARTS")
+    for i in range(1, 11):
+        if str(i) in DISSERTATION_PARTS:
+            val = DISSERTATION_PARTS[str(i)]
+            marker = " ★" if str(i) in locked_parts else ""
+            print(f"      [{i:>2}] {val}{marker}")
+    
+    print("\n    ── RESEARCH ARTICLE PARTS")
+    for i in range(11, 17):
+        if str(i) in DISSERTATION_PARTS:
+            val = DISSERTATION_PARTS[str(i)]
+            marker = " ★" if str(i) in locked_parts else ""
+            print(f"      [{i:>2}] {val}{marker}")
+    
+    print("\n    ── BOOK & CHAPTER PARTS")
+    for i in range(17, 22):
+        if str(i) in DISSERTATION_PARTS:
+            val = DISSERTATION_PARTS[str(i)]
+            marker = " ★" if str(i) in locked_parts else ""
+            print(f"      [{i:>2}] {val}{marker}")
+    
+    print("\n    ── REPORT PARTS")
+    for i in range(22, 28):
+        if str(i) in DISSERTATION_PARTS:
+            val = DISSERTATION_PARTS[str(i)]
+            marker = " ★" if str(i) in locked_parts else ""
+            print(f"      [{i:>2}] {val}{marker}")
+    
+    print("\n    [ 28] Any / All Parts")
+    dpk = _ask("\n  Part number(s) (e.g. 2,3,5 or 28 for all)", "28").strip()
+    
+    if dpk == "28":
+        parts_selected = list(DISSERTATION_PARTS.values())[:-1]
+        part_keys = [k for k in DISSERTATION_PARTS.keys() if k != "28"]
+    else:
+        part_keys = [k.strip() for k in dpk.split(",") if k.strip() in DISSERTATION_PARTS]
+        parts_selected = [DISSERTATION_PARTS[k] for k in part_keys]
+    
+    if not parts_selected:
+        parts_selected = list(DISSERTATION_PARTS.values())[:-1]
+        part_keys = [k for k in DISSERTATION_PARTS.keys() if k != "28"]
+    
+    print(f"     ✓ Selected: {', '.join(parts_selected[:3])}{'...' if len(parts_selected) > 3 else ''}")
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # STEP 10: 🌍 Search Language
+    # ══════════════════════════════════════════════════════════════════════════
+    SEARCH_LANGUAGES = {
+        "1": ("English",              ["en"], "Search English papers only"),
+        "2": ("Arabic",               ["ar"], "Search Arabic papers only (اللغة العربية)"),
+        "3": ("French",               ["fr"], "Search French papers only"),
+        "4": ("Spanish",              ["es"], "Search Spanish papers only"),
+        "5": ("German",               ["de"], "Search German papers only"),
+        "6": ("Chinese",              ["zh"], "Search Chinese papers only"),
+        "7": ("Portuguese",          ["pt"], "Search Portuguese papers only"),
+        "8": ("Turkish",              ["tr"], "Search Turkish papers only"),
+        "9": ("Russian",              ["ru"], "Search Russian papers only"),
+        "10":("Japanese",             ["ja"], "Search Japanese papers only"),
+        "11":("Korean",              ["ko"], "Search Korean papers only"),
+        "12":("English + Arabic",     ["en", "ar"], "Search in both English and Arabic"),
+        "13":("English + French",      ["en", "fr"], "Search in both English and French"),
+        "14":("Arabic + French",      ["ar", "fr"], "Search in both Arabic and French"),
+        "15":("English + Arabic + French", ["en", "ar", "fr"], "Search in EN, AR, FR"),
+        "16":("All European Languages", ["en", "fr", "es", "de", "pt", "it"], "EN, FR, ES, DE, PT, IT"),
+        "17":("All Asian Languages",   ["zh", "ja", "ko", "ar", "tr"], "ZH, JA, KO, AR, TR"),
+        "18":("All Languages",        ["en", "ar", "fr", "es", "de", "zh", "pt", "tr", "ru", "ja", "ko"], "Maximum coverage"),
+    }
+    print(f"\n{'='*72}")
+    print(f"  🌍 STEP 6: SEARCH LANGUAGE")
+    print(f"{'='*72}")
+    print("\n  Select the language(s) for searching and PDF filtering:")
+    print("  ⚠️ NOTE: This will filter ALL downloaded PDFs to selected language(s)")
+    print("  Example: If you select 'Arabic', only Arabic-language PDFs will be downloaded\n")
+    
+    for k, (label, codes, desc) in SEARCH_LANGUAGES.items():
+        print(f"    [{k:>2}]  {label:<25} — {desc}")
+    
+    lk = _ask("\n  Language number", "1")
+    lang_data = SEARCH_LANGUAGES.get(lk, SEARCH_LANGUAGES["1"])
+    lang_label, lang_codes = lang_data[0], lang_data[1]
+    print(f"\n     ✓ Search language: {lang_label}")
+    print(f"       Languages for PDF filtering: {', '.join(lang_codes)}")
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # STEP 11: Year Range
+    # ══════════════════════════════════════════════════════════════════════════
+    print(f"\n{'='*72}")
+    print(f"  📅 STEP 7: YEAR RANGE")
+    print(f"{'='*72}")
+    print("\n  Filter papers by publication date:\n")
+    yf = _ask("  Year from (e.g. 2015, Enter to skip)", "")
+    yt = _ask("  Year to", str(datetime.now().year))
     year_from = int(yf) if yf.strip().isdigit() else None
     year_to   = int(yt) if yt.strip().isdigit() else datetime.now().year
+    print(f"     ✓ Year range: {year_from or 'All'} – {year_to}")
 
-    # ── STEP 9: Search mode ───────────────────────────────────────────────────
+    # ══════════════════════════════════════════════════════════════════════════
+    # STEP 12: 📊 QUARTILE SELECTION (NEW!)
+    # ══════════════════════════════════════════════════════════════════════════
+    print(f"\n{'='*72}")
+    print(f"  📊 STEP 8: JOURNAL QUARTILE / RANKING SELECTION")
+    print(f"{'='*72}")
+    print("\n  Filter by journal ranking (Scopus/Web of Science):\n")
+    
+    quartile_sections = {
+        "1-4": "SINGLE QUARTILE",
+        "5-7": "QUARTILE COMBINATIONS",
+        "8-12": "INDEX-BASED SELECTION",
+    }
+    
+    for range_key, section_name in quartile_sections.items():
+        print(f"\n    ── {section_name}")
+        start, end = map(int, range_key.split("-"))
+        for i in range(start, end + 1):
+            if str(i) in QUARTILE_SELECTION:
+                val = QUARTILE_SELECTION[str(i)]
+                print(f"      [{i:>2}] {val}")
+    
+    qk = _ask("\n  Quartile selection number (e.g. 1 for Q1, 7 for all)", "7").strip()
+    quartile_selected = QUARTILE_SELECTION.get(qk, QUARTILE_SELECTION["7"])
+    print(f"     ✓ Quartile filter: {quartile_selected}")
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # STEP 13: 📦 PAPER LIMIT (User-Friendly!)
+    # ══════════════════════════════════════════════════════════════════════════
+    print(f"\n{'='*72}")
+    print(f"  📦 STEP 9: PAPER LIMIT")
+    print(f"{'='*72}")
+    print("\n  How many papers to search for? (Time estimates are approximate)\n")
+    
+    for k, v in PAPER_LIMITS.items():
+        print(f"    [{k}]  {v}")
+    
+    plk = _ask("\n  Paper limit", "4").strip()
+    paper_limit_selected = PAPER_LIMITS.get(plk, PAPER_LIMITS["4"])
+    
+    # Map to actual numbers
+    paper_limit_map = {
+        "1": 50, "2": 150, "3": 300, "4": 500, "5": 800, "6": 1200, "7": None
+    }
+    max_papers = paper_limit_map.get(plk, 500)
+    
+    print(f"     ✓ Paper limit: {paper_limit_selected}")
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # STEP 14: 🔎 Search Mode & Platforms
+    # ══════════════════════════════════════════════════════════════════════════
+    print(f"\n{'='*72}")
+    print(f"  🔎 STEP 10: SEARCH DEPTH & PLATFORMS")
+    print(f"{'='*72}")
     api_count = len([p for p in DEEP_PLATS if p not in BROWSER_PLATS])
     browser_count = len([p for p in DEEP_PLATS if p in BROWSER_PLATS])
-    print(f"\n  🔎 Search Mode (total {len(DEEP_PLATS)} platforms: {api_count} API + {browser_count} browser):")
+    print(f"\n  Select search depth (total {len(DEEP_PLATS)} platforms: {api_count} API + {browser_count} browser):\n")
+    
     for idx, (key, cfg) in enumerate(MODE_TIME_ESTIMATES.items(), 1):
         plat_count = len(cfg["platforms"])
-        print(f"    [{idx}]  {cfg['label']:<40}  ({plat_count} platforms)")
-    print(f"    [{len(MODE_TIME_ESTIMATES)+1}]  Custom  — Pick specific platforms")
-    mk = _ask("  Mode", "3")
+        time_est = cfg.get("time", "~1-2 hrs")
+        print(f"    [{idx}]  {cfg['label']:<42} ({plat_count} platforms, ~{time_est})")
+    
+    print(f"    [{len(MODE_TIME_ESTIMATES)+1}]  Custom — Pick specific platforms")
+    mk = _ask("\n  Search mode number", "3")
 
     mode_keys = list(MODE_TIME_ESTIMATES.keys())
     selected_key = None
@@ -5609,42 +7990,44 @@ def wizard() -> dict:
         selected_key = mode_keys[int(mk) - 1]
         cfg = MODE_TIME_ESTIMATES[selected_key]
         platforms, mode = cfg["platforms"][:], cfg["label"]
-        if selected_key == "deep":
-            mode_label = f"Deep (~{cfg['time']})"
-        else:
-            mode_label = cfg["label"]
     elif mk == str(len(MODE_TIME_ESTIMATES) + 1):
         print(f"\n  Available platforms ({len(DEEP_PLATS)}):")
         for i, p in enumerate(DEEP_PLATS, 1):
             print(f"    [{i:>2}]  {p}")
-        sel      = _ask("  Numbers (e.g. 1,2,5)", "1,2,3")
-        idxs     = [int(x.strip())-1 for x in sel.split(",") if x.strip().isdigit()]
+        sel = _ask("  Platform numbers (e.g. 1,2,5)", "1,2,3")
+        idxs = [int(x.strip())-1 for x in sel.split(",") if x.strip().isdigit()]
         platforms = [DEEP_PLATS[i] for i in idxs if 0 <= i < len(DEEP_PLATS)]
-        mode     = "Custom"
+        mode = "Custom"
     else:
         cfg = MODE_TIME_ESTIMATES["deep"]
         platforms, mode = DEEP_PLATS[:], cfg["label"]
+    
     if not platforms:
         cfg = MODE_TIME_ESTIMATES["deep"]
         platforms, mode = DEEP_PLATS[:], cfg["label"]
+    
+    print(f"     ✓ Mode: {mode} ({len(platforms)} platforms)")
 
-    # ── STEP 10: Sci-Hub ──────────────────────────────────────────────────────
+    # ══════════════════════════════════════════════════════════════════════════
+    # STEP 15: Sci-Hub & Folder Mode
+    # ══════════════════════════════════════════════════════════════════════════
+    print(f"\n{'='*72}")
+    print(f"  ⚙️ STEP 11: ADDITIONAL OPTIONS")
+    print(f"{'='*72}")
+    
     use_scihub = _ask("\n  ⚠ Enable Sci-Hub / shadow libraries? (y/n)", "n").lower() == "y"
     if use_scihub:
         os.environ["SCIHUB_ENABLED"] = "1"
+        print("     ✓ Sci-Hub enabled")
 
-    # ── STEP 10b: Single-folder mode (v6) ─────────────────────────────────────
     print("\n  📁 Output folder mode:")
     print("    [1]  16-folder hierarchy (Q1-Q4, MA/PhD, Books, etc.)  ← default")
     print("    [2]  Single folder (all PDFs in one place)")
     sf = _ask("  Folder mode", "1").strip()
     single_folder = (sf == "2")
-    if single_folder:
-        print("     ✓ Single-folder mode enabled — all PDFs saved to one folder")
 
-    # ── STEP 11: Proxy ────────────────────────────────────────────────────────
     proxy_ans = _ask(
-        "  🌐 Enable proxy for restricted sites? "
+        "\n  🌐 Enable proxy for restricted sites? "
         "(y=auto qoder:8082 / p=custom URL / n=skip)",
         "n"
     ).strip().lower()
@@ -5656,456 +8039,77 @@ def wizard() -> dict:
             _academic_proxy.external = [proxy_url]
             _academic_proxy.enable()
 
-    # ── Summary display ───────────────────────────────────────────────────────
-    print("\n" + "─"*65)
-    print("  📋 SEARCH PLAN SUMMARY (v6 SUPER LOADED)")
-    print("─"*65)
-    print(f"  Title        : {title[:70]}")
-    print(f"  Field        : {field}")
-    print(f"  Study types  : {', '.join(study_types[:3])}")
-    print(f"  Language     : {lang_label}")
-    print(f"  Year range   : {year_from or 'All'} – {year_to}")
-    print(f"  Mode         : {mode} ({len(platforms)} platforms)")
+    # ══════════════════════════════════════════════════════════════════════════
+    # SUMMARY
+    # ══════════════════════════════════════════════════════════════════════════
+    print(f"\n{'='*72}")
+    print(f"  📋 SEARCH PLAN SUMMARY (v7 ULTRA COMPREHENSIVE)")
+    print(f"{'='*72}")
+    print(f"  📌 Title            : {title[:70]}{'...' if len(title) > 70 else ''}")
+    print(f"  🎓 Academic Field   : {field}")
+    print(f"  📄 Publication Type : {', '.join(pub_types_selected[:3])}{'...' if len(pub_types_selected) > 3 else ''}")
+    print(f"  🎓 Study Level      : {', '.join(study_levels_selected[:2])}{'...' if len(study_levels_selected) > 2 else ''}")
+    print(f"  🔬 Methodology      : {', '.join(methodologies_selected[:3])}{'...' if len(methodologies_selected) > 3 else ''}")
+    print(f"  📑 Part/Chapter     : {', '.join(parts_selected[:3])}{'...' if len(parts_selected) > 3 else ''}")
+    print(f"  🌍 Search Language  : {lang_label}")
+    print(f"     → PDF Filter     : {', '.join(lang_codes)}")
+    print(f"  📅 Year Range       : {year_from or 'All'} – {year_to}")
+    print(f"  📊 Quartile Filter  : {quartile_selected}")
+    print(f"  📦 Paper Limit      : {paper_limit_selected}")
+    print(f"     → Max Papers     : {max_papers if max_papers else 'Unlimited'}")
+    print(f"  🔎 Search Mode      : {mode} ({len(platforms)} platforms)")
     if country_context:
-        print(f"  Geo context  : {' → '.join(country_context[:4])}")
-    print(f"  Keywords     : {len(suggested_kws)} extracted")
-    print(f"  Sci-Hub      : {'ON' if use_scihub else 'off'}")
-    print(f"  Folder mode  : {'Single folder' if single_folder else '16-folder hierarchy'}")
-    print(f"  Proxy        : {'ON' if _academic_proxy.enabled else 'off'}")
-    print(f"  Chains       : 14-layer PDF download (upgraded from 7)")
-    print(f"  Dup scan     : Self-aware duplicate avoidance enabled")
-    print("─"*65)
-    confirm = _ask("\n  🚀 Start search? (y/n)", "y").lower()
+        print(f"  🌍 Geo Context      : {' → '.join(country_context[:4])}")
+    print(f"  🔑 Keywords         : {len(suggested_kws)} extracted")
+    print(f"  ⚠️  Sci-Hub         : {'ON' if use_scihub else 'off'}")
+    print(f"  📁 Folder Mode      : {'Single folder' if single_folder else '16-folder hierarchy'}")
+    print(f"  🌐 Proxy            : {'ON' if _academic_proxy.enabled else 'off'}")
+    print(f"  ★ Smart Lock        : Active (selections filter all options)")
+    print(f"{'='*72}")
+    
+    confirm = _ask("\n  🚀 START SEARCH? (y/n)", "y").lower()
     if confirm != "y":
         print("  Aborted.")
         raise SystemExit(0)
 
     return {
-        "title":              title,
-        "research_questions": rqs,
-        "field":              field,
-        "study_types":        study_types,
-        "year_from":          year_from,
-        "year_to":            year_to,
-        "year_range":         f"{year_from or 'All'} – {year_to}",
-        "platforms":          platforms,
-        "search_mode":        mode,
-        "use_scihub":         use_scihub,
-        "single_folder":      single_folder,
-        "keywords":           suggested_kws,
-        "search_languages":   lang_codes,
-        "lang_label":         lang_label,
-        "country_context":    country_context,
+        "title":                  title,
+        "research_questions":     rqs,
+        "field":                  field,
+        "publication_types":      pub_types_selected,
+        "study_levels":           study_levels_selected,
+        "methodologies":          methodologies_selected,
+        "dissertation_parts":     parts_selected,
+        "year_from":              year_from,
+        "year_to":                year_to,
+        "year_range":             f"{year_from or 'All'} – {year_to}",
+        "platforms":             platforms,
+        "search_mode":            mode,
+        "use_scihub":             use_scihub,
+        "single_folder":          single_folder,
+        "keywords":               suggested_kws,
+        "search_languages":       lang_codes,
+        "lang_label":             lang_label,
+        "quartile_filter":        quartile_selected,
+        "max_papers":             max_papers,
+        "country_context":        country_context,
     }
 
 
 # ── Main ───────────────────────────────────────────────────────────────────────
-def _write_master_xlsx(all_papers: list, out_folder: Path) -> Path | None:
-    """
-    Generate master_dissertation_tracker.xlsx with multiple professional sheets:
-      Sheet 1 — All Papers (quartile colour-coded, quotes, APA)
-      Sheet 2 — Keywords (numbered, frequency rank)
-      Sheet 3 — By Quartile (Q1/Q2/Q3/Q4 tabs)
-      Sheet 4 — Authentic Quotes (paper → page → exact text)
-      Sheet 5 — Research Stats Dashboard
-      Sheet 6 — Bibliography (APA 7th, alphabetical)
-    Requires: pip install openpyxl
-    """
-    try:
-        import openpyxl
-        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-        from openpyxl.utils import get_column_letter
-    except ImportError:
-        warn("openpyxl not installed — Excel tracker skipped (pip install openpyxl)")
-        return None
-
-    xlsx_path = out_folder / "master_database.xlsx"
-    csv_path  = out_folder / "master_database.csv"
-
-    try:
-        wb = openpyxl.Workbook()
-
-        # Shared styles
-        hdr_font   = Font(bold=True, color="FFFFFF", size=11, name="Calibri")
-        hdr_fill_blue  = PatternFill("solid", fgColor="1F3864")
-        hdr_fill_green = PatternFill("solid", fgColor="1E8449")
-        hdr_fill_dark  = PatternFill("solid", fgColor="2C3E50")
-        body_font  = Font(size=10, name="Calibri")
-        centre_al  = Alignment(horizontal="center", vertical="center", wrap_text=True)
-        left_al    = Alignment(horizontal="left",   vertical="center", wrap_text=True)
-        thin_border = Border(
-            left=Side(style='thin'), right=Side(style='thin'),
-            top=Side(style='thin'), bottom=Side(style='thin')
-        )
-        q_fills = {
-            "Q1": PatternFill("solid", fgColor="D5F5E3"),
-            "Q2": PatternFill("solid", fgColor="D6EAF8"),
-            "Q3": PatternFill("solid", fgColor="FEF9E7"),
-            "Q4": PatternFill("solid", fgColor="FDEDEC"),
-            "":   PatternFill("solid", fgColor="F2F3F4"),
-            "Not Found": PatternFill("solid", fgColor="F2F3F4"),
-        }
-
-        def _hdr_row(ws, headers: list, fill=None):
-            fill = fill or hdr_fill_blue
-            for col, h in enumerate(headers, 1):
-                cell = ws.cell(row=1, column=col, value=h)
-                cell.font      = hdr_font
-                cell.fill      = fill
-                cell.alignment = centre_al
-                cell.border    = thin_border
-
-        def _set_col_widths(ws, widths: list):
-            for i, w in enumerate(widths, 1):
-                ws.column_dimensions[get_column_letter(i)].width = w
-
-        def _freeze(ws, cell="A2"):
-            ws.freeze_panes = cell
-
-        def _safe_str(val):
-            return str(val).strip() if val else ""
-
-        # ═══════════════════════════════════════════════════════════════════════
-        #  SHEET 1 — All Papers
-        # ═══════════════════════════════════════════════════════════════════════
-        ws1 = wb.active
-        ws1.title = "📚 All Papers"
-        _hdr_row(ws1, ["#","Title","Authors","Year","Journal","Scopus Q",
-                        "Citations","Downloaded","DOI","Source","Doc Type",
-                        "Geo Tier","Abstract (300 chars)","APA Citation"])
-        _set_col_widths(ws1, [4,55,30,6,35,8,8,10,30,18,12,12,50,60])
-        _freeze(ws1)
-
-        for i, p in enumerate(all_papers, 1):
-            q = (p.get("scopus_quartile") or {})
-            q = q.get("quartile","") if isinstance(q, dict) else str(q)
-            if not q:
-                q = "Not Found"
-            auth = " | ".join(_safe_str(a) for a in (p.get("authors") or [])[:3])
-            apa  = p.get("apa") or build_apa(p)
-            row_data = [
-                i,
-                str(p.get("title",""))[:120],
-                auth[:80],
-                str(p.get("year",""))[:4],
-                str(p.get("journal",""))[:60],
-                q or "Not Indexed",
-                int(p.get("gs_citations") or 0),
-                "✅" if p.get("downloaded") else "❌",
-                str(p.get("doi") or ""),
-                str(p.get("source","")),
-                detect_doc_type(p) or "Article",
-                detect_geo_tier(p) or "Global",
-                str(p.get("abstract",""))[:300],
-                apa[:200],
-            ]
-            fill = q_fills.get(q, q_fills.get("", PatternFill("solid", fgColor="F2F3F4")))
-            for col, val in enumerate(row_data, 1):
-                cell = ws1.cell(row=i+1, column=col, value=val)
-                cell.font      = body_font
-                cell.fill      = fill
-                cell.alignment = left_al if col > 2 else centre_al
-                cell.border    = thin_border
-
-        ws1.auto_filter.ref = f"A1:N{len(all_papers)+1}"
-
-        # ═══════════════════════════════════════════════════════════════════════
-        #  SHEET 2 — Keywords Analysis
-        # ═══════════════════════════════════════════════════════════════════════
-        ws2 = wb.create_sheet("🔑 Keywords")
-        _hdr_row(ws2, ["#","Keyword / Phrase","Type","Frequency in Papers",
-                        "Suggested APA in-text use"], hdr_fill_green)
-        _set_col_widths(ws2, [4,40,15,18,50])
-        _freeze(ws2)
-
-        # Extract keywords from papers
-        kw_counts = {}
-        papers_text = " ".join(
-            (str(p.get("title","")) + " " + str(p.get("abstract",""))).lower()
-            for p in all_papers
-        )
-        study_keywords = extract_study_keywords(
-            report_data.get("title", "") if 'report_data' in dir() else "",
-            [], "General", count=30
-        ) if 'extract_study_keywords' in dir() else []
-        
-        for kw in study_keywords[:30]:
-            kw_counts[kw] = papers_text.count(kw.lower())
-
-        for i, kw in enumerate(
-            sorted(study_keywords[:30], key=lambda k: -kw_counts.get(k,0)), 1
-        ):
-            kw_type = ("Trigram" if len(kw.split()) >= 3 else
-                       "Bigram"  if len(kw.split()) == 2 else "Keyword")
-            row = [i, kw, kw_type, kw_counts.get(kw,0),
-                   f"(Author, year, p. N) — regarding {kw}"]
-            fill = (PatternFill("solid", fgColor="EBF5FB") if i%2==0
-                    else PatternFill("solid", fgColor="FFFFFF"))
-            for col, val in enumerate(row, 1):
-                cell = ws2.cell(row=i+1, column=col, value=val)
-                cell.font = body_font; cell.fill = fill
-                cell.alignment = left_al; cell.border = thin_border
-
-        # ═══════════════════════════════════════════════════════════════════════
-        #  SHEET 3 — By Quartile (Q1/Q2/Q3/Q4 sheets)
-        # ═══════════════════════════════════════════════════════════════════════
-        for quartile in ["Q1", "Q2", "Q3", "Q4"]:
-            q_papers = [p for p in all_papers 
-                        if (p.get("scopus_quartile") or {}).get("quartile","") == quartile]
-            if not q_papers:
-                continue
-            
-            emoji = {"Q1": "⭐", "Q2": "📗", "Q3": "📙", "Q4": "📕"}[quartile]
-            ws_q = wb.create_sheet(f"{emoji} {quartile}")
-            _hdr_row(ws_q, ["#","Title","Authors","Year","Journal","Citations",
-                            "DOI","Downloaded","Source","Geo Tier","Abstract"])
-            _set_col_widths(ws_q, [4,55,30,6,35,8,30,10,18,12,60])
-            _freeze(ws_q)
-            
-            for i, p in enumerate(q_papers, 1):
-                auth = " | ".join(_safe_str(a) for a in (p.get("authors") or [])[:3])
-                row_data = [
-                    i, str(p.get("title",""))[:120], auth[:80],
-                    str(p.get("year",""))[:4], str(p.get("journal",""))[:60],
-                    int(p.get("gs_citations") or 0), str(p.get("doi") or ""),
-                    "✅" if p.get("downloaded") else "❌",
-                    str(p.get("source","")), detect_geo_tier(p) or "Global",
-                    str(p.get("abstract",""))[:200],
-                ]
-                fill = q_fills.get(quartile, PatternFill("solid", fgColor="F2F3F4"))
-                for col, val in enumerate(row_data, 1):
-                    cell = ws_q.cell(row=i+1, column=col, value=val)
-                    cell.font = body_font; cell.fill = fill
-                    cell.alignment = left_al if col > 2 else centre_al
-                    cell.border = thin_border
-
-        # ═══════════════════════════════════════════════════════════════════════
-        #  SHEET 4 — Authentic Quotes (from PDF extraction)
-        # ═══════════════════════════════════════════════════════════════════════
-        ws4 = wb.create_sheet("📖 Authentic Quotes")
-        _hdr_row(ws4, ["#","Author(s)","Year","Title","Page","Exact Quote",
-                        "Keyword Match","APA In-text","For Chapter"],
-                 hdr_fill_green)
-        _set_col_widths(ws4, [4,25,6,50,6,80,20,30,12])
-        _freeze(ws4)
-
-        quote_row = 2
-        for p in all_papers:
-            if not p.get("pdf_quotes"):
-                continue
-            auth  = _safe_str((p.get("authors") or ["Unknown"])[0]).split()
-            last  = auth[-1] if auth else "Unknown"
-            yr    = str(p.get("year","n.d."))[:4]
-            ptitle = str(p.get("title",""))[:60]
-
-            for q in (p.get("pdf_quotes") or []):
-                apa_inline = f"({last}, {yr}, p. {q.get('page','')})"
-                data = [
-                    quote_row - 1,
-                    last, yr, ptitle,
-                    str(q.get("page","")),
-                    q.get("text","")[:200],
-                    q.get("keyword",""),
-                    apa_inline,
-                    "Chapter 2",
-                ]
-                fill = PatternFill("solid", fgColor="EBF5FB" if quote_row%2==0
-                                   else "FFFFFF")
-                for col, val in enumerate(data, 1):
-                    cell = ws4.cell(row=quote_row, column=col, value=val)
-                    cell.font = body_font; cell.fill = fill
-                    cell.alignment = left_al; cell.border = thin_border
-                quote_row += 1
-
-        if quote_row == 2:
-            ws4.cell(row=2, column=1,
-                     value="No PDF quotes extracted yet — run search first.")
-
-        # ═══════════════════════════════════════════════════════════════════════
-        #  SHEET 5 — Research Stats Dashboard
-        # ═══════════════════════════════════════════════════════════════════════
-        ws5 = wb.create_sheet("📊 Research Stats")
-        
-        # Calculate stats
-        q_dist = {"Q1": 0, "Q2": 0, "Q3": 0, "Q4": 0, "Not Found": 0}
-        downloaded = 0
-        total_citations = 0
-        for p in all_papers:
-            q = (p.get("scopus_quartile") or {})
-            q_val = q.get("quartile","Not Found") if isinstance(q, dict) else str(q or "Not Found")
-            q_dist[q_val if q_val in q_dist else "Not Found"] += 1
-            if p.get("downloaded"):
-                downloaded += 1
-            total_citations += int(p.get("gs_citations") or 0)
-        
-        stats_data = [
-            ("Study Title",          str(report_data.get("title", "Research"))[:100] if 'report_data' in dir() else "Research"),
-            ("Field",                str(report_data.get("field", "General")) if 'report_data' in dir() else "General"),
-            ("Generated",            datetime.now().strftime("%Y-%m-%d %H:%M")),
-            ("","-- QUARTILE DISTRIBUTION --"),
-            ("Total Papers Found",   len(all_papers)),
-            ("Q1 Papers (Top Tier)", q_dist["Q1"]),
-            ("Q2 Papers (Good)",     q_dist["Q2"]),
-            ("Q3 Papers (Acceptable)", q_dist["Q3"]),
-            ("Q4 Papers (Lower)",    q_dist["Q4"]),
-            ("Not Indexed",          q_dist["Not Found"]),
-            ("","-- DOWNLOAD STATUS --"),
-            ("PDFs Downloaded",       downloaded),
-            ("Total Citations",       total_citations),
-            ("","-- GEOGRAPHIC DISTRIBUTION --"),
-            ("Local Libya Papers",   sum(1 for p in all_papers if detect_geo_tier(p)=="Libya")),
-            ("MENA Region Papers",   sum(1 for p in all_papers if detect_geo_tier(p) in ["MENA","Libya","North Africa"])),
-            ("International Papers", sum(1 for p in all_papers if detect_geo_tier(p) not in ["Libya","MENA","North Africa"])),
-        ]
-        
-        ws5.column_dimensions["A"].width = 28
-        ws5.column_dimensions["B"].width = 80
-        
-        for r, (label, val) in enumerate(stats_data, 1):
-            if not label:
-                ws5.cell(row=r, column=1, value="")
-                ws5.cell(row=r, column=2, value=str(val) if val else "")
-                continue
-            ca = ws5.cell(row=r, column=1, value=label)
-            ca.font = Font(bold=True, color="FFFFFF", size=11, name="Calibri")
-            ca.fill = hdr_fill_blue
-            ca.alignment = left_al
-            ca.border    = thin_border
-            cb = ws5.cell(row=r, column=2, value=val)
-            cb.font = Font(size=11, name="Calibri")
-            cb.alignment = left_al
-            cb.border    = thin_border
-
-        # ═══════════════════════════════════════════════════════════════════════
-        #  SHEET 6 — Bibliography (APA 7th, alphabetical)
-        # ═══════════════════════════════════════════════════════════════════════
-        ws6 = wb.create_sheet("📄 Bibliography")
-        _hdr_row(ws6, ["#","APA 7th Citation","Year","Journal / Publisher",
-                        "Scopus Q","DOI / URL","Open Access"])
-        _set_col_widths(ws6, [4,80,6,40,8,40,10])
-        _freeze(ws6)
-
-        # Sort alphabetically by first author surname
-        def _sort_key(p):
-            auth = (p.get("authors") or ["zzz"])
-            return _safe_str(auth[0]).split()[-1].lower() if auth else "zzz"
-
-        sorted_papers = sorted(all_papers, key=_sort_key)
-        for i, p in enumerate(sorted_papers[:500], 1):
-            apa = p.get("apa") or build_apa(p)
-            q   = (p.get("scopus_quartile") or {})
-            q   = q.get("quartile","") if isinstance(q, dict) else str(q)
-            yr  = str(p.get("year",""))[:4]
-            fill = (PatternFill("solid", fgColor="EBF5FB") if i%2==0
-                    else PatternFill("solid", fgColor="FFFFFF"))
-            data = [
-                i, apa[:200], yr,
-                str(p.get("journal",""))[:60],
-                q or "—",
-                str(p.get("doi") or p.get("pdf_url",""))[:60],
-                "✅" if p.get("pdf_url") or p.get("downloaded") else "—",
-            ]
-            for col, val in enumerate(data, 1):
-                cell = ws6.cell(row=i+1, column=col, value=val)
-                cell.font = body_font; cell.fill = fill
-                cell.alignment = left_al; cell.border = thin_border
-
-        # Save
-        wb.save(str(xlsx_path))
-        ok(f"✅ Professional dissertation tracker XLSX: {xlsx_path.name} "
-           f"({len(all_papers)} papers, {quote_row-2} quotes)")
-        return xlsx_path
-
-    except ImportError:
-        pass
-    except Exception as ex:
-        warn(f"XLSX generation failed ({ex}), trying CSV fallback...")
-    
-    # CSV fallback
-    try:
-        import csv as _csv
-        with open(csv_path, "w", encoding="utf-8", newline="") as f:
-            w = _csv.writer(f)
-            w.writerow(["#","Title","Authors","Year","Journal","Q","Citations","DOI","Downloaded","Source","DocType","GeoTier","Abstract"])
-            for i, p in enumerate(all_papers, 1):
-                q = (p.get("scopus_quartile") or {})
-                q = q.get("quartile","") if isinstance(q, dict) else str(q)
-                auth = " | ".join(str(a) for a in (p.get("authors") or [])[:3])
-                w.writerow([
-                    i, str(p.get("title",""))[:120], auth[:80],
-                    str(p.get("year","")), str(p.get("journal",""))[:60],
-                    q or "—", int(p.get("gs_citations") or 0),
-                    str(p.get("doi") or ""),
-                    "yes" if p.get("downloaded") else "no",
-                    str(p.get("source","")),
-                    detect_doc_type(p) or "Article",
-                    detect_geo_tier(p) or "Global",
-                    str(p.get("abstract",""))[:200],
-                ])
-        ok(f"master_database.csv (openpyxl not found): {csv_path}")
-        return csv_path
-    except Exception as ex2:
-        warn(f"CSV fallback also failed: {ex2}")
-    return None
-
-
-# ── v6: Self-aware duplicate scanning ──────────────────────────────────────────
-def scan_existing_pdfs(folder: Path) -> set:
-    """
-    Scan existing PDFs in the output folder and extract titles from filenames.
-    Returns a set of normalized titles for duplicate avoidance.
-    """
-    existing_titles = set()
-    if not folder.exists():
-        return existing_titles
-
-    info(f"Scanning existing PDFs for duplicate avoidance in {folder.name}…")
-    pdf_count = 0
-
-    # Scan all subdirectories
-    for pdf_file in folder.rglob("*.pdf"):
-        pdf_count += 1
-        # Extract title from filename (remove .pdf extension, clean up)
-        stem = pdf_file.stem
-        # Remove citation markers like [123] at the start
-        clean_title = re.sub(r'^\[\d+\]\s*', '', stem)
-        # Normalize for comparison
-        clean_title = re.sub(r'[^\w\s]', '', clean_title.lower()).strip()
-        if clean_title and len(clean_title) > 10:  # Only meaningful titles
-            existing_titles.add(clean_title)
-
-    if pdf_count > 0:
-        ok(f"Found {pdf_count} existing PDFs — will skip duplicates")
-    else:
-        info("No existing PDFs found — fresh search")
-
-    return existing_titles
-
-
-def is_duplicate_paper(paper: dict, existing_titles: set) -> bool:
-    """Check if a paper's title already exists in the scanned PDFs."""
-    title = paper.get("title", "")
-    if not title:
-        return False
-    # Normalize the paper title the same way as scan_existing_pdfs
-    clean_title = re.sub(r'[^\w\s]', '', title.lower()).strip()
-    # Check for exact or close match
-    if clean_title in existing_titles:
-        return True
-    # Check for partial match (80%+ overlap)
-    for existing in existing_titles:
-        if len(clean_title) > 20 and len(existing) > 20:
-            # Check if one contains the other (long substring match)
-            if clean_title in existing or existing in clean_title:
-                return True
-    return False
-
-
 def main():
     params           = wizard()
     title            = params["title"]
     field            = params["field"]
-    study_types      = params["study_types"]
+    # v7: Extended search parameters
+    study_types      = params.get("study_types", [])  # Legacy support
+    publication_types = params.get("publication_types", [])  # NEW: Publication/Study Type
+    study_levels      = params.get("study_levels", [])  # NEW: Study Level
+    methodologies     = params.get("methodologies", [])  # NEW: Research Methodology
+    dissertation_parts = params.get("dissertation_parts", [])  # NEW: Dissertation Parts
+    quartile_filter   = params.get("quartile_filter", "All Quartiles (Q1-Q4)")  # NEW: Quartile Selection
+    max_papers        = params.get("max_papers", None)  # NEW: Paper Limit override
+    
     year_from        = params["year_from"]
     year_to          = params["year_to"]
     rqs              = params["research_questions"]
@@ -6118,6 +8122,14 @@ def main():
     single_folder    = params.get("single_folder", False)  # v6: single-folder mode toggle
     # Country context already computed in wizard; re-use it
     country_context  = params.get("country_context") or detect_country_context(title, rqs)
+    
+    # v7: Log new parameters
+    info(f"Publication types: {', '.join(publication_types[:3])}{'...' if len(publication_types) > 3 else ''}")
+    info(f"Study levels: {', '.join(study_levels[:2])}{'...' if len(study_levels) > 2 else ''}")
+    info(f"Methodologies: {', '.join(methodologies[:3])}{'...' if len(methodologies) > 3 else ''}")
+    info(f"Quartile filter: {quartile_filter}")
+    if max_papers:
+        info(f"Paper limit: {max_papers}")
 
     if country_context:
         info(f"Geographic context: {' → '.join(country_context)}")
