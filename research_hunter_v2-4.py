@@ -837,11 +837,19 @@ def detect_country_context(title: str, rqs: list) -> list[str]:
 
 def _keyword_fallback_queries(title: str, field: str, study_types: list,
                                used_queries: list, year_from,
-                               country_context: list) -> list[str]:
+                               country_context: list,
+                               include_dissertation_queries: bool = True,
+                               include_book_queries: bool = True,
+                               include_conference_queries: bool = True) -> list[str]:
     """
     Generate multi-word search queries without AI.
     100% driven by the user's own title keywords — nothing is topic-hardcoded.
     Geographic queries are built dynamically via _build_geo_queries().
+    
+    Args:
+        include_dissertation_queries: Add PhD thesis, MA dissertation queries
+        include_book_queries: Add book, book chapter queries  
+        include_conference_queries: Add conference paper, proceedings queries
     """
     used_lower = {q.lower() for q in used_queries}
 
@@ -918,6 +926,53 @@ def _keyword_fallback_queries(title: str, field: str, study_types: list,
         f"{base} professional development teachers",
     ]
 
+    # ═══════════════════════════════════════════════════════════════════════
+    # v8 ENHANCEMENT: Specialized queries for different document types
+    # ═══════════════════════════════════════════════════════════════════════
+    
+    # 1. PhD DISSERTATION queries - find actual doctoral theses
+    if include_dissertation_queries:
+        dissertation_queries = [
+            f"{base} PhD thesis dissertation",
+            f"{base} doctoral dissertation",
+            f"{base} thesis PDF download",
+            f"{base} postgraduate thesis",
+            f"{base} PhD research university",
+            f"{base} doctoral thesis education",
+            f"{base} thesis defense PDF",
+            f"{base} master thesis education",
+            f"{base} MA dissertation",
+            f"{base} graduate thesis language learning",
+        ]
+        candidates.extend(dissertation_queries)
+
+    # 2. BOOK and BOOK CHAPTER queries
+    if include_book_queries:
+        book_queries = [
+            f"{base} book PDF",
+            f"{base} book chapter",
+            f"{base} textbook education",
+            f"{base} edited volume",
+            f"{base} scholarly book",
+            f"{base} academic book download",
+            f"{base} book series linguistics",
+            f"{base} publication book language teaching",
+        ]
+        candidates.extend(book_queries)
+
+    # 3. CONFERENCE PAPER queries
+    if include_conference_queries:
+        conference_queries = [
+            f"{base} conference paper PDF",
+            f"{base} proceedings",
+            f"{base} conference presentation",
+            f"{base} academic conference",
+            f"{base} workshop paper",
+            f"{base} symposium proceedings",
+            f"{base} conference proceeding PDF",
+        ]
+        candidates.extend(conference_queries)
+
     # Country-specific queries — fully dynamic from detected context
     if country_context:
         local    = country_context[0]
@@ -941,8 +996,9 @@ def _keyword_fallback_queries(title: str, field: str, study_types: list,
 
     fresh = [q for q in candidates if q.lower() not in used_lower]
     if not fresh:
-        fresh = candidates[:10]
-    return fresh[:25]
+        fresh = candidates[:25]  # Increased from 10 to 25 to include specialized queries
+    
+    return fresh[:40]  # Increased from 25 to 40 to include more specialized queries
 
 
 def generate_queries(title: str, field: str, study_types: list,
@@ -1010,7 +1066,12 @@ REQUIREMENTS:
 - Mix angles: theoretical frameworks · empirical studies · challenges/barriers · strategies/methods · {field}
 - Include geographic variants if country context was given above
 - Include study-type variants (e.g. "qualitative study", "systematic review", "dissertation")
-- No two queries should heavily overlap in wording
+
+IMPORTANT - Include diverse document types:
+- PhD dissertations: "thesis", "dissertation", "doctoral"
+- Books/chapters: "book PDF", "book chapter", "textbook"
+- Conference papers: "conference paper", "proceedings", "workshop"
+- Journal articles: "journal article", "peer-reviewed"
 
 RETURN: A valid JSON array of exactly 15 strings. No explanation, no numbering, no markdown.
 EXAMPLE FORMAT: ["<topic phrase 1>", "<topic phrase 2>", ...]"""
