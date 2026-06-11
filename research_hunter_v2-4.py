@@ -948,11 +948,15 @@ def _keyword_fallback_queries(title: str, field: str, study_types: list,
 def generate_queries(title: str, field: str, study_types: list,
                      rqs: list, year_from: int | None,
                      used_queries: list,
-                     country_context: list) -> list[str]:
+                     country_context: list,
+                     enhanced_context: dict = None) -> list[str]:
     """
     Generate up to 25 high-quality multi-word search queries.
     Driven entirely by the user-supplied title, field, RQs and country context.
     No topic-specific hints are ever hardcoded here.
+    
+    v7: enhanced_context contains publication_types, study_levels, 
+        methodologies, dissertation_parts to enhance query generation
     """
     prev_block = "\n".join(f"  - {q}" for q in used_queries[:20]) if used_queries else "  None"
 
@@ -963,6 +967,23 @@ def generate_queries(title: str, field: str, study_types: list,
             f"then expand to {', '.join(country_context[1:3]) if len(country_context) > 1 else 'neighboring region'}, "
             f"then global/international studies."
         )
+    
+    # v7: Build enhanced context notes for the prompt
+    context_notes = ""
+    if enhanced_context:
+        pub_types = enhanced_context.get("publication_types", [])
+        study_lvls = enhanced_context.get("study_levels", [])
+        methods = enhanced_context.get("methodologies", [])
+        diss_parts = enhanced_context.get("dissertation_parts", [])
+        
+        if pub_types:
+            context_notes += f"\nPUBLICATION TYPES TO PRIORITIZE: {', '.join(pub_types)}"
+        if study_lvls:
+            context_notes += f"\nSTUDY LEVELS: {', '.join(study_lvls)}"
+        if methods:
+            context_notes += f"\nRESEARCH METHODOLOGIES TO FOCUS: {', '.join(methods)}"
+        if diss_parts:
+            context_notes += f"\nDISSERTATION PARTS (for thesis searches): {', '.join(diss_parts)}"
 
     # Derive topic hint words directly from the user title (never hardcoded)
     stop = {"a","an","the","of","in","on","at","to","for","and","or","but","with","by",
@@ -977,7 +998,7 @@ TOPIC: {title}
 FIELD: {field}
 STUDY TYPES: {', '.join(study_types) if study_types else 'Any'}
 RESEARCH QUESTIONS: {'; '.join(rqs) if rqs else 'N/A'}
-YEAR FROM: {year_from or 'Any'}{geo_note}
+YEAR FROM: {year_from or 'Any'}{geo_note}{context_notes}
 
 PREVIOUSLY USED QUERIES (generate completely different ones — do NOT repeat):
 {prev_block}
@@ -5410,6 +5431,127 @@ PAPER_LIMIT_MAP = {
 }
 
 
+def _filter_papers_by_context(papers: list, publication_types: list,
+                              study_levels: list, methodologies: list,
+                              dissertation_parts: list) -> list:
+    """
+    v7: Filter papers based on user-selected context parameters.
+    This helps prioritize papers that match the user's specific requirements.
+    """
+    if not papers:
+        return papers
+    
+    # If no filters specified, return all papers
+    if not (publication_types or study_levels or methodologies or dissertation_parts):
+        return papers
+    
+    filtered = []
+    for paper in papers:
+        title = (paper.get("title", "") + " " + paper.get("abstract", "")).lower()
+        
+        # Build relevance score
+        score = 0
+        reasons = []
+        
+        # Check publication types
+        if publication_types:
+            for pt in publication_types:
+                pt_lower = pt.lower()
+                # Keywords that indicate this publication type
+                pt_keywords = {
+                    "phd dissertation": ["phd dissertation", "doctoral dissertation", "ph.d. thesis"],
+                    "master's thesis": ["master", "ma thesis", "msc thesis", "m.sc thesis", "ma thesis"],
+                    "research article": ["journal", "article", "peer-reviewed"],
+                    "systematic review": ["systematic review", "meta-analysis", "meta analysis"],
+                    "conference paper": ["conference", "proceedings", "symposium"],
+                    "book chapter": ["book chapter", "chapter in"],
+                    "dissertation": ["dissertation", "thesis"],
+                }
+                if pt_lower in pt_keywords:
+                    for kw in pt_keywords[pt_lower]:
+                        if kw in title:
+                            score += 2
+                            reasons.append(f"Matches: {pt}")
+                            break
+        
+        # Check study levels
+        if study_levels:
+            for sl in study_levels:
+                sl_lower = sl.lower()
+                sl_keywords = {
+                    "phd": ["phd", "ph.d", "doctoral", "doctorate"],
+                    "master": ["master", "ma ", "msc", "m.sc", "graduate"],
+                    "honours": ["honours", "honors", "honor"],
+                    "bachelor": ["bachelor", "undergraduate", "bsc"],
+                }
+                if sl_lower in sl_keywords:
+                    for kw in sl_keywords[sl_lower]:
+                        if kw in title:
+                            score += 1
+                            reasons.append(f"Level: {sl}")
+                            break
+        
+        # Check methodologies
+        if methodologies:
+            for m in methodologies:
+                m_lower = m.lower()
+                method_keywords = {
+                    "qualitative": ["qualitative", "interview", "focus group", "thematic analysis"],
+                    "quantitative": ["quantitative", "survey", "statistical", "regression"],
+                    "mixed methods": ["mixed method", "mixed-method", "triangulation"],
+                    "case study": ["case study", "case study"],
+                    "experimental": ["experimental", "rct", "randomized"],
+                    "ethnographic": ["ethnographic", "ethnography"],
+                    "phenomenological": ["phenomenological", "phenomenology", "lived experience"],
+                    "grounded theory": ["grounded theory", "grounded"],
+                    "action research": ["action research", "participatory"],
+                    "survey": ["survey", "questionnaire"],
+                    "interview": ["interview", "semi-structured", "in-depth"],
+                    "literature review": ["literature review", "systematic review"],
+                }
+                if m_lower in method_keywords:
+                    for kw in method_keywords[m_lower]:
+                        if kw in title:
+                            score += 2
+                            reasons.append(f"Method: {m}")
+                            break
+        
+        # Check dissertation parts (for thesis-specific searches)
+        if dissertation_parts:
+            for dp in dissertation_parts:
+                dp_lower = dp.lower()
+                dp_keywords = {
+                    "introduction": ["introduction", "chapter 1", "background"],
+                    "literature review": ["literature review", "chapter 2", "theoretical"],
+                    "methodology": ["methodology", "methods", "chapter 3", "research design"],
+                    "results": ["results", "findings", "chapter 4", "data analysis"],
+                    "discussion": ["discussion", "chapter 5", "implications"],
+                    "abstract": ["abstract", "executive summary"],
+                    "conclusion": ["conclusion", "recommendations", "limitations"],
+                }
+                if dp_lower in dp_keywords:
+                    for kw in dp_keywords[dp_lower]:
+                        if kw in title:
+                            score += 1
+                            reasons.append(f"Part: {dp}")
+                            break
+        
+        # Keep paper if it has any matches, or if no specific filters were set
+        if score > 0:
+            paper["_relevance_score"] = score
+            paper["_match_reasons"] = reasons
+            filtered.append(paper)
+        else:
+            # If no filters matched, still include the paper (don't exclude everything)
+            # This is a soft filter - prioritizes but doesn't exclude
+            filtered.append(paper)
+    
+    # Sort by relevance score (highest first)
+    filtered.sort(key=lambda x: x.get("_relevance_score", 0), reverse=True)
+    
+    return filtered
+
+
 def _run_platform(plat, query, year_from, field):
     fn = PLATFORM_FNS.get(plat)
     if not fn:
@@ -5424,13 +5566,32 @@ def _run_platform(plat, query, year_from, field):
 
 
 def search_all(queries: list, platforms: list, year_from=None,
-               year_to=None, field="", country_context=None) -> list:
+               year_to=None, field="", country_context=None,
+               publication_types=None, study_levels=None,
+               methodologies=None, dissertation_parts=None) -> list:
+    """
+    v7: Added parameters for filtering papers based on user selections:
+    - publication_types: Filter to specific publication types (e.g., "PhD Dissertation")
+    - study_levels: Filter to specific study levels (e.g., "PhD", "Master's")
+    - methodologies: Filter to specific research methodologies (e.g., "Qualitative Study")
+    - dissertation_parts: Filter to specific thesis parts (e.g., "Introduction")
+    """
     api_plats     = [p for p in platforms if p not in BROWSER_PLATS]
     browser_plats = [p for p in platforms if p in BROWSER_PLATS]
     all_papers    = []
 
     info(f"Running {len(api_plats)} API × {len(queries)} queries + "
          f"{len(browser_plats)} browser × 2 queries")
+    
+    # v7: Log filtering criteria
+    if publication_types:
+        info(f"  📄 Publication types: {', '.join(publication_types[:3])}")
+    if study_levels:
+        info(f"  🎓 Study levels: {', '.join(study_levels[:2])}")
+    if methodologies:
+        info(f"  🔬 Methodologies: {', '.join(methodologies[:3])}")
+    if dissertation_parts:
+        info(f"  📑 Dissertation parts: {', '.join(dissertation_parts[:2])}")
 
     with ThreadPoolExecutor(max_workers=8) as ex:
         futs = {
@@ -5443,6 +5604,12 @@ def search_all(queries: list, platforms: list, year_from=None,
             try:
                 results = fut.result() or []
                 if results:
+                    # v7: Filter results based on new parameters
+                    if publication_types or study_levels or methodologies or dissertation_parts:
+                        results = _filter_papers_by_context(
+                            results, publication_types, study_levels,
+                            methodologies, dissertation_parts
+                        )
                     all_papers.extend(results)
                     info(f"  {plat}: +{len(results)} for '{q[:50]}'")
             except Exception:
@@ -5453,6 +5620,12 @@ def search_all(queries: list, platforms: list, year_from=None,
             info(f"  Scraping {plat}…")
             results = _run_platform(plat, q, year_from, field)
             if results:
+                # v7: Filter results based on new parameters
+                if publication_types or study_levels or methodologies or dissertation_parts:
+                    results = _filter_papers_by_context(
+                        results, publication_types, study_levels,
+                        methodologies, dissertation_parts
+                    )
                 all_papers.extend(results)
                 info(f"  {plat}: +{len(results)}")
             time.sleep(2.5)
@@ -8273,10 +8446,21 @@ def main():
     red_list = RedListManager(out_folder)
 
     # Generate queries — title-driven, uses study_keywords for richer AI prompt
+    # v7: Include new parameters to enhance query generation
     info("Generating search queries…")
     used_q  = cache.queries_used()
+    
+    # v7: Build enhanced query context from new parameters
+    enhanced_context = {
+        "publication_types": publication_types,
+        "study_levels": study_levels,
+        "methodologies": methodologies,
+        "dissertation_parts": dissertation_parts,
+    }
+    
     queries = generate_queries(title, field, study_types, rqs, year_from,
-                               used_q, country_context)
+                               used_q, country_context, enhanced_context)
+    
     # Inject study keywords as extra queries (each keyword phrase = one query)
     extra_kw_queries = [kw for kw in study_keywords
                         if len(kw.split()) >= 2 and kw.lower() not in
@@ -8292,8 +8476,14 @@ def main():
     # Search all platforms
     print()
     info(f"Searching {len(platforms)} platforms ({mode} mode)…")
+    
+    # v7: Include new parameters for filtering
     raw = search_all(queries, platforms, year_from=year_from, year_to=year_to,
-                     field=field, country_context=country_context)
+                     field=field, country_context=country_context,
+                     publication_types=publication_types,
+                     study_levels=study_levels,
+                     methodologies=methodologies,
+                     dissertation_parts=dissertation_parts)
 
     # Deduplicate
     deduped = cache.deduplicate(raw)
