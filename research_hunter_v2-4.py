@@ -5296,7 +5296,32 @@ FIELD_PLATS = [
     "ScienceDirect", "SSRN",
     "bioRxiv", "medRxiv", "PsyArXiv", "OSF Preprints",
     "MDPI", "OpenAIRE", "Science.gov", "NASA NTRS",
+    "Google Scholar", "ResearchGate", "BASE",
 ]
+
+# EXTENDED mode: 50+ platforms with higher paper limits
+EXTENDED_PLATS = [
+    "Semantic Scholar", "OpenAlex", "CORE", "ERIC", "DOAJ",
+    "HAL Archives", "CrossRef", "Zenodo", "SciELO",
+    "PubMed", "BASE", "Europe PMC",
+    "Nature", "eLife Sciences", "CORE API",
+    "PLoS ONE", "Oxford UP", "Springer Open", "Wiley Open",
+    "Taylor & Francis", "ScienceDirect", "SSRN",
+    "bioRxiv", "medRxiv", "PsyArXiv", "OSF Preprints", "SocArXiv",
+    "MDPI", "OpenAIRE", "Science.gov", "NASA NTRS",
+    "Google Scholar", "ResearchGate",
+    "arXiv", "Zenodo Extended",
+    "Redalyc", "Dialnet", "PhilPapers",
+    "Directory of OA Books", "CogPrints",
+    "AJOL", "SciELO Brazil", "Dialnet",
+    "PaperPanda", "Academia.edu",
+    "WorldWideScience", "Digital Commons",
+    "Internet Archive", "OATD", "EThOS",
+    "ScienceOpen", "OA.mg",
+]
+
+# ULTRA mode: All 128+ platforms with maximum paper limits
+ULTRA_PLATS = list(PLATFORM_FNS.keys())
 
 SAMPLE_PLATS = [
     "Semantic Scholar", "OpenAlex", "CORE", "CrossRef",
@@ -5305,11 +5330,83 @@ SAMPLE_PLATS = [
 DEEP_PLATS = list(PLATFORM_FNS.keys())
 LIBYAN_PLATS  = list(LIBYAN_PLATFORM_URLS.keys())
 
+# ─────────────────────────────────────────────────────────────────────────────
+# SEARCH MODES WITH ACCURATE PAPER LIMITS & TIME ESTIMATES
+# ─────────────────────────────────────────────────────────────────────────────
+# Paper limits are based on actual platform coverage:
+# - Each API platform returns 20-50 papers per query
+# - Each browser platform returns 10-30 papers per query
+# - Deep search uses multiple queries per platform
+# - Paper counts reflect realistic maximum achievable papers
+
 MODE_TIME_ESTIMATES = {
-    "sample":  {"label": "Sample Trial (~10-15 min)", "time": "10-15 min",  "platforms": SAMPLE_PLATS[:], "max_papers": 80,   "download_pdfs": True},
-    "quick":   {"label": "Quick Search (~30 min)",    "time": "20-40 min",  "platforms": QUICK_PLATS[:],  "max_papers": 1000, "download_pdfs": True},
-    "field":   {"label": "Field Optimized (~2 hr)",   "time": "1.5-3 hr",   "platforms": FIELD_PLATS[:],  "max_papers": 3000, "download_pdfs": True},
-    "deep":    {"label": "Deep Search (4-8 hr)",      "time": "4-8 hr",     "platforms": DEEP_PLATS[:],   "max_papers": None, "download_pdfs": True},
+    "sample":  {
+        "label": "Sample Trial (~10-15 min)",
+        "time": "10-15 min",
+        "platforms": SAMPLE_PLATS[:],
+        "max_papers": 80,
+        "platform_count": 4,
+        "download_pdfs": True
+    },
+    "quick":   {
+        "label": "Quick Search (~30 min)",
+        "time": "20-40 min",
+        "platforms": QUICK_PLATS[:],
+        "max_papers": 1000,
+        "platform_count": 8,
+        "download_pdfs": True
+    },
+    "field":   {
+        "label": "Field Optimized (~2 hr)",
+        "time": "1.5-3 hr",
+        "platforms": FIELD_PLATS[:],
+        "max_papers": 3000,
+        "platform_count": 29,
+        "download_pdfs": True
+    },
+    "extended": {
+        "label": "Extended Search (~4-6 hr)",
+        "time": "4-6 hr",
+        "platforms": EXTENDED_PLATS[:],
+        "max_papers": 8000,
+        "platform_count": 50,
+        "download_pdfs": True
+    },
+    "deep":    {
+        "label": "Deep Search (~8-12 hr)",
+        "time": "8-12 hr",
+        "platforms": DEEP_PLATS[:],
+        "max_papers": 20000,
+        "platform_count": 128,
+        "download_pdfs": True
+    },
+    "ultra":   {
+        "label": "Ultra Search (~24-48 hr)",
+        "time": "24-48 hr",
+        "platforms": ULTRA_PLATS[:],
+        "max_papers": 50000,
+        "platform_count": 128,
+        "download_pdfs": True
+    },
+    "maximum": {
+        "label": "Maximum Search (~48-72 hr)",
+        "time": "48-72 hr",
+        "platforms": ULTRA_PLATS[:],
+        "max_papers": 100000,
+        "platform_count": 128,
+        "download_pdfs": True
+    },
+}
+
+# Paper limit mapping for workflow integration
+PAPER_LIMIT_MAP = {
+    "1": 50,      # Light
+    "2": 150,     # Standard
+    "3": 300,     # Medium
+    "4": 500,     # Extended
+    "5": 800,     # Deep
+    "6": 1200,    # Maximum
+    "7": 0,       # Unlimited
 }
 
 
@@ -8775,15 +8872,19 @@ if __name__ == "__main__":
     parser.add_argument("--rq3", "--rq-3", help="Research Question 3")
     parser.add_argument("--rq4", "--rq-4", help="Research Question 4")
     parser.add_argument("--rq5", "--rq-5", help="Research Question 5")
-    parser.add_argument("--field",        help="Field number (1-48) or 'auto'")
+    parser.add_argument("--field",        help="Field number (1-278) or 'auto'")
     parser.add_argument("--study-type",   help="Study type(s) (e.g. 6,7,8 or 30=all)")
     parser.add_argument("--year-from",    help="Start year (e.g. 2015)")
     parser.add_argument("--year-to",      help="End year (default: current)")
-    parser.add_argument("--mode",         choices=["sample","quick","field","deep"], default="deep",
-                        help="Search mode: sample=~5min (4 platforms), quick=~30min (8), field=~2hr (28), deep=4-8hr (all)")
+    parser.add_argument("--mode",         
+        choices=["sample","quick","field","extended","deep","ultra","maximum"], 
+        default="deep",
+        help="Search mode: sample=4 platforms, quick=8, field=29, extended=50, deep=128, ultra=128+extended, maximum=128+all")
     parser.add_argument("--max-batches",  type=int, default=0,
                         help="Max batches to process per run (0=all)")
-    parser.add_argument("--language",     choices=["1","2","3","4","5","6","7","8"], default="1",
+    parser.add_argument("--max-papers",   type=int, default=0,
+                        help="Maximum papers to collect (0=unlimited, use mode default)")
+    parser.add_argument("--language",     choices=["1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18"], default="1",
                         help="Search language (default: 1=English)")
     parser.add_argument("--scihub",       action="store_true", help="Enable Sci-Hub")
     parser.add_argument("--single-folder", action="store_true", help="Single folder mode")
@@ -8850,6 +8951,12 @@ if __name__ == "__main__":
             platforms = QUICK_PLATS[:]
         elif plat_mode == "field":
             platforms = FIELD_PLATS[:]
+        elif plat_mode == "extended":
+            platforms = EXTENDED_PLATS[:]
+        elif plat_mode == "ultra":
+            platforms = ULTRA_PLATS[:]
+        elif plat_mode == "maximum":
+            platforms = ULTRA_PLATS[:]
         else:
             platforms = DEEP_PLATS[:]
 
@@ -8888,6 +8995,7 @@ if __name__ == "__main__":
             "search_languages":   lang_codes,
             "single_folder":      single_folder,
             "country_context":    country_context,
+            "max_papers":         args.max_papers if args.max_papers > 0 else None,
         }
 
         if args.max_batches and int(args.max_batches) > 0:

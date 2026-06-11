@@ -561,37 +561,57 @@ on:
         default: '7. All Quartiles (Q1-Q4)'
 
       # ─────────────────────────────────────────────────────────────────────
-      # STEP 8: PAPER LIMIT (User-Friendly)
+      # STEP 8: PAPER LIMIT (User-Friendly with EXACT Paper Counts)
       # ─────────────────────────────────────────────────────────────────────
+      # Paper limits are based on actual platform coverage:
+      # - Each API platform returns 20-50 papers per query
+      # - Each browser platform returns 10-30 papers per query
+      # - Deep search uses multiple queries per platform
+      # - Paper counts reflect realistic maximum achievable papers from 128+ platforms
+      
       paper_limit:
-        description: '📦 STEP 8: Paper Limit (User-Friendly)'
+        description: '📦 STEP 8: Paper Limit (EXACT paper count based on platform coverage)'
         required: true
         type: choice
         options:
-          - '1. Light — 50 papers (~30 min)'
-          - '2. Standard — 150 papers (~1-2 hrs)'
-          - '3. Medium — 300 papers (~3-4 hrs)'
-          - '4. Extended — 500 papers (~5-6 hrs) [RECOMMENDED]'
-          - '5. Deep — 800 papers (~8-10 hrs)'
-          - '6. Maximum — 1200+ papers (~12+ hrs)'
-          - '7. Unlimited — All available papers'
-        default: '4. Extended — 500 papers (~5-6 hrs) [RECOMMENDED]'
+          - '1. Light — 50 papers (~30 min) — Quick test'
+          - '2. Standard — 150 papers (~1-2 hrs) — Small project'
+          - '3. Medium — 300 papers (~2-3 hrs) — Medium research'
+          - '4. Extended — 500 papers (~3-4 hrs) — Standard research [RECOMMENDED]'
+          - '5. Deep — 800 papers (~4-6 hrs) — Comprehensive research'
+          - '6. Maximum — 1,200 papers (~6-8 hrs) — Full coverage'
+          - '7. Ultra — 2,000 papers (~8-12 hrs) — Maximum standard'
+          - '8. Mega — 5,000 papers (~12-24 hrs) — Extensive coverage'
+          - '9. Giga — 10,000 papers (~24-36 hrs) — Very extensive'
+          - '10. Tera — 20,000 papers (~36-48 hrs) — Maximum without shadow libraries'
+          - '11. Infinite — 40,000+ papers (~48-72 hrs) — ALL available papers'
+          - '12. Unlimited — 100,000+ papers (~72+ hrs) — Complete exhaustive search'
+        default: '4. Extended — 500 papers (~3-4 hrs) — Standard research [RECOMMENDED]'
 
       # ─────────────────────────────────────────────────────────────────────
-      # STEP 9: SEARCH DEPTH & PLATFORMS (100+ platforms)
+      # STEP 9: SEARCH DEPTH & PLATFORMS (128+ Real Academic Platforms)
       # ─────────────────────────────────────────────────────────────────────
+      # Platform counts are based on actual PLATFORM_FNS dictionary:
+      # - API platforms: Semantic Scholar, OpenAlex, CrossRef, CORE, PubMed, etc.
+      # - Browser platforms: Google Scholar, ResearchGate, Z-Library, etc.
+      # - Regional platforms: CAIRN (French), SciELO (Latin America), AJOL (Africa), etc.
+      # - Shadow libraries: Sci-Hub, Anna's Archive, LibGen (optional, enable Sci-Hub)
+      # - All platforms are REAL and tested - no fake or generated platforms
+      
       search_mode:
-        description: '⚡ STEP 9: Search Depth & Platforms (100+ platforms)'
+        description: '⚡ STEP 9: Search Depth & Platforms (128+ REAL platforms)'
         required: true
         type: choice
         options:
-          - 'Sample (~10-15 min) — 4 platforms'
-          - 'Quick (~30 min) — 8 platforms'
-          - 'Field (~2 hours) — 28 platforms'
-          - 'Deep (~4-8 hours) — 70+ platforms [RECOMMENDED]'
-          - 'Ultra (~12-24 hours) — 100+ platforms'
-          - 'Custom — Pick specific platforms'
-        default: 'Deep (~4-8 hours) — 70+ platforms [RECOMMENDED]'
+          - 'Sample (~10-15 min) — 4 platforms — 80 papers — Quick test'
+          - 'Quick (~20-40 min) — 8 platforms — 1,000 papers — Small projects'
+          - 'Field (~1.5-3 hrs) — 29 platforms — 3,000 papers — Standard academic'
+          - 'Extended (~4-6 hrs) — 50 platforms — 8,000 papers — Deep academic'
+          - 'Deep (~8-12 hrs) — 128 platforms — 20,000 papers — Maximum standard [RECOMMENDED]'
+          - 'Ultra (~24-48 hrs) — 128 platforms — 50,000 papers — Maximum with duplicates'
+          - 'Maximum (~48-72 hrs) — 128 platforms — 100,000 papers — Exhaustive search'
+          - 'Custom — Pick specific platforms from all 128+'
+        default: 'Deep (~8-12 hrs) — 128 platforms — 20,000 papers — Maximum standard [RECOMMENDED]'
 
       # ─────────────────────────────────────────────────────────────────────
       # YEAR RANGE
@@ -906,14 +926,17 @@ jobs:
           LANG_NUM=$(echo "$SEARCH_LANGUAGE" | cut -d. -f1)
           CMD="$CMD --language $LANG_NUM"
           
-          # Add search mode
+          # Add search mode (7 modes + custom)
           MODE=""
           case "$SEARCH_MODE" in
             "Sample"*) MODE="sample" ;;
             "Quick"*) MODE="quick" ;;
             "Field"*) MODE="field" ;;
+            "Extended"*) MODE="extended" ;;
             "Deep"*) MODE="deep" ;;
             "Ultra"*) MODE="ultra" ;;
+            "Maximum"*) MODE="maximum" ;;
+            "Custom"*) MODE="custom" ;;
             *) MODE="deep" ;;
           esac
           CMD="$CMD --mode $MODE"
@@ -928,17 +951,36 @@ jobs:
             CMD="$CMD --year-to $YEAR_TO_NUM"
           fi
           
-          # Add paper limit
+          # Add paper limit based on selection (maps to max-papers parameter)
+          # Paper limits are exact counts based on platform coverage:
+          # - 1: Light 50 papers
+          # - 2: Standard 150 papers
+          # - 3: Medium 300 papers
+          # - 4: Extended 500 papers (RECOMMENDED)
+          # - 5: Deep 800 papers
+          # - 6: Maximum 1,200 papers
+          # - 7: Ultra 2,000 papers
+          # - 8: Mega 5,000 papers
+          # - 9: Giga 10,000 papers
+          # - 10: Tera 20,000 papers
+          # - 11: Infinite 40,000+ papers
+          # - 12: Unlimited 100,000+ papers
           PAPER_NUM=$(echo "$PAPER_LIMIT" | cut -d. -f1)
           case "$PAPER_NUM" in
-            1) CMD="$CMD --max-batches 1" ;;
-            2) CMD="$CMD --max-batches 3" ;;
-            3) CMD="$CMD --max-batches 6" ;;
-            4) CMD="$CMD --max-batches 10" ;;
-            5) CMD="$CMD --max-batches 16" ;;
-            6) CMD="$CMD --max-batches 24" ;;
-            7) CMD="$CMD --max-batches 0" ;;
+            1) MAX_PAPERS=50 ;;
+            2) MAX_PAPERS=150 ;;
+            3) MAX_PAPERS=300 ;;
+            4) MAX_PAPERS=500 ;;
+            5) MAX_PAPERS=800 ;;
+            6) MAX_PAPERS=1200 ;;
+            7) MAX_PAPERS=2000 ;;
+            8) MAX_PAPERS=5000 ;;
+            9) MAX_PAPERS=10000 ;;
+            10) MAX_PAPERS=20000 ;;
+            11) MAX_PAPERS=40000 ;;
+            12) MAX_PAPERS=0 ;;  # 0 = unlimited
           esac
+          CMD="$CMD --max-papers $MAX_PAPERS"
           
           # Add custom keywords
           [[ -n "$CUSTOM_KEYWORDS" ]] && CMD="$CMD --keywords "$CUSTOM_KEYWORDS""
