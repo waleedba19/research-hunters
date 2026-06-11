@@ -5705,633 +5705,266 @@ def generate_markdown_report(data: dict, folder: Path) -> Path:
 # ════════════════════════════════════════════════════════════════════════════════
 
 
-def _write_master_xlsx(all_papers: list, out_folder: Path, search_terms: list = None, title: str = "") -> Path | None:
-    """Create comprehensive Excel workbook with multiple sheets and color coding."""
-    if not all_papers:
-        return None
+def _write_master_xlsx(all_papers, out_folder, search_terms=None, title=''):
+    if not all_papers: return None
     try:
         from openpyxl import Workbook
         from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
         from openpyxl.utils import get_column_letter
-        
+        import re
         wb = Workbook()
-        
-        # Color scheme
-        colors = {
-            "header_dark": "1F4E79",
-            "q1": "00B050", "q1_light": "C6EFCE",
-            "q2": "92D050", "q2_light": "D6F5D6",
-            "q3": "FFFF00", "q3_light": "FFFACD",
-            "q4": "FFA500", "q4_light": "FFE4B5",
-            "not_indexed": "808080",
-            "high_rel": "00B050", "med_rel": "FFC000", "low_rel": "FF0000",
-            "intro": "E2EFDA", "lit_rev": "DDEBF7", "method": "FCE4D6",
-            "results": "FFF2CC", "discussion": "E4DFEC", "conclusion": "D9D9D9",
-            "quantitative": "BDD7EE", "qualitative": "C6EFCE", "mixed_methods": "FFE699",
-        }
-        
-        thin_border = Border(
-            left=Side(style='thin'), right=Side(style='thin'),
-            top=Side(style='thin'), bottom=Side(style='thin')
-        )
-        
-        def style_header(cell, bg_color, text_color="FFFFFF", font_size=11):
-            cell.fill = PatternFill(start_color=bg_color, end_color=bg_color, fill_type="solid")
-            cell.font = Font(bold=True, color=text_color, size=font_size)
+        colors = {'header_dark': '1F4E79', 'q1': '00B050', 'q2': '92D050'}
+        thin_border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+        def sh(cell, bg, tc='FFFFFF', fs=11):
+            cell.fill = PatternFill(start_color=bg, end_color=bg, fill_type='solid')
+            cell.font = Font(bold=True, color=tc, size=fs)
             cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
             cell.border = thin_border
-        
-        # ═══ SHEET 1: Dashboard ═══
-        ws = wb.active
-        ws.title = "Dashboard"
-        
-        # Title
-        ws.merge_cells('A1:P1')
-        ws['A1'] = "RESEARCH HUNTER - GLOBAL COMMAND DASHBOARD"
-        ws['A1'].font = Font(size=22, bold=True, color="FFFFFF")
-        ws['A1'].fill = PatternFill(start_color=colors["header_dark"], end_color=colors["header_dark"], fill_type="solid")
-        ws['A1'].alignment = Alignment(horizontal='center', vertical='center')
-        ws.row_dimensions[1].height = 40
-        
-        # Statistics
+        def get_doc_type(p):
+            t = ' '.join(str(v) for v in [p.get('title',''),p.get('journal',''),p.get('abstract',''),p.get('source','')]).lower()
+            if any(k in t for k in ['phd thesis','doctoral dissertation','doctor of philosophy','ph.d.','dissertation']): return 'PhD'
+            if any(k in t for k in ['master thesis','ma thesis','msc dissertation','postgraduate']): return 'MA'
+            if any(k in t for k in ['libgen','z-library','oapen','book']): return 'Book'
+            if any(k in t for k in ['conference','proceedings','workshop','symposium']): return 'Proceedings' if 'proceeding' in t else 'Conference'
+            if 'systematic review' in t: return 'SystematicReview'
+            if 'meta-analysis' in t or 'meta analysis' in t: return 'MetaAnalysis'
+            if 'case study' in t: return 'CaseStudy'
+            return 'JournalArticle'
+        def get_geo(p):
+            t = ' '.join(str(v) for v in [p.get('title',''),p.get('abstract',''),' '.join(p.get('authors',[]) or [])]).lower()
+            if any(x in t for x in ['libya','benghazi','tripoli','misrata']): return 'Libya'
+            if any(x in t for x in ['tunisia','algeria','egypt','morocco']): return 'Neighbor'
+            if any(x in t for x in ['saudi','jordan','qatar','uae','kuwait','oman','mena','middle east']): return 'MENA'
+            return 'International'
+        def get_folder(p):
+            q = (p.get('scopus_quartile') or {}).get('quartile','')
+            dt = get_doc_type(p)
+            gt = get_geo(p)
+            qm = {'Q1':'Q1_Top_Journals','Q2':'Q2_Good_Journals','Q3':'Q3_Acceptable_Journals','Q4':'Q4_Lower_Tier'}
+            dm = {'PhD':'PhD_Dissertations','MA':'MA_Dissertations','Book':'Books','Conference':'Conference_Papers','Proceedings':'Conference_Proceedings','SystematicReview':'Systematic_Reviews','MetaAnalysis':'Meta_Analyses','CaseStudy':'Case_Studies'}
+            gm = {'Libya':'LOCAL_Libya','Neighbor':'NEIGHBOR_NorthAfrica','MENA':'REGIONAL_MENA'}
+            if dt in dm: return dm[dt]
+            if gt in gm: return gm[gt]
+            if q in qm: return qm[q]
+            return 'Not_Indexed'
         total = len(all_papers)
-        q1_c = sum(1 for p in all_papers if (p.get("scopus_quartile") or {}).get("quartile") == "Q1")
-        q2_c = sum(1 for p in all_papers if (p.get("scopus_quartile") or {}).get("quartile") == "Q2")
-        q3_c = sum(1 for p in all_papers if (p.get("scopus_quartile") or {}).get("quartile") == "Q3")
-        q4_c = sum(1 for p in all_papers if (p.get("scopus_quartile") or {}).get("quartile") == "Q4")
-        not_idx = sum(1 for p in all_papers if (p.get("scopus_quartile") or {}).get("quartile", "N/A") == "N/A")
-        downloaded = sum(1 for p in all_papers if p.get("downloaded"))
+        q1c = sum(1 for p in all_papers if (p.get('scopus_quartile') or {}).get('quartile')=='Q1')
+        q2c = sum(1 for p in all_papers if (p.get('scopus_quartile') or {}).get('quartile')=='Q2')
+        q3c = sum(1 for p in all_papers if (p.get('scopus_quartile') or {}).get('quartile')=='Q3')
+        q4c = sum(1 for p in all_papers if (p.get('scopus_quartile') or {}).get('quartile')=='Q4')
+        noti = total - q1c - q2c - q3c - q4c
+        dl = sum(1 for p in all_papers if p.get('downloaded'))
         
-        ws['A3'] = "📊 KEY STATISTICS"
-        ws['A3'].font = Font(size=14, bold=True, color=colors["header_dark"])
+        # Dashboard
+        ws = wb.active
+        ws.title = 'Dashboard'
+        ws.merge_cells('A1:R1')
+        ws['A1'] = 'Research Hunter v8.3 Dashboard'
+        ws['A1'].font = Font(size=24, bold=True, color='FFFFFF')
+        ws['A1'].fill = PatternFill(start_color=colors['header_dark'], end_color=colors['header_dark'], fill_type='solid')
+        ws['A1'].alignment = Alignment(horizontal='center', vertical='center')
+        ws.row_dimensions[1].height = 45
         
-        stats = [
-            ("Total Papers", total), ("Q1 - Elite Tier", q1_c), ("Q2 - Good", q2_c),
-            ("Q3 - Acceptable", q3_c), ("Q4 - Lower Tier", q4_c),
-            ("Not Indexed", not_idx), ("Downloaded", downloaded),
-            ("Success Rate", f"{downloaded/total*100:.1f}%" if total else "0%"),
-        ]
+        stats = [('Total Papers', total),('Q1', q1c),('Q2', q2c),('Q3', q3c),('Q4', q4c),('Not Indexed', noti),('Downloaded', dl),('Rate', f'{dl/total*100:.1f}%' if total else '0%')]
+        ws['A3'] = 'Key Statistics'
+        ws['A3'].font = Font(size=14, bold=True)
+        for i,(l,v) in enumerate(stats,5):
+            ws.cell(row=i,column=1,value=l).font = Font(bold=True)
+            ws.cell(row=i,column=2,value=v).font = Font(bold=True, size=12)
         
-        for i, (label, value) in enumerate(stats, 4):
-            ws.cell(row=i, column=1, value=label).font = Font(bold=True)
-            ws.cell(row=i, column=2, value=value).font = Font(bold=True, size=12)
-        
-        # Platform Sources
-        ws['D3'] = "🔗 TOP PLATFORM SOURCES"
-        ws['D3'].font = Font(size=14, bold=True, color=colors["header_dark"])
-        
-        platform_counts = {}
+        # Doc Types
+        ws['D3'] = 'Document Types'
+        ws['D3'].font = Font(size=14, bold=True)
+        dc = {}
         for p in all_papers:
-            src = p.get("source", "Unknown")
-            platform_counts[src] = platform_counts.get(src, 0) + 1
+            dt = get_doc_type(p)
+            dc[dt] = dc.get(dt,0) + 1
+        for i,(dt,cnt) in enumerate(sorted(dc.items(), key=lambda x:-x[1]),5):
+            ws.cell(row=i,column=4,value=dt).font = Font(bold=True)
+            ws.cell(row=i,column=5,value=cnt).font = Font(size=12)
         
-        for i, (platform, count) in enumerate(sorted(platform_counts.items(), key=lambda x: -x[1])[:15], 4):
-            ws.cell(row=i, column=4, value=platform)
-            ws.cell(row=i, column=5, value=count)
-        
-        # World Map Simulation
-        ws['I3'] = "🌍 WORLD MAP - RESEARCH DENSITY"
-        ws['I3'].font = Font(size=14, bold=True, color=colors["header_dark"])
-        
-        country_data = {
-            "USA": 0, "UK": 0, "Germany": 0, "China": 0, "Japan": 0, "South Korea": 0,
-            "Saudi Arabia": 0, "UAE": 0, "Egypt": 0, "Brazil": 0, "India": 0, "Australia": 0,
-            "France": 0, "Turkey": 0, "Iran": 0, "Spain": 0, "Canada": 0,
-        }
-        
+        # Geo
+        ws['G3'] = 'Geographic'
+        ws['G3'].font = Font(size=14, bold=True)
+        gc = {}
         for p in all_papers:
-            text = (p.get("title", "") + " " + p.get("abstract", "")).lower()
-            if any(kw in text for kw in ["usa", "united states", "america"]): country_data["USA"] += 1
-            if any(kw in text for kw in ["uk", "united kingdom", "britain"]): country_data["UK"] += 1
-            if any(kw in text for kw in ["germany", "german"]): country_data["Germany"] += 1
-            if any(kw in text for kw in ["china", "chinese"]): country_data["China"] += 1
-            if any(kw in text for kw in ["japan", "japanese"]): country_data["Japan"] += 1
-            if any(kw in text for kw in ["korea", "korean"]): country_data["South Korea"] += 1
-            if any(kw in text for kw in ["saudi", "ksa"]): country_data["Saudi Arabia"] += 1
-            if any(kw in text for kw in ["uae", "emirates"]): country_data["UAE"] += 1
-            if any(kw in text for kw in ["egypt", "egyptian"]): country_data["Egypt"] += 1
-            if any(kw in text for kw in ["brazil", "brazilian"]): country_data["Brazil"] += 1
-            if any(kw in text for kw in ["india", "indian"]): country_data["India"] += 1
-            if any(kw in text for kw in ["australia", "australian"]): country_data["Australia"] += 1
+            gt = get_geo(p)
+            gc[gt] = gc.get(gt,0) + 1
+        for i,(g,cnt) in enumerate(sorted(gc.items(), key=lambda x:-x[1]),5):
+            ws.cell(row=i,column=7,value=g).font = Font(bold=True)
+            ws.cell(row=i,column=8,value=cnt).font = Font(size=12)
         
-        for i, (country, count) in enumerate(sorted(country_data.items(), key=lambda x: -x[1])[:15], 4):
-            ws.cell(row=i, column=9, value=f"{country}")
-            ws.cell(row=i, column=10, value=count)
-            # Heat color based on count
-            max_c = max(country_data.values()) if country_data else 1
-            heat = int((count / max_c) * 100) if max_c > 0 else 0
-            heat_color = f"FF{255-heat:02X}{255-heat:02X}FF" if heat < 128 else f"FFFF{255-heat*2:02X}00"
-            ws.cell(row=i, column=11, value=heat)
-            ws.cell(row=i, column=11).fill = PatternFill(start_color=heat_color, end_color=heat_color, fill_type="solid")
-        
-        print(f"✅ Dashboard created with {total} papers")
-        
-        # ═══ SHEET 2: Master Metadata ═══
-        ws_meta = wb.create_sheet("Master Metadata")
-        
-        meta_headers = [
-            "Row#", "Title", "Authors (All)", "Year", "Journal", "Publisher", "DOI", "URL",
-            "PDF URL", "Source Platform", "Quartile", "SJR", "Impact Factor",
-            "Citations (Google)", "Citations (Scopus)", "Relevance %",
-            "Primary Section", "Methodology", "Geographic Focus", "Open Access",
-            "Download Status", "File Path",
-            # v8: Paid source tracking
-            "Access Status", "Alternative Link", "Notes"
-        ]
-        
-        for col, header in enumerate(meta_headers, 1):
-            cell = ws_meta.cell(row=1, column=col, value=header)
-            style_header(cell, colors["header_dark"])
-        
-        ws_meta.row_dimensions[1].height = 30
-        ws_meta.freeze_panes = 'A2'
-        
-        # Column widths (now 25 columns)
-        widths = [5, 50, 35, 8, 30, 20, 22, 35, 35, 20, 10, 8, 10, 12, 12, 10, 18, 15, 15, 12, 15, 40, 15, 40, 30]
-        for i, w in enumerate(widths, 1):
-            ws_meta.column_dimensions[get_column_letter(i)].width = w
-        
-        geo_keywords = {
-            "MENA": ["saudi", "uae", "qatar", "kuwait", "egypt", "jordan", "lebanon", "iraq", "morocco", "tunisia", "algeria"],
-            "Europe": ["uk", "germany", "france", "spain", "italy", "netherlands", "belgium", "switzerland"],
-            "Asia": ["china", "japan", "korea", "india", "singapore", "malaysia", "thailand", "vietnam"],
-            "Americas": ["usa", "canada", "mexico", "brazil", "argentina", "chile", "colombia"],
-            "Africa": ["south africa", "nigeria", "kenya", "ethiopia", "ghana", "tanzania"],
-        }
-        
-        for idx, paper in enumerate(all_papers, 1):
-            text = (paper.get("title", "") + " " + paper.get("abstract", "")).lower()
-            
-            # Relevance calculation
-            rel = 50.0
-            if search_terms:
-                matches = sum(1 for t in search_terms if t.lower() in text)
-                rel = min((matches / len(search_terms)) * 100, 100.0)
-            
-            # Section classification
-            sections = {
-                "Introduction": ["introduction", "background", "overview", "rationale", "problem statement", "aims"],
-                "Literature Review": ["literature review", "theoretical", "conceptual", "prior studies", "meta-analysis"],
-                "Methodology": ["methodology", "methods", "research design", "data collection", "participants"],
-                "Results": ["results", "findings", "data analysis", "outcomes", "statistical"],
-                "Discussion": ["discussion", "interpretation", "implications", "limitations"],
-                "Conclusion": ["conclusion", "summary", "recommendations", "contribution"],
-            }
-            section = max(sections.items(), key=lambda x: sum(10 for kw in x[1] if kw in text))[0] if sections else "General"
-            
-            # Methodology
-            if "mixed methods" in text: meth = "Mixed Methods"
-            elif any(kw in text for kw in ["qualitative", "interview", "focus group", "ethnographic"]): meth = "Qualitative"
-            elif any(kw in text for kw in ["quantitative", "survey", "experimental", "rct"]): meth = "Quantitative"
-            elif "case study" in text: meth = "Case Study"
-            elif any(kw in text for kw in ["systematic review", "meta-analysis"]): meth = "Systematic Review"
-            else: meth = "General"
-            
-            # Geographic
-            geo = "Global"
-            for region, keywords in geo_keywords.items():
-                if any(kw in text for kw in keywords):
-                    geo = region
-                    break
-            
-            sq = paper.get("scopus_quartile", {}) or {}
-            quartile = sq.get("quartile", "N/A") if isinstance(sq, dict) else "N/A"
-            
-            # v8: Determine access status
-            if paper.get("downloaded"):
-                access_status = "Downloaded ✓"
-                alt_link = paper.get("file_path", "")
-                notes = ""
-            elif paper.get("pdf_url"):
-                access_status = "Free OA Available"
-                alt_link = paper.get("pdf_url", "")
-                notes = "Try direct PDF link"
-            elif paper.get("url"):
-                access_status = "Requires Purchase 💰"
-                alt_link = paper.get("url", "")
-                notes = "Paid source - link stored for reference"
-            else:
-                access_status = "Unverified"
-                alt_link = ""
-                notes = "Check manually"
-            
-            row_data = [
-                idx, paper.get("title", ""), ", ".join(paper.get("authors", [])),
-                paper.get("year", ""), paper.get("journal", ""), "",
-                paper.get("doi", ""), paper.get("url", ""), paper.get("pdf_url", ""),
-                paper.get("source", "Unknown"), quartile, "", "",
-                paper.get("gs_citations", "") or "", paper.get("scopus_cited", "") or "",
-                f"{rel:.1f}%", section, meth, geo,
-                "Open Access" if paper.get("pdf_url") else "Restricted",
-                "Downloaded" if paper.get("downloaded") else "Pending",
-                paper.get("file_path", ""),
-                # v8: New columns
-                access_status, alt_link, notes
-            ]
-            
-            for col, value in enumerate(row_data, 1):  # v8: Use all 25 columns
-                cell = ws_meta.cell(row=idx+1, column=col, value=value)
-                cell.border = thin_border
-                cell.alignment = Alignment(vertical='center', wrap_text=True)
-                
-                # Color coding
-                if col == 11:  # Quartile
-                    q_colors = {"Q1": colors["q1"], "Q2": colors["q2"], "Q3": colors["q3"], "Q4": colors["q4"]}
-                    cell.fill = PatternFill(start_color=q_colors.get(quartile, colors["not_indexed"]),
-                                           end_color=q_colors.get(quartile, colors["not_indexed"]), fill_type="solid")
-                    cell.font = Font(bold=True, color="FFFFFF")
-                elif col == 16:  # Relevance
-                    rel_color = colors["high_rel"] if rel >= 75 else colors["med_rel"] if rel >= 50 else colors["low_rel"]
-                    cell.fill = PatternFill(start_color=rel_color, end_color=rel_color, fill_type="solid")
-                    cell.font = Font(bold=True)
-                elif col == 17:  # Section
-                    sec_colors = {"Introduction": colors["intro"], "Literature Review": colors["lit_rev"],
-                                  "Methodology": colors["method"], "Results": colors["results"],
-                                  "Discussion": colors["discussion"], "Conclusion": colors["conclusion"]}
-                    cell.fill = PatternFill(start_color=sec_colors.get(section, "FFFFFF"),
-                                           end_color=sec_colors.get(section, "FFFFFF"), fill_type="solid")
-                elif col == 18:  # Methodology
-                    meth_colors = {"Quantitative": colors["quantitative"], "Qualitative": colors["qualitative"],
-                                   "Mixed Methods": colors["mixed_methods"]}
-                    cell.fill = PatternFill(start_color=meth_colors.get(meth, "FFFFFF"),
-                                           end_color=meth_colors.get(meth, "FFFFFF"), fill_type="solid")
-                elif col == 23:  # v8: Access Status
-                    if "Downloaded" in str(access_status):
-                        cell.fill = PatternFill(start_color=colors["q1_light"], end_color=colors["q1_light"], fill_type="solid")
-                        cell.font = Font(bold=True, color="006100")
-                    elif "Free OA" in str(access_status):
-                        cell.fill = PatternFill(start_color="DDEBF7", end_color="DDEBF7", fill_type="solid")
-                    elif "Requires Purchase" in str(access_status):
-                        cell.fill = PatternFill(start_color="FCE4D6", end_color="FCE4D6", fill_type="solid")
-                        cell.font = Font(bold=True, color="C00000")
-            
-            if idx % 50 == 0:
-                print(f"  Processed {idx}/{len(all_papers)} papers...")
-        
-        print(f"✅ Master Metadata created with {len(meta_headers)} columns")
-        
-        # ═══ SHEET 3: Q1 - Elite Tier ═══
-        ws_q1 = wb.create_sheet("Q1 - Elite Tier")
-        ws_q1['A1'] = "🟢 Q1 - ELITE TIER (Top 1% Scopus/WoS Indexed)"
-        ws_q1['A1'].font = Font(size=14, bold=True, color="FFFFFF")
-        ws_q1['A1'].fill = PatternFill(start_color=colors["q1"], end_color=colors["q1"], fill_type="solid")
-        ws_q1.merge_cells('A1:G1')
-        
-        q1_headers = ["Row", "Title", "Authors", "Year", "Journal", "DOI", "Citations", "Source"]
-        for col, h in enumerate(q1_headers, 1):
-            ws_q1.cell(row=2, column=col, value=h)
-            style_header(ws_q1.cell(row=2, column=col), colors["q1"])
-        
-        q1_papers = [p for p in all_papers if (p.get("scopus_quartile") or {}).get("quartile") == "Q1"]
-        for i, p in enumerate(q1_papers, 1):
-            ws_q1.cell(row=i+2, column=1, value=i)
-            ws_q1.cell(row=i+2, column=2, value=p.get("title", ""))
-            ws_q1.cell(row=i+2, column=3, value=", ".join(p.get("authors", [])[:5]))
-            ws_q1.cell(row=i+2, column=4, value=p.get("year", ""))
-            ws_q1.cell(row=i+2, column=5, value=p.get("journal", ""))
-            ws_q1.cell(row=i+2, column=6, value=p.get("doi", ""))
-            ws_q1.cell(row=i+2, column=7, value=p.get("gs_citations", ""))
-            ws_q1.cell(row=i+2, column=8, value=p.get("source", ""))
-        
-        print(f"✅ Q1 Elite Tier: {len(q1_papers)} papers")
-        
-        # ═══ SHEET 4: Q2-Q4 Quality ═══
-        ws_q234 = wb.create_sheet("Q2-Q4 Quality")
-        ws_q234['A1'] = "🟡 Q2-Q4 - QUALITY SPECTRUM"
-        ws_q234['A1'].font = Font(size=14, bold=True)
-        ws_q234.merge_cells('A1:E1')
-        
-        q234_headers = ["Row", "Quartile", "Title", "Authors", "Year"]
-        for col, h in enumerate(q234_headers, 1):
-            ws_q234.cell(row=2, column=col, value=h)
-            style_header(ws_q234.cell(row=2, column=col), colors["header_dark"])
-        
-        q234_papers = [p for p in all_papers if (p.get("scopus_quartile") or {}).get("quartile") in ["Q2", "Q3", "Q4"]]
-        for i, p in enumerate(q234_papers, 1):
-            sq = p.get("scopus_quartile", {}) or {}
-            q = sq.get("quartile", "Q") if isinstance(sq, dict) else "Q"
-            ws_q234.cell(row=i+2, column=1, value=i)
-            ws_q234.cell(row=i+2, column=2, value=q)
-            ws_q234.cell(row=i+2, column=3, value=p.get("title", ""))
-            ws_q234.cell(row=i+2, column=4, value=", ".join(p.get("authors", [])[:3]))
-            ws_q234.cell(row=i+2, column=5, value=p.get("year", ""))
-        
-        print(f"✅ Q2-Q4 Quality: {len(q234_papers)} papers")
-        
-        # ═══ v8: SHEET - Paid Sources Tracker ═══
-        ws_paid = wb.create_sheet("PAID SOURCES - Manual Action")
-        ws_paid['A1'] = "💰 PAPERS REQUIRING PURCHASE OR MANUAL DOWNLOAD"
-        ws_paid['A1'].font = Font(size=16, bold=True, color="C00000")
-        ws_paid['A1'].fill = PatternFill(start_color="FCE4D6", end_color="FCE4D6", fill_type="solid")
-        ws_paid.merge_cells('A1:G1')
-        ws_paid.row_dimensions[1].height = 35
-        
-        ws_paid['A3'] = "These papers could not be auto-downloaded. You can manually purchase or access them via the links below."
-        ws_paid['A3'].font = Font(italic=True)
-        ws_paid.merge_cells('A3:G3')
-        
-        paid_headers = ["Row", "Title", "Authors", "Year", "Journal", "DOI", "Direct Link", "Notes"]
-        for col, h in enumerate(paid_headers, 1):
-            cell = ws_paid.cell(row=5, column=col, value=h)
-            style_header(cell, "C00000")
-        
-        ws_paid.column_dimensions['A'].width = 5
-        ws_paid.column_dimensions['B'].width = 50
-        ws_paid.column_dimensions['C'].width = 30
-        ws_paid.column_dimensions['D'].width = 8
-        ws_paid.column_dimensions['E'].width = 30
-        ws_paid.column_dimensions['F'].width = 20
-        ws_paid.column_dimensions['G'].width = 45
-        ws_paid.column_dimensions['H'].width = 30
-        
-        # Collect papers that couldn't be downloaded
-        paid_papers = []
+        # Country counts
+        cw = {'USA':['usa','united states','america'],'UK':['uk','united kingdom','britain'],'Germany':['germany'],'China':['china'],'Japan':['japan'],'Australia':['australia'],'Canada':['canada'],'France':['france'],'Spain':['spain'],'Korea':['korea'],'India':['india'],'Turkey':['turkey'],'Saudi':['saudi'],'Egypt':['egypt'],'Nigeria':['nigeria'],'South Africa':['south africa']}
+        cc = {c:0 for c in cw}
         for p in all_papers:
-            if not p.get("downloaded") and p.get("url"):
-                paid_papers.append(p)
+            t = ' '.join(str(v) for v in [p.get('title',''),p.get('abstract',''),' '.join(p.get('authors',[]) or [])]).lower()
+            for c,kw in cw.items():
+                if any(k in t for k in kw): cc[c] += 1
         
-        for i, p in enumerate(paid_papers, 1):
-            ws_paid.cell(row=i+5, column=1, value=i)
-            ws_paid.cell(row=i+5, column=2, value=p.get("title", ""))
-            ws_paid.cell(row=i+5, column=3, value=", ".join(p.get("authors", [])[:3]))
-            ws_paid.cell(row=i+5, column=4, value=p.get("year", ""))
-            ws_paid.cell(row=i+5, column=5, value=p.get("journal", ""))
-            ws_paid.cell(row=i+5, column=6, value=p.get("doi", ""))
-            # Make link clickable
-            link = p.get("url", "")
-            ws_paid.cell(row=i+5, column=7, value=link)
-            if link:
-                ws_paid.cell(row=i+5, column=7).hyperlink = link
-                ws_paid.cell(row=i+5, column=7).font = Font(color="0563C1", underline="single")
-            ws_paid.cell(row=i+5, column=8, value="Requires purchase or institutional access")
+        ws['J3'] = 'World Map'
+        ws['J3'].font = Font(size=14, bold=True)
+        ws.cell(row=4,column=10,value='Country').font = Font(bold=True)
+        ws.cell(row=4,column=11,value='Count').font = Font(bold=True)
+        for i,(c,cnt) in enumerate(sorted(cc.items(), key=lambda x:-x[1])[:20],5):
+            ws.cell(row=i,column=10,value=c).font = Font(bold=True)
+            ws.cell(row=i,column=11,value=cnt).font = Font(size=12)
         
-        print(f"✅ PAID SOURCES sheet created: {len(paid_papers)} papers need manual action")
-        
-        # ═══ SHEET 5: Abstract Synthesis ═══
-        ws_abs = wb.create_sheet("Abstract Synthesis")
-        ws_abs['A1'] = "📖 ABSTRACT SYNTHESIS"
-        ws_abs['A1'].font = Font(size=14, bold=True)
-        ws_abs.merge_cells('A1:E1')
-        
-        abs_headers = ["Row", "Title", "Original Abstract", "Expert Summary", "Layman Summary"]
-        for col, h in enumerate(abs_headers, 1):
-            ws_abs.cell(row=2, column=col, value=h)
-            style_header(ws_abs.cell(row=2, column=col), colors["lit_rev"])
-        
-        for i, p in enumerate(all_papers[:200], 1):
-            original = (p.get("abstract", "") or "")[:500]
-            expert = f"Study examines {p.get('title', '')[:50]}... using {'qualitative' if 'qualitative' in original.lower() else 'quantitative'} approach."
-            layman = f"This research looks at how to improve outcomes. The researchers found important insights."
-            
-            ws_abs.cell(row=i+2, column=1, value=i)
-            ws_abs.cell(row=i+2, column=2, value=p.get("title", "")[:80])
-            ws_abs.cell(row=i+2, column=3, value=original)
-            ws_abs.cell(row=i+2, column=4, value=expert)
-            ws_abs.cell(row=i+2, column=5, value=layman)
-        
-        print(f"✅ Abstract Synthesis created")
-        
-        # ═══ SHEET 6: Methodology (Quant) ═══
-        ws_quant = wb.create_sheet("Methodology (Quant)")
-        ws_quant['A1'] = "🧬 METHODOLOGY MATRIX - QUANTITATIVE"
-        ws_quant['A1'].font = Font(size=14, bold=True)
-        ws_quant.merge_cells('A1:I1')
-        
-        quant_headers = ["Row", "Title", "Study Design", "Sample Size", "Sampling", "Data Collection", "Statistical Tools", "P-Value", "Effect Size"]
-        for col, h in enumerate(quant_headers, 1):
-            ws_quant.cell(row=2, column=col, value=h)
-            style_header(ws_quant.cell(row=2, column=col), colors["quantitative"])
-        
-        for i, p in enumerate(all_papers, 1):
-            text = (p.get("title", "") + " " + p.get("abstract", "")).lower()
-            if any(kw in text for kw in ["quantitative", "survey", "experimental", "rct"]):
-                ws_quant.cell(row=i+2, column=1, value=i)
-                ws_quant.cell(row=i+2, column=2, value=p.get("title", "")[:60])
-                ws_quant.cell(row=i+2, column=3, value="Cross-sectional" if "cross-sectional" in text else "Longitudinal")
-                ws_quant.cell(row=i+2, column=4, value="N=200")
-                ws_quant.cell(row=i+2, column=5, value="Random")
-                ws_quant.cell(row=i+2, column=6, value="Online Survey")
-                ws_quant.cell(row=i+2, column=7, value="SPSS, AMOS")
-                ws_quant.cell(row=i+2, column=8, value="p<0.05")
-                ws_quant.cell(row=i+2, column=9, value="d=0.5")
-        
-        # ═══ SHEET 7: Methodology (Qual) ═══
-        ws_qual = wb.create_sheet("Methodology (Qual)")
-        ws_qual['A1'] = "🧪 METHODOLOGY MATRIX - QUALITATIVE"
-        ws_qual['A1'].font = Font(size=14, bold=True)
-        ws_qual.merge_cells('A1:H1')
-        
-        qual_headers = ["Row", "Title", "Approach", "Participants", "Data Collection", "Coding", "Framework", "Software"]
-        for col, h in enumerate(qual_headers, 1):
-            ws_qual.cell(row=2, column=col, value=h)
-            style_header(ws_qual.cell(row=2, column=col), colors["qualitative"])
-        
-        for i, p in enumerate(all_papers, 1):
-            text = (p.get("title", "") + " " + p.get("abstract", "")).lower()
-            if any(kw in text for kw in ["qualitative", "interview", "focus group"]):
-                ws_qual.cell(row=i+2, column=1, value=i)
-                ws_qual.cell(row=i+2, column=2, value=p.get("title", "")[:60])
-                ws_qual.cell(row=i+2, column=3, value="Phenomenological" if "phenomenological" in text else "Grounded Theory")
-                ws_qual.cell(row=i+2, column=4, value="20 participants")
-                ws_qual.cell(row=i+2, column=5, value="Semi-structured Interviews")
-                ws_qual.cell(row=i+2, column=6, value="Thematic")
-                ws_qual.cell(row=i+2, column=7, value="Braun & Clarke")
-                ws_qual.cell(row=i+2, column=8, value="NVivo")
-        
-        # ═══ SHEET 8: Mixed-Methods ═══
-        ws_mixed = wb.create_sheet("Mixed-Methods")
-        ws_mixed['A1'] = "🖇️ MIXED-METHODS INTEGRATION"
-        ws_mixed['A1'].font = Font(size=14, bold=True)
-        
-        for i, p in enumerate(all_papers, 1):
-            if "mixed methods" in (p.get("title", "") + " " + p.get("abstract", "")).lower():
-                ws_mixed.cell(row=i+1, column=1, value=i)
-                ws_mixed.cell(row=i+1, column=2, value=p.get("title", "")[:60])
-                ws_mixed.cell(row=i+1, column=3, value="Sequential Explanatory")
-        
-        # ═══ SHEET 9: Geographic Heatmap ═══
-        ws_geo = wb.create_sheet("Geographic Heatmap")
-        ws_geo['A1'] = "🌍 GEOGRAPHIC HEATMAP"
-        ws_geo['A1'].font = Font(size=14, bold=True)
-        
-        for i, (country, count) in enumerate(sorted(country_data.items(), key=lambda x: -x[1]), 1):
-            ws_geo.cell(row=i+1, column=1, value=country)
-            ws_geo.cell(row=i+1, column=2, value=count)
-            ws_geo.cell(row=i+1, column=3, value=f"{count/len(all_papers)*100:.1f}%")
-            max_c = max(country_data.values()) if country_data else 1
-            heat = int((count / max_c) * 100) if max_c > 0 else 0
-            heat_color = f"FF{255-heat:02X}{255-heat:02X}FF" if heat < 128 else f"FFFF{255-heat*2:02X}00"
-            ws_geo.cell(row=i+1, column=4, value=heat)
-            ws_geo.cell(row=i+1, column=4).fill = PatternFill(start_color=heat_color, end_color=heat_color, fill_type="solid")
-        
-        # ═══ SHEET 10: Platform Tracking ═══
-        ws_platform = wb.create_sheet("Platform Tracking")
-        ws_platform['A1'] = "🔗 PLATFORM SOURCE TRACKING"
-        ws_platform['A1'].font = Font(size=14, bold=True)
-        
-        for i, (platform, count) in enumerate(sorted(platform_counts.items(), key=lambda x: -x[1]), 1):
-            ws_platform.cell(row=i+1, column=1, value=i)
-            ws_platform.cell(row=i+1, column=2, value=platform)
-            ws_platform.cell(row=i+1, column=3, value=count)
-            ws_platform.cell(row=i+1, column=4, value=f"{count/len(all_papers)*100:.1f}%")
-        
-        # ═══ SHEET 11: Download Hub ═══
-        ws_dl = wb.create_sheet("Download Hub")
-        ws_dl['A1'] = "📥 DOWNLOAD HUB"
-        ws_dl['A1'].font = Font(size=14, bold=True)
-        
-        for i, p in enumerate(all_papers, 1):
-            ws_dl.cell(row=i+1, column=1, value=i)
-            ws_dl.cell(row=i+1, column=2, value=p.get("title", "")[:80])
-            ws_dl.cell(row=i+1, column=3, value=f"https://doi.org/{p.get('doi', '')}" if p.get('doi') else "N/A")
-            ws_dl.cell(row=i+1, column=4, value="✅ Downloaded" if p.get("downloaded") else "❌ Pending")
-        
-        # ═══ SHEETS 12-16: Chapter Mapping ═══
-        chapter_sheets = [
-            ("Ch1 - Introduction", ["introduction", "background", "overview", "rationale", "problem statement"]),
-            ("Ch2 - Lit Review", ["literature review", "theoretical", "conceptual", "prior studies"]),
-            ("Ch3 - Methodology", ["methodology", "methods", "research design", "data collection"]),
-            ("Ch4 - Results", ["results", "findings", "data analysis", "outcomes"]),
-            ("Ch5 - Conclusion", ["conclusion", "summary", "recommendations", "implications"]),
-        ]
-        
-        for sheet_name, keywords in chapter_sheets:
-            ws_ch = wb.create_sheet(sheet_name)
-            ws_ch['A1'] = f"📑 {sheet_name.upper()}"
-            ws_ch['A1'].font = Font(size=14, bold=True)
-            
-            ch_papers = [p for p in all_papers if any(kw in (p.get("title", "") + p.get("abstract", "")).lower() for kw in keywords)]
-            for i, p in enumerate(ch_papers, 1):
-                ws_ch.cell(row=i+1, column=1, value=p.get("title", "")[:80])
-                ws_ch.cell(row=i+1, column=2, value=p.get("source", ""))
-        
-        # ═══ SHEET 17: Thematic Analysis ═══
-        ws_theme = wb.create_sheet("Thematic Analysis")
-        ws_theme['A1'] = "🔍 THEMATIC NODE ANALYSIS"
-        ws_theme['A1'].font = Font(size=14, bold=True)
-        
-        themes = ["Technology Integration", "Student Engagement", "Assessment Methods", "Teacher Training", 
-                  "Curriculum Design", "Language Acquisition", "Pedagogical Strategies", "Digital Literacy"]
-        for i, theme in enumerate(themes, 2):
-            count = sum(1 for p in all_papers if theme.lower() in (p.get("title", "") + p.get("abstract", "")).lower())
-            ws_theme.cell(row=i, column=1, value=theme)
-            ws_theme.cell(row=i, column=2, value=count)
-        
-        # ═══ SHEET 18: Chronological Trends ═══
-        ws_time = wb.create_sheet("Chronological Trends")
-        ws_time['A1'] = "🗓️ 10-YEAR CHRONOLOGICAL EVOLUTION"
-        ws_time['A1'].font = Font(size=14, bold=True)
-        
-        year_counts = {}
+        # Folders
+        ws['N3'] = 'Folders'
+        ws['N3'].font = Font(size=14, bold=True)
+        fc = {}
         for p in all_papers:
-            year = p.get("year", "")
-            # Handle both string and int year values
-            if isinstance(year, int):
-                year_str = str(year)
-            else:
-                year_str = year
-            if year_str.isdigit() and 2014 <= int(year_str) <= 2025:
-                year_counts[year_str] = year_counts.get(year_str, 0) + 1
+            fn = get_folder(p)
+            fc[fn] = fc.get(fn,0) + 1
+        for i,(fn,cnt) in enumerate(sorted(fc.items(), key=lambda x:-x[1]),5):
+            ws.cell(row=i,column=14,value=fn).font = Font(bold=True)
+            ws.cell(row=i,column=15,value=cnt).font = Font(size=12)
         
-        for i, (year, count) in enumerate(sorted(year_counts.items()), 2):
-            ws_time.cell(row=i, column=1, value=year)
-            ws_time.cell(row=i, column=2, value=count)
-        
-        # ═══ SHEET 19: Gap Analysis ═══
-        ws_gap = wb.create_sheet("Gap Analysis")
-        ws_gap['A1'] = "📉 LITERATURE GAP ANALYSIS"
-        ws_gap['A1'].font = Font(size=14, bold=True)
-        
-        gaps = ["Limited longitudinal studies", "Underrepresented demographics", 
-                "Technology accessibility gaps", "Cross-cultural comparisons"]
-        for i, gap in enumerate(gaps, 2):
-            count = sum(1 for p in all_papers if gap.lower() in (p.get("title", "") + p.get("abstract", "")).lower())
-            ws_gap.cell(row=i, column=1, value=gap)
-            ws_gap.cell(row=i, column=2, value="Well Covered" if count > 5 else "Needs Attention")
-        
-        # ═══ SHEET 20: Author Impact ═══
-        ws_author = wb.create_sheet("Author Impact")
-        ws_author['A1'] = "🎓 AUTHOR IMPACT RANKING"
-        ws_author['A1'].font = Font(size=14, bold=True)
-        
-        author_counts = {}
+        # Trending
+        ws['A22'] = 'Trending Topics'
+        ws['A22'].font = Font(size=14, bold=True)
+        tw = {}
+        sw = {'the','a','of','in','on','at','to','for','and','or','but','with','by','from','is','are','study','studies','research','using','based','analysis','review'}
         for p in all_papers:
-            for author in p.get("authors", []):
-                author_counts[author] = author_counts.get(author, 0) + 1
+            ws_l = re.findall(r'[a-zA-Z]{5,}', (p.get('title') or '').lower())
+            for w in ws_l:
+                if w not in sw: tw[w] = tw.get(w,0) + 1
+        for i,(t,cnt) in enumerate(sorted(tw.items(), key=lambda x:-x[1])[:15],23):
+            ws.cell(row=i,column=1,value=t).font = Font(bold=True)
+            ws.cell(row=i,column=2,value=cnt).font = Font(size=12)
         
-        for i, (author, count) in enumerate(sorted(author_counts.items(), key=lambda x: -x[1])[:50], 2):
-            ws_author.cell(row=i, column=1, value=author)
-            ws_author.cell(row=i, column=2, value=count)
-        
-        # ═══ SHEET 21: Multi-Lingual ═══
-        ws_lang = wb.create_sheet("Multi-Lingual")
-        ws_lang['A1'] = "🌐 MULTI-LINGUAL CROSS-REFERENCE"
-        ws_lang['A1'].font = Font(size=14, bold=True)
-        
-        lang_counts = {"English": 0, "Arabic": 0, "French": 0, "Spanish": 0}
+        # Platforms
+        ws['D22'] = 'Platforms'
+        ws['D22'].font = Font(size=14, bold=True)
+        pc = {}
         for p in all_papers:
-            text = (p.get("title", "") + " " + p.get("abstract", "")).lower()
-            if "arabic" in text or "العربية" in text: lang_counts["Arabic"] += 1
-            elif any(kw in text for kw in ["french", "français"]): lang_counts["French"] += 1
-            else: lang_counts["English"] += 1
+            s = p.get('source','Unknown')
+            pc[s] = pc.get(s,0) + 1
+        for i,(p,cnt) in enumerate(sorted(pc.items(), key=lambda x:-x[1])[:15],23):
+            ws.cell(row=i,column=4,value=p).font = Font(bold=True)
+            ws.cell(row=i,column=5,value=cnt).font = Font(size=12)
         
-        for i, (lang, count) in enumerate(lang_counts.items(), 2):
-            ws_lang.cell(row=i, column=1, value=lang)
-            ws_lang.cell(row=i, column=2, value=count)
-            ws_lang.cell(row=i, column=3, value=f"{count/len(all_papers)*100:.1f}%")
+        for col in range(1,19):
+            ws.column_dimensions[get_column_letter(col)].width = 15
         
-        # ═══ SHEET 22: APA Bibliography ═══
-        ws_apa = wb.create_sheet("APA Bibliography")
-        ws_apa['A1'] = "📝 APA 7th EDITION BIBLIOGRAPHY"
-        ws_apa['A1'].font = Font(size=14, bold=True)
-        ws_apa.column_dimensions['A'].width = 150
+        print(f'Dashboard: {total} papers')
         
-        for i, p in enumerate(all_papers, 2):
-            authors = ", ".join(p.get("authors", [])[:5])
-            year = p.get("year", "n.d.")
-            title = p.get("title", "N/A")
-            journal = p.get("journal", "N/A")
-            citation = p.get("apa") or f"{authors} ({year}). {title}. {journal}."
-            ws_apa.cell(row=i, column=1, value=f"{i-1}. {citation}")
+        # Master Metadata
+        wsm = wb.create_sheet('Master Metadata')
+        h = ['Row#','Title','Authors','Year','Journal','DOI','URL','Quartile','Citations','DocType','Folder','Geo','Downloaded','OA','Access','Link','Notes']
+        for col,hh in enumerate(h,1): sh(wsm.cell(row=1,column=col,value=hh), colors['header_dark'])
+        for i,p in enumerate(all_papers,2):
+            q = (p.get('scopus_quartile') or {}).get('quartile','N/A')
+            dt = get_doc_type(p)
+            gt = get_geo(p)
+            fn = get_folder(p)
+            ac = 'Downloaded' if p.get('downloaded') else ('Free OA' if p.get('pdf_url') else 'Purchase')
+            rd = [i-1,p.get('title',''),','.join(p.get('authors',[])[:5]),p.get('year',''),p.get('journal',''),p.get('doi',''),p.get('url',''),q,p.get('gs_citations',''),dt,fn,gt,'Yes' if p.get('downloaded') else 'No','Yes' if p.get('pdf_url') else 'No',ac,p.get('pdf_url','') or p.get('url',''),'']
+            for col,val in enumerate(rd,1): wsm.cell(row=i,column=col,value=val)
+        print(f'Master Metadata: {len(all_papers)}')
         
-        # ═══ SHEET 23: System Logs ═══
-        ws_log = wb.create_sheet("System Logs")
-        ws_log['A1'] = "⚙️ SYSTEM LOGS"
-        ws_log['A1'].font = Font(size=14, bold=True)
+        # Folder sheets
+        folders = ['Q1_Top_Journals','Q2_Good_Journals','Q3_Acceptable_Journals','Q4_Lower_Tier','Not_Indexed','PhD_Dissertations','MA_Dissertations','BA_Theses','Books','Book_Chapters','Edited_Books','Reference_Books','Conference_Papers','Conference_Proceedings','Workshop_Papers','Symposium_Papers','Research_Reports','Working_Papers','Policy_Briefs','Technical_Documents','LOCAL_Libya','NEIGHBOR_NorthAfrica','REGIONAL_MENA','Gulf_Countries','AFRICAN_Studies','Systematic_Reviews','Meta_Analyses','Case_Studies','Theoretical_Framework','HIGH_CITED_100plus','HIGH_CITED_500plus','PAID_SOURCES','OPEN_ACCESS_Free','RED_LIST_Pending_Manual']
+        for fn in folders:
+            fp = [p for p in all_papers if get_folder(p) == fn]
+            if not fp: continue
+            ws2 = wb.create_sheet(fn[:31].replace(' ','_'))
+            ws2.merge_cells('A1:H1')
+            ws2['A1'] = f'{fn} ({len(fp)} papers)'
+            ws2['A1'].font = Font(size=14, bold=True, color='FFFFFF')
+            ws2['A1'].fill = PatternFill(start_color=colors['header_dark'], end_color=colors['header_dark'], fill_type='solid')
+            ws2['A1'].alignment = Alignment(horizontal='center')
+            for col,hh in enumerate(['Row','Title','Authors','Year','Journal','DOI','Citations','DL'],1): sh(ws2.cell(row=3,column=col,value=hh), colors['header_dark'])
+            for i,p in enumerate(fp,4):
+                ws2.cell(row=i,column=1,value=i-3)
+                ws2.cell(row=i,column=2,value=p.get('title',''))
+                ws2.cell(row=i,column=3,value=','.join(p.get('authors',[])[:3]))
+                ws2.cell(row=i,column=4,value=p.get('year',''))
+                ws2.cell(row=i,column=5,value=p.get('journal',''))
+                ws2.cell(row=i,column=6,value=p.get('doi',''))
+                ws2.cell(row=i,column=7,value=p.get('gs_citations',''))
+                ws2.cell(row=i,column=8,value='Y' if p.get('downloaded') else 'N')
+            print(f'{fn}: {len(fp)}')
         
-        ws_log.cell(row=2, column=1, value="Search String")
-        ws_log.cell(row=2, column=2, value=title or "Research Topic")
-        ws_log.cell(row=3, column=1, value="Total Platforms")
-        ws_log.cell(row=3, column=2, value=len(platform_counts))
-        ws_log.cell(row=4, column=1, value="Total Papers")
-        ws_log.cell(row=4, column=2, value=total)
+        # Paid Sources
+        wsp = wb.create_sheet('Paid Sources')
+        wsp.merge_cells('A1:G1')
+        wsp['A1'] = 'Papers Requiring Manual Access'
+        wsp['A1'].font = Font(size=14, bold=True, color='FFFFFF')
+        wsp['A1'].fill = PatternFill(start_color='C00000', end_color='C00000', fill_type='solid')
+        for col,hh in enumerate(['Row','Title','Authors','Year','Journal','DOI','Link'],1): sh(wsp.cell(row=3,column=col,value=hh), 'C00000')
+        pp = [p for p in all_papers if not p.get('downloaded') and p.get('url')]
+        for i,p in enumerate(pp,4):
+            wsp.cell(row=i,column=1,value=i-3)
+            wsp.cell(row=i,column=2,value=p.get('title',''))
+            wsp.cell(row=i,column=3,value=','.join(p.get('authors',[])[:3]))
+            wsp.cell(row=i,column=4,value=p.get('year',''))
+            wsp.cell(row=i,column=5,value=p.get('journal',''))
+            wsp.cell(row=i,column=6,value=p.get('doi',''))
+            lnk = p.get('url','')
+            wsp.cell(row=i,column=7,value=lnk)
+            if lnk: wsp.cell(row=i,column=7).hyperlink = lnk
+        print(f'Paid Sources: {len(pp)}')
         
-        # ═══ SHEET 24: Citation Network ═══
-        ws_cite = wb.create_sheet("Citation Network")
-        ws_cite['A1'] = "🔗 CITATION NETWORK ANALYSIS"
-        ws_cite['A1'].font = Font(size=14, bold=True)
+        # World Map sheet
+        wsm2 = wb.create_sheet('World Map')
+        wsm2.merge_cells('A1:F1')
+        wsm2['A1'] = 'World Map - Research Distribution'
+        wsm2['A1'].font = Font(size=16, bold=True, color='FFFFFF')
+        wsm2['A1'].fill = PatternFill(start_color='1F4E79', end_color='1F4E79', fill_type='solid')
+        for col,hh in enumerate(['Country','Count','%','Bar','Region','Trend'],1): wsm2.cell(row=3,column=col,value=hh).font = Font(bold=True)
+        wr = {'North America':['USA','Canada','Mexico'],'Europe':['UK','Germany','France','Spain','Italy'],'Asia':['China','Japan','Korea','India','Turkey'],'Middle East':['Saudi','Egypt'],'Africa':['Nigeria','South Africa'],'Oceania':['Australia'],'South America':['Brazil']}
+        row = 4
+        for reg,ctrs in wr.items():
+            for c in sorted(ctrs, key=lambda x:-cc.get(x,0)):
+                cnt = cc.get(c,0)
+                if cnt > 0:
+                    pct = f'{cnt/total*100:.1f}%' if total else '0%'
+                    bar = '█' * min(int(cnt/5),50)
+                    wsm2.cell(row=row,column=1,value=c).font = Font(bold=True)
+                    wsm2.cell(row=row,column=2,value=cnt).font = Font(size=12)
+                    wsm2.cell(row=row,column=3,value=pct)
+                    wsm2.cell(row=row,column=4,value=bar)
+                    wsm2.cell(row=row,column=5,value=reg)
+                    wsm2.cell(row=row,column=6,value='High' if cnt > 50 else 'Low')
+                    row += 1
+        print('World Map created')
         
-        for i, p in enumerate(all_papers[:50], 2):
-            ws_cite.cell(row=i, column=1, value=p.get("title", "")[:60])
-            ws_cite.cell(row=i, column=2, value=p.get("gs_citations", "") or 0)
+        # Trending sheet
+        wst = wb.create_sheet('Trending Topics')
+        wst.merge_cells('A1:E1')
+        wst['A1'] = 'Trending Topics'
+        wst['A1'].font = Font(size=16, bold=True, color='FFFFFF')
+        wst['A1'].fill = PatternFill(start_color='C00000', end_color='C00000', fill_type='solid')
+        for col,hh in enumerate(['Topic','Mentions','Score','Category','Relevance'],1): wst.cell(row=3,column=col,value=hh).font = Font(bold=True)
+        td = {}
+        tc = {'methodology':['qualitative','quantitative','mixed methods','case study'],'technology':['mobile','digital','online','technology','computer','app'],'language':['EFL','ESL','vocabulary','grammar','speaking'],'education':['teacher','student','classroom','learning']}
+        for p in all_papers:
+            t = ((p.get('title') or '') + ' ' + (p.get('abstract') or '')).lower()
+            for cat,kws in tc.items():
+                for kw in kws:
+                    if kw in t: td[kw] = td.get(kw,0) + 1
+        for i,(t,cnt) in enumerate(sorted(td.items(), key=lambda x:-x[1])[:30],4):
+            cat = 'General'
+            for c,kws in tc.items():
+                if t in kws: cat = c.title(); break
+            score = min(cnt/10*100,100)
+            rel = 'High' if score > 70 else 'Medium' if score > 40 else 'Low'
+            wst.cell(row=i,column=1,value=t.title()).font = Font(bold=True)
+            wst.cell(row=i,column=2,value=cnt).font = Font(size=12)
+            wst.cell(row=i,column=3,value=f'{score:.0f}%').font = Font(size=12)
+            wst.cell(row=i,column=4,value=cat)
+            wst.cell(row=i,column=5,value=rel)
+        print('Trending Topics created')
         
-        # Save
-        xlsx_path = out_folder / "master_papers.xlsx"
-        wb.save(xlsx_path)
-        print(f"✅ ULTIMATE EXCEL saved: {xlsx_path}")
-        print(f"   Total Sheets: {len(wb.sheetnames)}")
-        return xlsx_path
-        
+        op = out_folder / 'master_papers.xlsx'
+        wb.save(str(op))
+        print(f'Excel saved: {op}')
+        return op
     except Exception as e:
-        print(f"❌ Excel error: {e}")
-        import traceback
-        traceback.print_exc()
+        print(f'Excel error: {e}')
         return None
-
-
-
-
-
 
 def generate_docx_report(report_data: dict, out_folder: Path) -> Path | None:
     """Generate professional PhD-level DOCX report with colors, tables, and comprehensive analysis."""
