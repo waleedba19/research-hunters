@@ -4458,32 +4458,105 @@ def enhanced_quartile_check(paper: dict) -> str:
 
 
 # ── 16-folder hierarchy ───────────────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════════════════════
+# v8.2: COMPREHENSIVE FOLDER STRUCTURE FOR ALL ACADEMIC DOCUMENT TYPES
+# ═══════════════════════════════════════════════════════════════════════════════
 Q_FOLDER_MAP = {
-    # Scopus quartile
-    "Q1":          "Q1_Top_Journals",
-    "Q2":          "Q2_Good_Journals",
-    "Q3":          "Q3_Acceptable_Journals",
-    "Q4":          "Q4_Lower_Tier",
-    "Not Found":   "Not_Indexed",
+    # ── Scopus Quartile Folders (by journal quality) ─────────────────────────
+    "Q1":          "Q1_Top_Journals",           # Top 1% - Elite tier
+    "Q2":          "Q2_Good_Journals",           # Top 25% - Good tier
+    "Q3":          "Q3_Acceptable_Journals",     # Top 50% - Acceptable tier
+    "Q4":          "Q4_Lower_Tier",              # Lower tier journals
+    "Not Found":   "Not_Indexed",                # Not indexed in Scopus/WoS
     "Not Ranked":  "Not_Indexed",
     "":            "Not_Indexed",
-    # Document type
-    "PhD":         "PhD_Dissertations",
-    "MA":          "MA_Dissertations",
-    "Book":        "Books",
-    "BookChapter": "Book_Chapters",
-    "Conference":  "Conference_Papers",
-    # Geographic tier
-    "Libya":       "LOCAL_Libya",
-    "Neighbor":    "NEIGHBOR_NorthAfrica",
-    "MENA":        "REGIONAL_MENA",
+    
+    # ── Academic Document Type Folders ───────────────────────────────────────
+    "PhD":         "PhD_Dissertations",          # Doctoral theses (260+ pages)
+    "MA":          "MA_Dissertations",           # Master's theses
+    "BA":          "BA_Theses",                  # Bachelor's theses
+    "Book":        "Books",                       # Full academic books
+    "BookChapter": "Book_Chapters",              # Individual book chapters
+    "EditedBook":  "Edited_Books",               # Edited volumes
+    "ReferenceBook": "Reference_Books",           # Encyclopedias, handbooks
+    
+    # ── Conference & Proceedings Folders ────────────────────────────────────
+    "Conference":  "Conference_Papers",           # Conference presentations
+    "Proceedings": "Conference_Proceedings",     # Full conference proceedings
+    "Workshop":    "Workshop_Papers",            # Workshop presentations
+    "Symposium":   "Symposium_Papers",            # Symposium papers
+    
+    # ── Reports & Gray Literature ───────────────────────────────────────────
+    "Report":      "Research_Reports",           # Technical reports
+    "WorkingPaper":"Working_Papers",             # Pre-prints, working papers
+    "PolicyBrief": "Policy_Briefs",              # Policy documents
+    "Technical":   "Technical_Documents",        # Technical documentation
+    
+    # ── Regional & Geographic Folders ───────────────────────────────────────
+    "Libya":       "LOCAL_Libya",                # Libyan institutions
+    "Neighbor":    "NEIGHBOR_NorthAfrica",       # Tunisia, Algeria, Egypt
+    "MENA":        "REGIONAL_MENA",              # Middle East & North Africa
+    "Gulf":        "Gulf_Countries",              # GCC countries
+    "Africa":      "AFRICAN_Studies",            # Pan-African studies
+    
+    # ── Specialized Academic Folders ─────────────────────────────────────────
+    "SystematicReview": "Systematic_Reviews",    # Meta-analyses, systematic reviews
+    "MetaAnalysis":     "Meta_Analyses",         # Statistical meta-analyses
+    "CaseStudy":        "Case_Studies",           # Individual case studies
+    "Theoretical":      "Theoretical_Framework",  # Theory-building papers
 }
 
+# All folders to be created
 ALL_EXTRA_FOLDERS = [
-    "PhD_Dissertations","MA_Dissertations","Books","Book_Chapters","Conference_Papers",
-    "LOCAL_Libya","NEIGHBOR_NorthAfrica","REGIONAL_MENA","GLOBAL_International",
-    "HIGH_CITED_100plus","HIGH_CITED_500plus","RED_LIST_Pending_Manual",
+    # ── Document Type Folders ────────────────────────────────────────────────
+    "PhD_Dissertations",
+    "MA_Dissertations",
+    "BA_Theses",
+    "Books",
+    "Book_Chapters",
+    "Edited_Books",
+    "Reference_Books",
+    
+    # ── Conference Folders ────────────────────────────────────────────────────
+    "Conference_Papers",
+    "Conference_Proceedings",
+    "Workshop_Papers",
+    "Symposium_Papers",
+    
+    # ── Reports & Gray Literature ────────────────────────────────────────────
+    "Research_Reports",
+    "Working_Papers",
+    "Policy_Briefs",
+    "Technical_Documents",
+    
+    # ── Regional Folders ─────────────────────────────────────────────────────
+    "LOCAL_Libya",
+    "NEIGHBOR_NorthAfrica",
+    "REGIONAL_MENA",
+    "Gulf_Countries",
+    "AFRICAN_Studies",
+    "GLOBAL_International",
+    
+    # ── Specialized Folders ───────────────────────────────────────────────────
+    "Systematic_Reviews",
+    "Meta_Analyses",
+    "Case_Studies",
+    "Theoretical_Framework",
+    
+    # ── Citation-based Folders ────────────────────────────────────────────────
+    "HIGH_CITED_100plus",
+    "HIGH_CITED_500plus",
+    
+    # ── Download Status Folders ───────────────────────────────────────────────
+    "RED_LIST_Pending_Manual",    # Papers needing manual download
+    "PAID_SOURCES",               # Papers requiring purchase
+    "OPEN_ACCESS_Free",           # Free OA papers (not downloaded yet)
 ]
+
+# RED_LIST explanation:
+# Papers that couldn't be auto-downloaded go to RED_LIST. This is NORMAL - many academic
+# sources require institutional access or payment. The RED_LIST tracks these so you
+# can manually access them. It's NOT a failure - it's comprehensive tracking of ALL sources.
 
 
 def get_q_folder(base: Path, quartile: str) -> Path:
@@ -4494,32 +4567,121 @@ def get_q_folder(base: Path, quartile: str) -> Path:
 
 
 def detect_doc_type(paper: dict) -> str:
-    """Return 'PhD','MA','Book','BookChapter','Conference', or '' (use quartile)."""
-    title   = (paper.get("title")    or "").lower()
-    journal = (paper.get("journal")  or "").lower()
-    abstract= (paper.get("abstract") or "").lower()
-    pub_type= str(paper.get("publication_type") or "").lower()
-    source  = (paper.get("source")   or "").lower()
-
-    phd_keys = ["phd","doctoral","dissertation","doctorate","doctor of philosophy",
-                "أطروحة دكتوراه","دكتوراه","ph.d"]
-    if any(k in title or k in abstract or k in journal for k in phd_keys):
+    """
+    Return document type based on title, journal, abstract, publication_type, and source.
+    Priority: PhD > MA > Book > Conference > Report > Theoretical > (use quartile)
+    """
+    title    = (paper.get("title")    or "").lower()
+    journal  = (paper.get("journal")  or "").lower()
+    abstract = (paper.get("abstract") or "").lower()
+    pub_type = str(paper.get("publication_type") or "").lower()
+    source   = (paper.get("source")   or "").lower()
+    authors  = " ".join(paper.get("authors") or []).lower()
+    full_text = " ".join([title, journal, abstract, authors, source])
+    
+    # ════════════════════════════════════════════════════════════════════════
+    # PH.D / DOCTORAL DISSERTATION DETECTION
+    # ════════════════════════════════════════════════════════════════════════
+    phd_keys = [
+        "phd thesis", "doctoral dissertation", "doctor of philosophy",
+        "ph.d. dissertation", "ph d thesis", "doctorate thesis",
+        "dissertation submitted in partial fulfillment",
+        "thesis submitted for the degree of doctor",
+        "أطروحة دكتوراه", "دكتوراه", "رسالة دكتوراه",
+        "doctor of education", "doctor of linguistics",
+    ]
+    if any(k in full_text for k in phd_keys):
         return "PhD"
-
-    ma_keys  = ["master","" "ma thesis"," m.a.","m.ed.","" "msc","m.sc.","thesis","postgraduate",
-                "رسالة ماجستير","ماجستير","master's"]
-    if any(k in title or k in abstract or k in journal for k in ma_keys):
+    
+    # Extra PhD indicators from source/platform
+    if any(k in source for k in ["ethos", "ethos.bl", "ndltd", "proquest", "thesis"]):
+        if any(k in title for k in ["doctor", "phd", "dissertation"]):
+            return "PhD"
+    
+    # ════════════════════════════════════════════════════════════════════════
+    # MASTER'S / MA / MSC DISSERTATION DETECTION
+    # ════════════════════════════════════════════════════════════════════════
+    ma_keys = [
+        "master thesis", "ma thesis", "m.a. thesis", "msc thesis", "m.sc thesis",
+        "master's dissertation", "ma dissertation", "msc dissertation",
+        "master of arts", "master of science", "master of education",
+        "postgraduate thesis", "postgraduate dissertation",
+        "thesis submitted in partial fulfillment of",
+        "dissertation presented in partial",
+        "ماجستير", "رسالة ماجستير", " master's ", " master's thesis",
+    ]
+    if any(k in full_text for k in ma_keys):
         return "MA"
-
-    if pub_type == "book" or any(k in source for k in ("libgen","z-library","oapen")):
-        if any(k in title for k in ("chapter","part ","section ")):
+    
+    # Check for BA/Bachelor thesis
+    ba_keys = ["bachelor thesis", "ba thesis", "b.a. thesis", "undergraduate thesis",
+               "honours thesis", "bsc thesis", "b.sc thesis", "ba dissertation"]
+    if any(k in full_text for k in ba_keys):
+        return "BA"
+    
+    # ════════════════════════════════════════════════════════════════════════
+    # BOOK DETECTION
+    # ════════════════════════════════════════════════════════════════════════
+    book_indicators = ["libgen", "z-library", "oapen", "book", "textbook", "monograph"]
+    if any(k in source for k in book_indicators):
+        if any(k in title for k in ["chapter", "part ", "section ", "volume"]):
+            return "BookChapter"
+        if "edited" in title or "edited volume" in title:
+            return "EditedBook"
+        return "Book"
+    
+    # Book detection from publication type
+    if pub_type in ["9", "book", "books"]:
+        if any(k in title for k in ["chapter", "part ", "section"]):
             return "BookChapter"
         return "Book"
-
-    conf_keys = ["conference","proceedings","workshop","symposium","congress","proc."]
-    if any(k in journal or k in title for k in conf_keys):
+    
+    # ════════════════════════════════════════════════════════════════════════
+    # CONFERENCE / PROCEEDINGS DETECTION
+    # ════════════════════════════════════════════════════════════════════════
+    conf_keys = [
+        "conference", "proceedings", "workshop", "symposium", "congress",
+        "annual meeting", "ic..." # "ic" followed by letters (ICALL, ICES, etc.)
+    ]
+    if any(k in full_text for k in conf_keys):
+        if "proceeding" in full_text:
+            return "Proceedings"
+        if "workshop" in full_text:
+            return "Workshop"
+        if "symposium" in full_text:
+            return "Symposium"
         return "Conference"
-
+    
+    # ════════════════════════════════════════════════════════════════════════
+    # REPORTS & GRAY LITERATURE DETECTION
+    # ════════════════════════════════════════════════════════════════════════
+    report_keys = [
+        "technical report", "research report", "policy brief",
+        "working paper", "white paper", "discussion paper",
+        "institutional report", "government report", "technical document"
+    ]
+    if any(k in full_text for k in report_keys):
+        if "working paper" in full_text:
+            return "WorkingPaper"
+        if "policy" in full_text:
+            return "PolicyBrief"
+        return "Report"
+    
+    # ════════════════════════════════════════════════════════════════════════
+    # SPECIALIZED STUDY TYPE DETECTION
+    # ════════════════════════════════════════════════════════════════════════
+    if "systematic review" in full_text or "prisma" in full_text:
+        return "SystematicReview"
+    if "meta-analysis" in full_text or "meta analysis" in full_text or "meta-analysis" in full_text:
+        return "MetaAnalysis"
+    if "case study" in full_text:
+        return "CaseStudy"
+    if "theoretical framework" in full_text or "theoretical perspective" in full_text:
+        return "Theoretical"
+    
+    # ════════════════════════════════════════════════════════════════════════
+    # FALLBACK: No specific document type detected
+    # ════════════════════════════════════════════════════════════════════════
     return ""
 
 
@@ -5105,11 +5267,22 @@ def smart_file_paper(paper: dict, base_folder: Path,
         dest_folder = base_folder
         dest_folder.mkdir(parents=True, exist_ok=True)
     else:
-        # Priority: dissertation type > Libya > quartile
-        if doc_type in ("PhD","MA","Book","BookChapter","Conference"):
+        # Priority: dissertation type > regional > quartile > document type
+        # All document types that should have their own folder
+        DOC_TYPE_FOLDERS = (
+            "PhD", "MA", "BA", "Book", "BookChapter", "EditedBook", "ReferenceBook",
+            "Conference", "Proceedings", "Workshop", "Symposium",
+            "Report", "WorkingPaper", "PolicyBrief", "Technical",
+            "SystematicReview", "MetaAnalysis", "CaseStudy", "Theoretical",
+            "Gulf", "Africa"
+        )
+        
+        if doc_type in DOC_TYPE_FOLDERS:
             folder_key = doc_type
         elif geo_tier == "Libya":
             folder_key = "Libya"
+        elif geo_tier:
+            folder_key = geo_tier  # Neighbor, MENA, etc.
         else:
             folder_key = quartile or "Not Found"
 
