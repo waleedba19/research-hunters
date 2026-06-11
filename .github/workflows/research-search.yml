@@ -589,28 +589,25 @@ on:
         default: '4. Extended — 500 papers (~3-4 hrs) — Standard research [RECOMMENDED]'
 
       # ─────────────────────────────────────────────────────────────────────
-      # STEP 9: SEARCH DEPTH & PLATFORMS (128+ Real Academic Platforms)
+      # STEP 9: SEARCH DEPTH & PLATFORMS (ALL MODES USE 128 PLATFORMS)
       # ─────────────────────────────────────────────────────────────────────
-      # Platform counts are based on actual PLATFORM_FNS dictionary:
-      # - API platforms: Semantic Scholar, OpenAlex, CrossRef, CORE, PubMed, etc.
-      # - Browser platforms: Google Scholar, ResearchGate, Z-Library, etc.
-      # - Regional platforms: CAIRN (French), SciELO (Latin America), AJOL (Africa), etc.
-      # - Shadow libraries: Sci-Hub, Anna's Archive, LibGen (optional, enable Sci-Hub)
-      # - All platforms are REAL and tested - no fake or generated platforms
+      # ALL search modes now use 128 platforms - only difference is time and coverage
+      # The paper limit from STEP 8 determines the target, this determines depth
       
       search_mode:
-        description: '⚡ STEP 9: Search Depth & Paper Limit (128 platforms on ALL modes!)'
+        description: '⚡ STEP 9: Search Depth & Platforms (ALL use 128 platforms!)'
         required: true
         type: choice
         options:
-          - 'Sample (~15-30 min) — 128 platforms — 80 papers — Light exploration'
-          - 'Quick (~30-45 min) — 128 platforms — 150 papers — Standard starter'
-          - 'Field (~1-2 hrs) — 128 platforms — 300 papers — Good coverage'
-          - 'Extended (~2-4 hrs) — 128 platforms — 500 papers — Recommended'
-          - 'Deep (~4-8 hrs) — 128 platforms — 800 papers — Comprehensive'
-          - 'Ultra (~8-16 hrs) — 128 platforms — 2,000 papers — Extensive'
-          - 'Maximum (~16-32 hrs) — 128 platforms — 5,000 papers — Exhaustive'
-        default: 'Extended (~2-4 hrs) — 128 platforms — 500 papers — Recommended'
+          - 'Sample (~10-15 min) — 128 platforms — Quick test'
+          - 'Quick (~20-40 min) — 128 platforms — Small projects'
+          - 'Field (~1.5-3 hrs) — 128 platforms — Standard academic'
+          - 'Extended (~4-6 hrs) — 128 platforms — Deep academic [RECOMMENDED]'
+          - 'Deep (~8-12 hrs) — 128 platforms — Maximum standard'
+          - 'Ultra (~24-48 hrs) — 128 platforms — Maximum with duplicates'
+          - 'Maximum (~48-72 hrs) — 128 platforms — Exhaustive search'
+          - 'Custom — Pick specific platforms from all 128+'
+        default: 'Extended (~4-6 hrs) — 128 platforms — Deep academic [RECOMMENDED]'
 
       # ─────────────────────────────────────────────────────────────────────
       # YEAR RANGE

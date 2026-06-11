@@ -10158,49 +10158,50 @@ ULTRA_PLATS = list(PLATFORM_FNS.keys())
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # v8 SEARCH MODE CONFIGURATIONS - ALL MODES USE 128 PLATFORMS
-# Only difference is paper limit (like a "promo" tier system)
+# Paper limits are controlled by STEP 8 (paper_limit input)
+# This controls the search depth/intensity across 128 platforms
 # ═══════════════════════════════════════════════════════════════════════════════
 MODE_TIME_ESTIMATES = {
     "sample": {
-        "label": "Sample (~15-30 min) — 128 platforms — 80 papers — Light exploration",
-        "platforms": DEEP_PLATS,  # ALL 128 platforms, just fewer papers
-        "time": "15-30 min",
+        "label": "Sample (~10-15 min) — 128 platforms — Quick test",
+        "platforms": DEEP_PLATS,  # ALL 128 platforms
+        "time": "10-15 min",
         "max_papers": 80,
     },
     "quick": {
-        "label": "Quick (~30-45 min) — 128 platforms — 150 papers — Standard starter",
+        "label": "Quick (~20-40 min) — 128 platforms — Small projects",
         "platforms": DEEP_PLATS,
-        "time": "30-45 min",
+        "time": "20-40 min",
         "max_papers": 150,
     },
     "field": {
-        "label": "Field (~1-2 hrs) — 128 platforms — 300 papers — Good coverage",
+        "label": "Field (~1.5-3 hrs) — 128 platforms — Standard academic",
         "platforms": DEEP_PLATS,
-        "time": "1-2 hrs",
+        "time": "1.5-3 hrs",
         "max_papers": 300,
     },
     "extended": {
-        "label": "Extended (~2-4 hrs) — 128 platforms — 500 papers — Recommended [RECOMMENDED]",
+        "label": "Extended (~4-6 hrs) — 128 platforms — Deep academic [RECOMMENDED]",
         "platforms": DEEP_PLATS,
-        "time": "2-4 hrs",
+        "time": "4-6 hrs",
         "max_papers": 500,
     },
     "deep": {
-        "label": "Deep (~4-8 hrs) — 128 platforms — 800 papers — Comprehensive",
+        "label": "Deep (~8-12 hrs) — 128 platforms — Maximum standard",
         "platforms": DEEP_PLATS,
-        "time": "4-8 hrs",
+        "time": "8-12 hrs",
         "max_papers": 800,
     },
     "ultra": {
-        "label": "Ultra (~8-16 hrs) — 128 platforms — 2,000 papers — Extensive",
+        "label": "Ultra (~24-48 hrs) — 128 platforms — Maximum with duplicates",
         "platforms": ULTRA_PLATS,
-        "time": "8-16 hrs",
+        "time": "24-48 hrs",
         "max_papers": 2000,
     },
     "maximum": {
-        "label": "Maximum (~16-32 hrs) — 128 platforms — 5,000 papers — Exhaustive",
+        "label": "Maximum (~48-72 hrs) — 128 platforms — Exhaustive search",
         "platforms": ULTRA_PLATS,
-        "time": "16-32 hrs",
+        "time": "48-72 hrs",
         "max_papers": 5000,
     },
 }
