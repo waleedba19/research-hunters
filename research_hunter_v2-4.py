@@ -5911,8 +5911,13 @@ def _write_master_xlsx(all_papers: list, out_folder: Path, search_terms: list = 
         year_counts = {}
         for p in all_papers:
             year = p.get("year", "")
-            if year.isdigit() and 2014 <= int(year) <= 2025:
-                year_counts[year] = year_counts.get(year, 0) + 1
+            # Handle both string and int year values
+            if isinstance(year, int):
+                year_str = str(year)
+            else:
+                year_str = year
+            if year_str.isdigit() and 2014 <= int(year_str) <= 2025:
+                year_counts[year_str] = year_counts.get(year_str, 0) + 1
         
         for i, (year, count) in enumerate(sorted(year_counts.items()), 2):
             ws_time.cell(row=i, column=1, value=year)
@@ -9377,9 +9382,9 @@ def main():
     cache.record_run(len(new_papers), dl_count, skipped)
     cache.save()
 
-    # Reports — markdown + Node.js DOCX + Excel
+    # Reports — markdown + DOCX + Excel
     md_path   = generate_markdown_report(report_data, out_folder)
-    docx_path = generate_docx_report(report_data, out_folder)  # Uses Node.js generate_report.js
+    docx_path = generate_docx_report(report_data, out_folder)
     xlsx_path = _write_master_xlsx(all_papers, out_folder)
 
     total_dl = sum(1 for p in all_papers if p.get("downloaded"))
