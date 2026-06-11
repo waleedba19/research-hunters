@@ -9974,6 +9974,52 @@ PLATFORM_FNS = {
 DEEP_PLATS = list(PLATFORM_FNS.keys())
 ULTRA_PLATS = list(PLATFORM_FNS.keys())
 
+# Search mode time estimates and configurations (must be after DEEP_PLATS/ULTRA_PLATS)
+MODE_TIME_ESTIMATES = {
+    "sample": {
+        "label": "Sample (~10-15 min) — 4 platforms — 80 papers",
+        "platforms": SAMPLE_PLATS,
+        "time": "10-15 min",
+        "max_papers": 80,
+    },
+    "quick": {
+        "label": "Quick (~20-30 min) — 8 platforms — 200 papers",
+        "platforms": QUICK_PLATS,
+        "time": "20-30 min",
+        "max_papers": 200,
+    },
+    "field": {
+        "label": "Field (~45-60 min) — 29 platforms — 500 papers",
+        "platforms": FIELD_PLATS,
+        "time": "45-60 min",
+        "max_papers": 500,
+    },
+    "extended": {
+        "label": "Extended (~1-2 hrs) — 50 platforms — 1,000 papers",
+        "platforms": EXTENDED_PLATS,
+        "time": "1-2 hrs",
+        "max_papers": 1000,
+    },
+    "deep": {
+        "label": "Deep (~2-4 hrs) — 128 platforms — 2,500 papers",
+        "platforms": DEEP_PLATS,
+        "time": "2-4 hrs",
+        "max_papers": 2500,
+    },
+    "ultra": {
+        "label": "Ultra (~4-8 hrs) — 128+ platforms — 5,000 papers",
+        "platforms": ULTRA_PLATS,
+        "time": "4-8 hrs",
+        "max_papers": 5000,
+    },
+    "maximum": {
+        "label": "Maximum (~8-16 hrs) — 128+ all platforms — 10,000 papers",
+        "platforms": ULTRA_PLATS,
+        "time": "8-16 hrs",
+        "max_papers": 10000,
+    },
+}
+
 if __name__ == "__main__":
     # ── GitHub Actions / CLI mode ────────────────────────────────────────────
     import argparse
