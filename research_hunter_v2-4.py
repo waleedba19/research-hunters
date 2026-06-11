@@ -9562,6 +9562,38 @@ def main_headless(params: dict):
     for p in new_papers:
         cache.mark_found(p)
 
+    # ── Build preliminary report_data for early report generation ──
+    preliminary_report_data = {
+        "title":              title,
+        "field":              field,
+        "study_types":        study_types,
+        "year_range":         params["year_range"],
+        "search_mode":        mode,
+        "platforms_searched": platforms,
+        "ai_queries":         queries,
+        "study_keywords":     study_keywords,
+        "search_language":    lang_label,
+        "country_context":    " → ".join(country_context) if country_context else "International",
+        "papers":             new_papers,
+        "executive_summary":  f"Preliminary report with {len(new_papers)} newly found papers. Final report will include updated statistics after download completion.",
+        "generated_at":       datetime.now().isoformat(),
+        "run_stats": {
+            "new_this_run":        len(new_papers),
+            "downloaded_this_run": 0,
+            "total_in_cache":      len(new_papers),
+            "q_distribution":      {"Q1": 0, "Q2": 0, "Q3": 0, "Q4": 0, "Not Found": 0},
+            "type_distribution":   {"PhD":0,"MA":0,"Book":0,"BookChapter":0,"Conference":0},
+            "geo_distribution":    {"Libya":0,"Neighbor":0,"MENA":0},
+            "red_list_count":      0,
+            "folder_downloads":    {},
+        },
+    }
+    info("Generating preliminary reports (markdown, DOCX, Excel)...")
+    md_path   = generate_markdown_report(preliminary_report_data, out_folder)
+    docx_path = generate_docx_report(preliminary_report_data, out_folder)
+    xlsx_path = _write_master_xlsx(new_papers, out_folder)
+    ok(f"Reports generated: {md_path.name}, {docx_path.name if docx_path else 'N/A'}, {xlsx_path.name if xlsx_path else 'N/A'}")
+
     print()
     dl_mode_str = "single folder" if single_folder else "smart folders"
     info(f"Interleaved quartile verification + download (14-layer chain) into {dl_mode_str}…")
@@ -9695,9 +9727,13 @@ def main_headless(params: dict):
     cache.record_run(len(new_papers), dl_count, skipped)
     cache.save()
 
-    md_path   = generate_markdown_report(report_data, out_folder)
-    docx_path = generate_docx_report(report_data, out_folder)
-    xlsx_path = _write_master_xlsx(all_papers, out_folder)
+    # Regenerate reports with final data after download completion
+    if dl_count > 0:
+        info("Regenerating reports with final download data...")
+        md_path   = generate_markdown_report(report_data, out_folder)
+        docx_path = generate_docx_report(report_data, out_folder)
+        xlsx_path = _write_master_xlsx(all_papers, out_folder)
+        ok(f"Final reports generated: {md_path.name if md_path else 'N/A'}, {docx_path.name if docx_path else 'N/A'}, {xlsx_path.name if xlsx_path else 'N/A'}")
 
     total_dl = sum(1 for p in all_papers if p.get("downloaded"))
 
