@@ -8865,31 +8865,36 @@ def main_headless(params: dict):
 if __name__ == "__main__":
     # ── GitHub Actions / CLI mode ────────────────────────────────────────────
     import argparse
-    parser = argparse.ArgumentParser(description="Research Hunter v6 — run on GitHub Actions 24/7")
-    parser.add_argument("--title",         help="Research topic / title (required)")
-    parser.add_argument("--rq1", "--rq-1", help="Research Question 1")
-    parser.add_argument("--rq2", "--rq-2", help="Research Question 2")
-    parser.add_argument("--rq3", "--rq-3", help="Research Question 3")
-    parser.add_argument("--rq4", "--rq-4", help="Research Question 4")
-    parser.add_argument("--rq5", "--rq-5", help="Research Question 5")
-    parser.add_argument("--field",        help="Field number (1-278) or 'auto'")
-    parser.add_argument("--study-type",   help="Study type(s) (e.g. 6,7,8 or 30=all)")
-    parser.add_argument("--year-from",    help="Start year (e.g. 2015)")
-    parser.add_argument("--year-to",      help="End year (default: current)")
+    parser = argparse.ArgumentParser(description="Research Hunter v7 — run on GitHub Actions 24/7")
+    parser.add_argument("--title",           help="Research topic / title (required)")
+    parser.add_argument("--rq1", "--rq-1",   help="Research Question 1")
+    parser.add_argument("--rq2", "--rq-2",   help="Research Question 2")
+    parser.add_argument("--rq3", "--rq-3",   help="Research Question 3")
+    parser.add_argument("--rq4", "--rq-4",   help="Research Question 4")
+    parser.add_argument("--rq5", "--rq-5",   help="Research Question 5")
+    # v7: All new input parameters
+    parser.add_argument("--field",           help="Field number (1-278) or 'auto'")
+    parser.add_argument("--publication-type", help="Publication type number (1-49)")
+    parser.add_argument("--study-level",     help="Study level number (1-12)")
+    parser.add_argument("--methodology",     help="Research methodology number (1-51)")
+    parser.add_argument("--dissertation-part", help="Dissertation part number (1-28)")
+    parser.add_argument("--study-type",      help="Study type(s) (e.g. 6,7,8 or 30=all) [legacy]")
+    parser.add_argument("--year-from",       help="Start year (e.g. 2015)")
+    parser.add_argument("--year-to",         help="End year (default: current)")
     parser.add_argument("--mode",         
         choices=["sample","quick","field","extended","deep","ultra","maximum"], 
         default="deep",
         help="Search mode: sample=4 platforms, quick=8, field=29, extended=50, deep=128, ultra=128+extended, maximum=128+all")
-    parser.add_argument("--max-batches",  type=int, default=0,
+    parser.add_argument("--max-batches",     type=int, default=0,
                         help="Max batches to process per run (0=all)")
-    parser.add_argument("--max-papers",   type=int, default=0,
+    parser.add_argument("--max-papers",      type=int, default=0,
                         help="Maximum papers to collect (0=unlimited, use mode default)")
-    parser.add_argument("--language",     choices=["1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18"], default="1",
+    parser.add_argument("--language",        choices=["1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18"], default="1",
                         help="Search language (default: 1=English)")
-    parser.add_argument("--scihub",       action="store_true", help="Enable Sci-Hub")
-    parser.add_argument("--single-folder", action="store_true", help="Single folder mode")
-    parser.add_argument("--keywords",     help="Comma-separated custom keywords")
-    parser.add_argument("--proxy",        choices=["y","p","n"], default="n",
+    parser.add_argument("--scihub",          action="store_true", help="Enable Sci-Hub")
+    parser.add_argument("--single-folder",   action="store_true", help="Single folder mode")
+    parser.add_argument("--keywords",        help="Comma-separated custom keywords")
+    parser.add_argument("--proxy",           choices=["y","p","n"], default="n",
                         help="Proxy (y=auto qoder, p=custom URL, n=skip)")
     args, _ = parser.parse_known_args()
 
@@ -8979,6 +8984,39 @@ if __name__ == "__main__":
                 _academic_proxy.external = [proxy_url]
                 _academic_proxy.enable()
 
+        # Parse v7 new parameters
+        publication_types = []
+        if args.publication_type:
+            pub_num = args.publication_type.strip()
+            if pub_num in PUBLICATION_TYPES:
+                publication_types = [PUBLICATION_TYPES[pub_num]]
+            elif pub_num == "49":  # All types
+                publication_types = list(PUBLICATION_TYPES.values())[:-1]
+        
+        study_levels = []
+        if args.study_level:
+            lvl_num = args.study_level.strip()
+            if lvl_num in STUDY_LEVELS:
+                study_levels = [STUDY_LEVELS[lvl_num]]
+            elif lvl_num == "12":  # All levels
+                study_levels = list(STUDY_LEVELS.values())[:-1]
+        
+        methodologies = []
+        if args.methodology:
+            meth_num = args.methodology.strip()
+            if meth_num in RESEARCH_METHODOLOGIES:
+                methodologies = [RESEARCH_METHODOLOGIES[meth_num]]
+            elif meth_num == "51":  # All methods
+                methodologies = list(RESEARCH_METHODOLOGIES.values())[:-1]
+        
+        dissertation_parts = []
+        if args.dissertation_part:
+            part_num = args.dissertation_part.strip()
+            if part_num in DISSERTATION_PARTS:
+                dissertation_parts = [DISSERTATION_PARTS[part_num]]
+            elif part_num == "28":  # All parts
+                dissertation_parts = list(DISSERTATION_PARTS.values())[:-1]
+
         params = {
             "title":              title,
             "field":              field,
@@ -8996,6 +9034,11 @@ if __name__ == "__main__":
             "single_folder":      single_folder,
             "country_context":    country_context,
             "max_papers":         args.max_papers if args.max_papers > 0 else None,
+            # v7 new parameters
+            "publication_types":  publication_types,
+            "study_levels":       study_levels,
+            "methodologies":      methodologies,
+            "dissertation_parts": dissertation_parts,
         }
 
         if args.max_batches and int(args.max_batches) > 0:

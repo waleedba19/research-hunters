@@ -901,7 +901,7 @@ jobs:
           # Add publication type (extract number)
           PUB_NUM=$(echo "$PUBLICATION_TYPE" | cut -d. -f1)
           if [[ "$PUB_NUM" != "49" ]]; then
-            CMD="$CMD --study-type $PUB_NUM"
+            CMD="$CMD --publication-type $PUB_NUM"
           fi
           
           # Add study level (extract number)
