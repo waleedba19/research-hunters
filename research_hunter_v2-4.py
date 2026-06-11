@@ -5141,6 +5141,63 @@ def build_apa(paper: dict) -> str:
     return ref
 
 
+# ── Missing Helper Functions (required by main_headless) ─────────────────────
+
+def scan_existing_pdfs(out_folder: Path) -> set:
+    """Scan existing PDFs and return set of existing paper titles to avoid duplicates."""
+    existing = set()
+    if out_folder.exists():
+        for pdf_file in out_folder.rglob("*.pdf"):
+            title = pdf_file.stem.replace("_", " ").replace("-", " ")
+            if title:
+                existing.add(title.lower())
+    return existing
+
+
+def is_duplicate_paper(paper: dict, existing_titles: set) -> bool:
+    """Check if paper is a duplicate of existing PDF based on title similarity."""
+    paper_title = paper.get("title", "").lower()
+    if not paper_title:
+        return False
+    if paper_title in existing_titles:
+        return True
+    title_start = paper_title[:50] if len(paper_title) >= 50 else paper_title
+    for existing in existing_titles:
+        if existing.startswith(title_start[:30]):
+            return True
+    return False
+
+
+def _write_master_xlsx(all_papers: list, out_folder: Path) -> Path | None:
+    """Write master Excel file with all found papers."""
+    if not all_papers:
+        return None
+    try:
+        from openpyxl import Workbook
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Papers"
+        headers = ["Title", "Authors", "Year", "DOI", "URL", "Source", "Abstract"]
+        ws.append(headers)
+        for paper in all_papers:
+            row = [
+                paper.get("title", ""),
+                paper.get("authors", ""),
+                paper.get("year", ""),
+                paper.get("doi", ""),
+                paper.get("url", ""),
+                paper.get("source", ""),
+                paper.get("abstract", "")[:500] if paper.get("abstract") else "",
+            ]
+            ws.append(row)
+        xlsx_path = out_folder / "master_papers.xlsx"
+        wb.save(xlsx_path)
+        return xlsx_path
+    except Exception as e:
+        print(f"Error writing Excel: {e}")
+        return None
+
+
 # ── Search Orchestrator ────────────────────────────────────────────────────────
 
 BROWSER_PLATS = {
