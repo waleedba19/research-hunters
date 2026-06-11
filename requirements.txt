@@ -8,3 +8,4 @@ DrissionPage
 fastapi
 uvicorn
 g4f
+python-docx

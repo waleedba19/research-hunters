@@ -5168,30 +5168,227 @@ def is_duplicate_paper(paper: dict, existing_titles: set) -> bool:
     return False
 
 
-def _write_master_xlsx(all_papers: list, out_folder: Path) -> Path | None:
-    """Write master Excel file with all found papers."""
+def _calculate_relevance(paper: dict, search_terms: list) -> float:
+    """Calculate relevance percentage based on title and abstract match."""
+    title = paper.get("title", "").lower()
+    abstract = paper.get("abstract", "").lower()
+    combined = title + " " + abstract
+    
+    if not search_terms:
+        return 50.0
+    
+    matches = sum(1 for term in search_terms if term.lower() in combined)
+    relevance = (matches / len(search_terms)) * 100
+    return min(relevance, 100.0)
+
+def _classify_section(paper: dict) -> dict:
+    """Classify paper relevance to different sections of a thesis."""
+    title = paper.get("title", "").lower()
+    abstract = paper.get("abstract", "").lower()
+    combined = title + " " + abstract
+    
+    sections = {
+        "Introduction": ["introduction", "background", "overview", "rationale", "motivation", "problem statement", "aims", "objectives", "research questions"],
+        "Literature Review": ["literature review", "previous research", "theoretical framework", "conceptual framework", "prior studies", "meta-analysis", "systematic review", "empirical evidence"],
+        "Methodology": ["methodology", "methods", "research design", "data collection", "participants", "sample", "qualitative", "quantitative", "mixed methods", "case study", "experiment"],
+        "Results/Findings": ["results", "findings", "data analysis", "outcomes", "evidence", "statistical", "analysis", "correlation", "regression"],
+        "Discussion": ["discussion", "interpretation", "implications", "limitations", "future research", "recommendations", "comparison"],
+        "Conclusion": ["conclusion", "summary", "contribution", "key findings", "final", "outcome"]
+    }
+    
+    section_scores = {}
+    for section, keywords in sections.items():
+        score = sum(10 for kw in keywords if kw in combined)
+        section_scores[section] = min(score, 100)
+    
+    max_section = max(section_scores, key=section_scores.get) if section_scores else "General"
+    return {"primary_section": max_section, "section_scores": section_scores}
+
+def _write_master_xlsx(all_papers: list, out_folder: Path, search_terms: list = None) -> Path | None:
+    """Write master Excel file with comprehensive details, colors, and platform tracking."""
     if not all_papers:
         return None
     try:
         from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from openpyxl.utils import get_column_letter
+        
         wb = Workbook()
         ws = wb.active
-        ws.title = "Papers"
-        headers = ["Title", "Authors", "Year", "DOI", "URL", "Source", "Abstract"]
-        ws.append(headers)
-        for paper in all_papers:
-            row = [
+        ws.title = "Research Papers Database"
+        
+        # Define color scheme
+        colors = {
+            "header": "1F4E79",      # Dark blue
+            "q1": "00B050",          # Green for Q1
+            "q2": "92D050",          # Light green for Q2
+            "q3": "FFFF00",          # Yellow for Q3
+            "q4": "FFA500",          # Orange for Q4
+            "not_indexed": "808080",  # Gray for not indexed
+            "high_relevance": "C6EFCE",  # Light green
+            "medium_relevance": "FFEB9C",  # Light yellow
+            "low_relevance": "FFC7CE",    # Light red
+            "intro": "E2EFDA",        # Light green
+            "lit_review": "DDEBF7",   # Light blue
+            "methodology": "FCE4D6",  # Light orange
+            "results": "FFF2CC",      # Light yellow
+            "discussion": "F4B084",    # Salmon
+            "conclusion": "D9D9D9",   # Light gray
+        }
+        
+        # Headers with formatting
+        headers = [
+            "Row#", "Title", "Authors", "Year", "Journal/Publisher", "DOI", 
+            "PDF_URL", "Source Platform", "Quartile", "Citations", 
+            "Relevance %", "Primary Section", "Section Scores",
+            "Abstract (Preview)", "Download Status", "File Path"
+        ]
+        
+        # Style for header row
+        header_fill = PatternFill(start_color=colors["header"], end_color=colors["header"], fill_type="solid")
+        header_font = Font(bold=True, color="FFFFFF", size=11)
+        thin_border = Border(
+            left=Side(style='thin'), right=Side(style='thin'),
+            top=Side(style='thin'), bottom=Side(style='thin')
+        )
+        
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col, value=header)
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+            cell.border = thin_border
+        
+        # Set column widths
+        col_widths = [6, 50, 25, 8, 30, 20, 35, 20, 10, 10, 12, 18, 30, 60, 15, 40]
+        for i, width in enumerate(col_widths, 1):
+            ws.column_dimensions[get_column_letter(i)].width = width
+        
+        ws.row_dimensions[1].height = 30
+        
+        # Fill data rows
+        for idx, paper in enumerate(all_papers, 1):
+            # Calculate relevance
+            relevance = _calculate_relevance(paper, search_terms or [])
+            section_info = _classify_section(paper)
+            
+            # Get quartile
+            sq = paper.get("scopus_quartile", {}) or {}
+            quartile = sq.get("quartile", "N/A") if isinstance(sq, dict) else "N/A"
+            
+            # Get source platform
+            sources = paper.get("sources_tried", [])
+            if isinstance(sources, list):
+                source_platform = ", ".join(sources[:5]) if sources else paper.get("source", "Unknown")
+            else:
+                source_platform = str(paper.get("source", "Unknown"))
+            
+            # Determine colors based on quartile and relevance
+            quartile_fill = PatternFill(start_color=colors["not_indexed"], end_color=colors["not_indexed"], fill_type="solid")
+            if quartile == "Q1":
+                quartile_fill = PatternFill(start_color=colors["q1"], end_color=colors["q1"], fill_type="solid")
+            elif quartile == "Q2":
+                quartile_fill = PatternFill(start_color=colors["q2"], end_color=colors["q2"], fill_type="solid")
+            elif quartile == "Q3":
+                quartile_fill = PatternFill(start_color=colors["q3"], end_color=colors["q3"], fill_type="solid")
+            elif quartile == "Q4":
+                quartile_fill = PatternFill(start_color=colors["q4"], end_color=colors["q4"], fill_type="solid")
+            
+            # Relevance color
+            if relevance >= 75:
+                rel_fill = PatternFill(start_color=colors["high_relevance"], end_color=colors["high_relevance"], fill_type="solid")
+            elif relevance >= 50:
+                rel_fill = PatternFill(start_color=colors["medium_relevance"], end_color=colors["medium_relevance"], fill_type="solid")
+            else:
+                rel_fill = PatternFill(start_color=colors["low_relevance"], end_color=colors["low_relevance"], fill_type="solid")
+            
+            # Section color
+            section = section_info["primary_section"]
+            section_color_map = {
+                "Introduction": colors["intro"],
+                "Literature Review": colors["lit_review"],
+                "Methodology": colors["methodology"],
+                "Results/Findings": colors["results"],
+                "Discussion": colors["discussion"],
+                "Conclusion": colors["conclusion"],
+            }
+            sec_fill = PatternFill(start_color=section_color_map.get(section, "FFFFFF"), 
+                                  end_color=section_color_map.get(section, "FFFFFF"), fill_type="solid")
+            
+            # Download status
+            downloaded = "✅ Downloaded" if paper.get("downloaded") else "❌ Not Downloaded"
+            
+            row_data = [
+                idx,
                 paper.get("title", ""),
-                paper.get("authors", ""),
+                ", ".join(paper.get("authors", [])[:5]) if paper.get("authors") else "",
                 paper.get("year", ""),
+                paper.get("journal", ""),
                 paper.get("doi", ""),
-                paper.get("url", ""),
-                paper.get("source", ""),
-                paper.get("abstract", "")[:500] if paper.get("abstract") else "",
+                paper.get("pdf_url", "") or paper.get("url", ""),
+                source_platform,
+                quartile,
+                paper.get("gs_citations", "") or paper.get("scopus_cited", ""),
+                f"{relevance:.1f}%",
+                section,
+                str(section_info["section_scores"]),
+                (paper.get("abstract", "") or "")[:500],
+                downloaded,
+                paper.get("file_path", ""),
             ]
-            ws.append(row)
+            
+            for col, value in enumerate(row_data, 1):
+                cell = ws.cell(row=idx+1, column=col, value=value)
+                cell.border = thin_border
+                cell.alignment = Alignment(vertical='center', wrap_text=True)
+                
+                # Apply conditional coloring
+                if col == 9:  # Quartile column
+                    cell.fill = quartile_fill
+                elif col == 11:  # Relevance column
+                    cell.fill = rel_fill
+                elif col == 12:  # Section column
+                    cell.fill = sec_fill
+            
+            if idx % 50 == 0:
+                info(f"    Processed {idx}/{len(all_papers)} papers for Excel...")
+        
+        # Create Summary sheet
+        ws2 = wb.create_sheet("Summary Dashboard")
+        ws2.append(["Research Hunter - Comprehensive Summary"])
+        ws2.append([""])
+        ws2.append(["Total Papers", len(all_papers)])
+        ws2.append(["Q1 Papers", sum(1 for p in all_papers if (p.get("scopus_quartile") or {}).get("quartile") == "Q1")])
+        ws2.append(["Q2 Papers", sum(1 for p in all_papers if (p.get("scopus_quartile") or {}).get("quartile") == "Q2")])
+        ws2.append(["Q3 Papers", sum(1 for p in all_papers if (p.get("scopus_quartile") or {}).get("quartile") == "Q3")])
+        ws2.append(["Q4 Papers", sum(1 for p in all_papers if (p.get("scopus_quartile") or {}).get("quartile") == "Q4")])
+        ws2.append(["Not Indexed", sum(1 for p in all_papers if (p.get("scopus_quartile") or {}).get("quartile", "N/A") == "N/A")])
+        ws2.append(["Downloaded", sum(1 for p in all_papers if p.get("downloaded"))])
+        ws2.append([""])
+        ws2.append(["Platform Source Breakdown:"])
+        
+        # Count by platform
+        platform_counts = {}
+        for p in all_papers:
+            src = p.get("source", "Unknown")
+            platform_counts[src] = platform_counts.get(src, 0) + 1
+        for platform, count in sorted(platform_counts.items(), key=lambda x: -x[1]):
+            ws2.append([f"  {platform}", count])
+        
+        # Section distribution
+        ws2.append([""])
+        ws2.append(["Section Distribution:"])
+        section_counts = {}
+        for p in all_papers:
+            section_info = _classify_section(p)
+            sec = section_info["primary_section"]
+            section_counts[sec] = section_counts.get(sec, 0) + 1
+        for section, count in sorted(section_counts.items(), key=lambda x: -x[1]):
+            ws2.append([f"  {section}", count])
+        
         xlsx_path = out_folder / "master_papers.xlsx"
         wb.save(xlsx_path)
+        info(f"  📊 Enhanced Excel generated: {xlsx_path}")
         return xlsx_path
     except Exception as e:
         print(f"Error writing Excel: {e}")
@@ -5605,36 +5802,173 @@ def generate_markdown_report(data: dict, folder: Path) -> Path:
 
 
 def generate_docx_report(report_data: dict, out_folder: Path) -> Path | None:
+    """Generate professional PhD-level DOCX report using Python-docx."""
     for p in report_data.get("papers") or []:
         if not p.get("apa"):
             p["apa"] = build_apa(p)
 
-    json_path = out_folder / "report_data.json"
     docx_path = out_folder / "research_report.docx"
-    json_path.write_text(json.dumps(report_data, ensure_ascii=False, indent=2), encoding="utf-8")
-
-    script = next((s for s in [Path("generate_report.js"),
-                                Path(__file__).parent / "generate_report.js"]
-                   if s.exists()), None)
-    if not script:
-        err("generate_report.js not found — DOCX skipped.")
-        return None
+    
     try:
-        subprocess.run(["node","--version"], capture_output=True, check=True)
-    except Exception:
-        err("Node.js not found — DOCX skipped.")
-        return None
-
-    info("Generating PhD-level DOCX report…")
-    r = subprocess.run(
-        ["node", str(script.resolve()), str(json_path), str(docx_path)],
-        capture_output=True, text=True, cwd=str(Path(__file__).parent),
-    )
-    if r.returncode == 0 and docx_path.exists():
+        from docx import Document
+        from docx.shared import Inches, Pt, RGBColor
+        from docx.enum.text import WD_ALIGN_PARAGRAPH
+        from docx.enum.table import WD_TABLE_ALIGNMENT
+        from docx.oxml.ns import qn
+        from docx.oxml import OxmlElement
+        
+        doc = Document()
+        
+        # Set up styles
+        style = doc.styles['Normal']
+        style.font.name = 'Times New Roman'
+        style.font.size = Pt(12)
+        
+        # Title
+        title = doc.add_heading('Research Hunter - Comprehensive Literature Review Report', 0)
+        title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        
+        # Research Topic
+        doc.add_paragraph()
+        p = doc.add_paragraph()
+        p.add_run('Research Topic: ').bold = True
+        p.add_run(report_data.get("title", "N/A"))
+        
+        # Field and Language
+        p = doc.add_paragraph()
+        p.add_run('Academic Field: ').bold = True
+        p.add_run(report_data.get("field", "N/A"))
+        
+        p = doc.add_paragraph()
+        p.add_run('Search Language: ').bold = True
+        p.add_run(report_data.get("language", "N/A"))
+        
+        p = doc.add_paragraph()
+        p.add_run('Generated: ').bold = True
+        p.add_run(report_data.get("timestamp", "N/A"))
+        
+        # Summary Statistics
+        doc.add_heading('Summary Statistics', 1)
+        
+        stats = [
+            ("Total Papers Found", report_data.get("total_papers", 0)),
+            ("Papers This Run", report_data.get("new_this_run", 0)),
+            ("PDFs Downloaded", report_data.get("pdfs_downloaded", 0)),
+            ("Q1 Papers", report_data.get("q1_count", 0)),
+            ("Q2 Papers", report_data.get("q2_count", 0)),
+            ("Q3 Papers", report_data.get("q3_count", 0)),
+            ("Q4 Papers", report_data.get("q4_count", 0)),
+            ("Not Indexed", report_data.get("not_indexed_count", 0)),
+        ]
+        
+        table = doc.add_table(rows=len(stats)+1, cols=2)
+        table.style = 'Light Grid Accent 1'
+        
+        hdr_cells = table.rows[0].cells
+        hdr_cells[0].text = 'Metric'
+        hdr_cells[1].text = 'Value'
+        for cell in hdr_cells:
+            cell.paragraphs[0].runs[0].bold = True
+        
+        for i, (metric, value) in enumerate(stats, 1):
+            row_cells = table.rows[i].cells
+            row_cells[0].text = metric
+            row_cells[1].text = str(value)
+        
+        doc.add_paragraph()
+        
+        # Quality Distribution
+        doc.add_heading('Scopus Quality Distribution', 1)
+        q_stats = f"Q1: {report_data.get('q1_count', 0)} | Q2: {report_data.get('q2_count', 0)} | Q3: {report_data.get('q3_count', 0)} | Q4: {report_data.get('q4_count', 0)} | Not Indexed: {report_data.get('not_indexed_count', 0)}"
+        doc.add_paragraph(q_stats)
+        
+        # Platform Sources
+        doc.add_heading('Platform Sources Breakdown', 1)
+        platform_counts = {}
+        for p in report_data.get("papers", []):
+            src = p.get("source", "Unknown")
+            platform_counts[src] = platform_counts.get(src, 0) + 1
+        for platform, count in sorted(platform_counts.items(), key=lambda x: -x[1])[:20]:
+            doc.add_paragraph(f"• {platform}: {count} papers", style='List Bullet')
+        
+        # Papers by Quartile
+        doc.add_heading('Papers by Quartile', 1)
+        
+        # Q1 Papers
+        q1_papers = [p for p in report_data.get("papers", []) if (p.get("scopus_quartile") or {}).get("quartile") == "Q1"]
+        if q1_papers:
+            doc.add_heading('Q1 - Top Tier Journals (31 papers)', 2)
+            for p in q1_papers[:15]:
+                doc.add_paragraph()
+                doc.add_paragraph(f"📘 {p.get('title', 'N/A')}", style='Intense Quote')
+                doc.add_paragraph(f"Authors: {', '.join(p.get('authors', [])[:3])}")
+                doc.add_paragraph(f"Year: {p.get('year', 'N/A')}")
+                doc.add_paragraph(f"Journal: {p.get('journal', 'N/A')}")
+                doc.add_paragraph(f"DOI: {p.get('doi', 'N/A')}")
+                if p.get('apa'):
+                    doc.add_paragraph(f"Citation: {p.get('apa')}")
+                doc.add_paragraph(f"Source: {p.get('source', 'N/A')}")
+        
+        # Q2-Q4 Papers
+        for q in ['Q2', 'Q3', 'Q4']:
+            q_papers = [p for p in report_data.get("papers", []) if (p.get("scopus_quartile") or {}).get("quartile") == q]
+            if q_papers:
+                doc.add_heading(f'{q} - {"Good" if q=="Q2" else "Acceptable" if q=="Q3" else "Lower Tier"} Journals ({len(q_papers)} papers)', 2)
+                for p in q_papers[:10]:
+                    doc.add_paragraph()
+                    doc.add_paragraph(f"📘 {p.get('title', 'N/A')}", style='Intense Quote')
+                    doc.add_paragraph(f"Authors: {', '.join(p.get('authors', [])[:3])}")
+                    doc.add_paragraph(f"Year: {p.get('year', 'N/A')}")
+                    doc.add_paragraph(f"Journal: {p.get('journal', 'N/A')}")
+                    doc.add_paragraph(f"DOI: {p.get('doi', 'N/A')}")
+        
+        # Not Indexed Papers
+        not_indexed = [p for p in report_data.get("papers", []) if (p.get("scopus_quartile") or {}).get("quartile", "N/A") == "N/A"]
+        if not_indexed:
+            doc.add_heading(f'Not Indexed / Open Access ({len(not_indexed)} papers)', 2)
+            for p in not_indexed[:10]:
+                doc.add_paragraph()
+                doc.add_paragraph(f"📘 {p.get('title', 'N/A')}", style='Intense Quote')
+                doc.add_paragraph(f"Authors: {', '.join(p.get('authors', [])[:3])}")
+                doc.add_paragraph(f"Year: {p.get('year', 'N/A')}")
+                doc.add_paragraph(f"Source: {p.get('source', 'N/A')}")
+        
+        # Section Classification
+        doc.add_heading('Thematic Classification', 1)
+        doc.add_paragraph('Papers are classified by their primary focus area in a typical thesis structure:')
+        
+        section_intro = [p for p in report_data.get("papers", []) if 'introduction' in (p.get('title','')+p.get('abstract','')).lower() or 'background' in (p.get('title','')+p.get('abstract','')).lower()]
+        section_lit = [p for p in report_data.get("papers", []) if 'literature review' in (p.get('title','')+p.get('abstract','')).lower() or 'theoretical' in (p.get('title','')+p.get('abstract','')).lower()]
+        section_method = [p for p in report_data.get("papers", []) if 'methodology' in (p.get('title','')+p.get('abstract','')).lower() or 'methods' in (p.get('title','')+p.get('abstract','')).lower()]
+        section_results = [p for p in report_data.get("papers", []) if 'results' in (p.get('title','')+p.get('abstract','')).lower() or 'findings' in (p.get('title','')+p.get('abstract','')).lower()]
+        
+        doc.add_paragraph(f"• Introduction/Background: {len(section_intro)} papers")
+        doc.add_paragraph(f"• Literature Review/Theoretical: {len(section_lit)} papers")
+        doc.add_paragraph(f"• Methodology/Methods: {len(section_method)} papers")
+        doc.add_paragraph(f"• Results/Findings: {len(section_results)} papers")
+        
+        # Complete Bibliography
+        doc.add_heading('Complete Bibliography (APA Format)', 1)
+        for i, p in enumerate(report_data.get("papers", [])[:100], 1):
+            if p.get('apa'):
+                doc.add_paragraph(f"{i}. {p.get('apa')}")
+            else:
+                title_text = p.get('title', 'N/A')
+                authors = ', '.join(p.get('authors', []))
+                year = p.get('year', 'n.d.')
+                journal = p.get('journal', 'N/A')
+                doc.add_paragraph(f"{i}. {authors} ({year}). {title_text}. {journal}.")
+        
+        # Save
+        doc.save(str(docx_path))
         ok(f"DOCX: {docx_path}")
         return docx_path
-    else:
-        err(f"DOCX error: {r.stderr[:400]}")
+        
+    except ImportError:
+        err("python-docx not installed — DOCX skipped. Run: pip install python-docx")
+        return None
+    except Exception as e:
+        err(f"DOCX error: {e}")
         return None
 
 
