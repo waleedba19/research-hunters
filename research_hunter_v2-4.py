@@ -9807,6 +9807,18 @@ EXTENDED_PLATS = [
 
 # ════════════════════════════════════════════════════════════════════════════════
 
+# Browser-based platforms (require DrissionPage/browser automation)
+BROWSER_PLATS = {
+    "Google Scholar", "ResearchGate", "Z-Library", "LibGen",
+    "DuckDuckGo", "Perplexica", "OATD", "EThOS",
+}
+
+# Regional/MENA platforms (Libyan, Arabic, Middle Eastern sources)
+LIBYAN_PLATS = [
+    "AJOL", "SciELO Brazil", "Dialnet", "Redalyc",
+    "Tunisian Online Archives", "Egyptian Knowledge Bank",
+]
+
 PLATFORM_FNS = {
     # ── Core API platforms ──────────────────────────────────────────────────────
     "Semantic Scholar": search_semantic_scholar,
