@@ -8449,8 +8449,9 @@ def main():
     # ── OPTIMIZATION: Skip quartile check if "All Quartiles" selected ──────────
     # When user selects "All Quartiles (Q1-Q4)", we don't need to verify quartiles
     # This saves ~50+ HTTP requests per batch (each takes 5s = 250s saved per batch!)
-    skip_quartile_check = (quartile_filter in ("7", "All Quartiles (Q1-Q4)", 
-                                                "All Indexes", "Indexed Only"))
+    qf_val = quartile_filter if isinstance(quartile_filter, int) else (int(quartile_filter) if str(quartile_filter).isdigit() else 0)
+    skip_quartile_check = (qf_val == 7)  # Skip if "All Quartiles (Q1-Q4)" selected 
+
     if skip_quartile_check:
         info("  ⚡ Quartile check SKIPPED (All Quartiles mode) — using API data directly")
         for p in new_papers:
@@ -9177,6 +9178,8 @@ if __name__ == "__main__":
                         help="Max batches to process per run (0=all)")
     parser.add_argument("--max-papers",      type=int, default=0,
                         help="Maximum papers to collect (0=unlimited, use mode default)")
+    parser.add_argument("--quartile-filter",  type=int, default=7,
+                        help="Quartile filter number (1-12, default=7 for All Quartiles)")
     parser.add_argument("--language",        choices=["1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18"], default="1",
                         help="Search language (default: 1=English)")
     parser.add_argument("--scihub",          action="store_true", help="Enable Sci-Hub")

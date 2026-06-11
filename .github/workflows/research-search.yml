@@ -998,6 +998,12 @@ jobs:
             12) MAX_PAPERS=0 ;;  # 0 = unlimited
           esac
           CMD="$CMD --max-papers $MAX_PAPERS"
+
+          # Add quartile filter
+          QUARTILE_NUM=$(echo "$QUARTILE_FILTER" | cut -d. -f1)
+          if [[ "$QUARTILE_NUM" != "7" ]]; then
+            CMD="$CMD --quartile-filter $QUARTILE_NUM"
+          fi
           
           # Add custom keywords (with safe quoting)
           if [[ -n "$CUSTOM_KEYWORDS" ]]; then
