@@ -10908,13 +10908,33 @@ if __name__ == "__main__":
     parser.add_argument("--learn",           action="store_true", 
                         help="Enable learning mode - updates JSON memory with findings")
     parser.add_argument("--generate-paper",   action="store_true",
-                        help="Generate Scopus-quality paper after search completes")
+                        help="Generate paper after search completes")
     parser.add_argument("--paper-type",      default="empirical",
-                        choices=["empirical","systematic_review","meta_analysis","qualitative","quantitative_survey","experimental","case_study"],
-                        help="Type of paper to generate")
-    parser.add_argument("--output-format",    default="both",
-                        choices=["scopus","standard","both"],
-                        help="DOCX output format: scopus=Scopus-quality, standard=basic, both=both")
+                        choices=[
+                            "empirical", "qualitative", "mixed_methods",
+                            "systematic_review", "meta_analysis", "scoping_review",
+                            "narrative_review", "integrative_review", "rapid_review",
+                            "experimental", "quasi_experimental", "longitudinal",
+                            "cross_sectional", "cohort", "case_study",
+                            "phenomenological", "ethnographic", "grounded_theory",
+                            "action_research", "Delphi", "correlational",
+                            "descriptive", "exploratory", "historical",
+                            "comparative", "evaluation", "policy_analysis",
+                            "feasibility", "pilot", "validation",
+                            "thesis_phd", "thesis_master", "thesis_bachelor",
+                            "conference_paper", "book_chapter", "technical_report",
+                            "white_paper", "protocol", "proposal"
+                        ],
+                        help="Type of academic paper to generate")
+    parser.add_argument("--output-format",    default="all",
+                        choices=[
+                            "all",  # All formats
+                            "docx_scopus", "docx_standard", "docx_both",
+                            "pdf", "excel_master", "excel_filtered",
+                            "excel_bibliography", "excel_analysis",
+                            "markdown", "txt", "json", "csv", "html", "latex", "xml"
+                        ],
+                        help="Output formats: all, docx_scopus, docx_standard, docx_both, pdf, excel_*, markdown, txt, json, csv, html, latex, xml")
     args, _ = parser.parse_known_args()
 
     if args.title:

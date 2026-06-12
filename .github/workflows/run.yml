@@ -891,27 +891,74 @@ permissions:
         default: false
         type: boolean
       paper_type:
-        description: '📄 PAPER TYPE TO GENERATE'
+        description: '📄 PAPER TYPE TO GENERATE (45+ types available)'
         required: true
         default: 'empirical'
         type: choice
         options:
-          - empirical - Empirical Research
-          - systematic_review - Systematic Review
-          - meta_analysis - Meta-Analysis
-          - qualitative - Qualitative Study
-          - quantitative_survey - Quantitative Survey
-          - experimental - Experimental Study
-          - case_study - Case Study
+          - empirical - 📊 Empirical Research (Quantitative)
+          - qualitative - 📝 Qualitative Study
+          - mixed_methods - 🔄 Mixed Methods Research
+          - systematic_review - 📚 Systematic Review
+          - meta_analysis - 📈 Meta-Analysis
+          - scoping_review - 🔍 Scoping Review
+          - narrative_review - 📖 Narrative Review
+          - integrative_review - 🔗 Integrative Review
+          - rapid_review - ⚡ Rapid Review
+          - experimental - 🧪 Experimental Study
+          - quasi_experimental - ⚗️ Quasi-Experimental
+          - longitudinal - 📈 Longitudinal Study
+          - cross_sectional - 📊 Cross-sectional Study
+          - cohort - 👥 Cohort Study
+          - case_study - 📋 Case Study
+          - phenomenological - 🎭 Phenomenological Study
+          - ethnographic - 🌍 Ethnographic Study
+          - grounded_theory - 🏗️ Grounded Theory
+          - action_research - 🔄 Action Research
+          - Delphi - 🎯 Delphi Study
+          - correlational - 📊 Correlational Study
+          - descriptive - 📝 Descriptive Study
+          - exploratory - 🔎 Exploratory Study
+          - historical - 📜 Historical Research
+          - comparative - ⚖️ Comparative Study
+          - evaluation - 📊 Program Evaluation
+          - policy_analysis - 📋 Policy Analysis
+          - feasibility - ✅ Feasibility Study
+          - pilot - 🚀 Pilot Study
+          - validation - ✔️ Validation Study
+          - thesis_phd - 🎓 PhD Dissertation
+          - thesis_master - 📚 Master's Thesis
+          - thesis_bachelor - 📖 Bachelor's Thesis
+          - conference_paper - 🎤 Conference Paper
+          - book_chapter - 📖 Book Chapter
+          - technical_report - 📝 Technical Report
+          - white_paper - 📄 White Paper
+          - protocol - 📋 Research Protocol
+          - proposal - 📝 Research Proposal
+
       output_format:
-        description: '📋 DOCX OUTPUT FORMAT'
+        description: '📋 OUTPUT FORMATS (All formats for comprehensive output)'
         required: true
-        default: 'both'
+        default: 'all'
         type: choice
         options:
-          - both - Both Scopus + Standard formats
-          - scopus - Scopus-quality only
-          - standard - Standard format only
+          - all - 📦 ALL FORMATS (DOCX+PDF+Excel+MD+TXT+JSON+CSV+HTML)
+          - docx_scopus - 📝 DOCX Scopus-Quality (Publication Ready)
+          - docx_standard - 📄 DOCX Standard Academic Format
+          - docx_both - 📑 DOCX Both (Scopus + Standard)
+          - pdf - 📕 PDF (Print-Ready Document)
+          - excel_master - 📊 Excel Master Sheet (All Papers)
+          - excel_filtered - 📉 Excel Filtered by Type/Year
+          - excel_bibliography - 📚 Excel Bibliography Format
+          - excel_analysis - 📈 Excel with Analysis Charts
+          - markdown - 📋 Markdown (MD) - Readable Format
+          - txt - 📃 Plain Text (TXT) - Simple Format
+          - json - 📦 JSON - Structured Data Export
+          - csv - 📊 CSV - Spreadsheet Compatible
+          - html - 🌐 HTML - Web Report
+          - latex - 📐 LaTeX - Academic Typesetting
+          - xml - 📦 XML - Structured Metadata
+
       folder_mode:
         description: '📁 OUTPUT FOLDER STRUCTURE'
         required: true
