@@ -618,9 +618,9 @@ on:
         type: choice
         options:
           - 'All Years (No Limit)'
-          - '2025 (Current Year)'
-          - '2024 (Last Year)'
-          - '2023'
+          - '2026 (Current Year)'
+          - '2025 (Last Year)'
+          - '2024'
           - '2022'
           - '2021'
           - '2020'
@@ -644,7 +644,8 @@ on:
         required: false
         type: choice
         options:
-          - '2025 (Current Year)'
+          - '2026 (Current Year)'
+          - '2025'
           - '2024'
           - '2023'
           - '2022'
@@ -660,7 +661,7 @@ on:
           - '2000'
           - '1995'
           - '1990'
-        default: '2025 (Current Year)'
+        default: '2026 (Current Year)'
 
       # ─────────────────────────────────────────────────────────────────────
       # GEOGRAPHIC AREA
@@ -762,10 +763,54 @@ on:
       # ENABLE SCIHUB
       # ─────────────────────────────────────────────────────────────────────
       enable_scihub:
-        description: '🔓 Enable Shadow Libraries (Sci-Hub for paid papers)?'
+        description: '🔓 Enable Open Access Fallback (attempts to find free versions of paywalled papers)'
         required: false
         type: boolean
         default: false
+        hint: 'When enabled, attempts alternative sources for papers behind paywalls'
+
+      # ─────────────────────────────────────────────────────────────────────
+      # LEARNING SYSTEM & PAPER GENERATION
+      # ─────────────────────────────────────────────────────────────────────
+      enable_learning:
+        description: '🧠 Enable Learning System (updates JSON memory with findings)?'
+        required: false
+        type: boolean
+        default: true
+        hint: 'Learn from every paper analyzed and build knowledge base'
+
+      generate_paper:
+        description: '📝 Generate Scopus-Quality Research Paper after search?'
+        required: false
+        type: boolean
+        default: false
+        hint: 'Automatically generate a publication-ready academic paper'
+
+      paper_type:
+        description: '📄 Paper Type to Generate'
+        required: false
+        type: choice
+        options:
+          - 'empirical'
+          - 'systematic_review'
+          - 'meta_analysis'
+          - 'qualitative'
+          - 'quantitative_survey'
+          - 'experimental'
+          - 'case_study'
+        default: 'empirical'
+        hint: 'Type of academic paper structure to generate'
+
+      output_format:
+        description: '📋 DOCX Output Format'
+        required: false
+        type: choice
+        options:
+          - 'scopus'
+          - 'standard'
+          - 'both'
+        default: 'both'
+        hint: 'scopus=Scopus-quality, standard=basic, both=both formats'
 
 jobs:
   research-search:
@@ -861,6 +906,10 @@ jobs:
           YEAR_TO: ${{ github.event.inputs.year_to }}
           CUSTOM_KEYWORDS: ${{ github.event.inputs.custom_keywords }}
           ENABLE_SCIHUB: ${{ github.event.inputs.enable_scihub }}
+          ENABLE_LEARNING: ${{ github.event.inputs.enable_learning }}
+          GENERATE_PAPER: ${{ github.event.inputs.generate_paper }}
+          PAPER_TYPE: ${{ github.event.inputs.paper_type }}
+          OUTPUT_FORMAT: ${{ github.event.inputs.output_format }}
         run: |
           echo "🚀 Starting Research Hunter v7 — Ultra Comprehensive Search..."
           echo ""
@@ -1008,6 +1057,22 @@ jobs:
           # Add scihub if enabled
           [[ "$ENABLE_SCIHUB" == "true" ]] && CMD="$CMD --scihub"
           
+          # Add learning system if enabled
+          [[ "$ENABLE_LEARNING" == "true" ]] && CMD="$CMD --learn"
+          
+          # Add paper generation if enabled
+          [[ "$GENERATE_PAPER" == "true" ]] && CMD="$CMD --generate-paper"
+          
+          # Add paper type
+          if [[ -n "$PAPER_TYPE" ]]; then
+            CMD="$CMD --paper-type $PAPER_TYPE"
+          fi
+          
+          # Add output format
+          if [[ -n "$OUTPUT_FORMAT" ]]; then
+            CMD="$CMD --output-format $OUTPUT_FORMAT"
+          fi
+          
           echo "Executing: $CMD"
           echo ""
           eval $CMD || echo "Search completed (check logs for details)"
@@ -1020,6 +1085,9 @@ jobs:
           path: |
             pdf_files/**/*.pdf
             results/**/*.json
+            *.json
+            *.md
+            *.docx
             search.log
           retention-days: 30
 

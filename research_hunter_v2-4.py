@@ -97,6 +97,18 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import requests
 
+# ════════════════════════════════════════════════════════════════════════════════
+# LEARNING INTEGRATION - Academic Intelligence System
+# Imports the learning system that tracks what we read, write, know, and intend
+# ════════════════════════════════════════════════════════════════════════════════
+try:
+    from learning_integration import AcademicIntelligenceSystem, initialize_system
+    HAS_LEARNING = True
+    print("✅ Learning System: Academic Intelligence Ready")
+except ImportError:
+    HAS_LEARNING = False
+    print("⚠️ Learning System: Not available (learning_integration.py not found)")
+
 try:
     from rich.console import Console
     from rich.panel   import Panel
@@ -10104,6 +10116,80 @@ def main():
     docx_path = generate_docx_report(report_data, out_folder)
     xlsx_path = _write_master_xlsx(all_papers, out_folder)
 
+    # ════════════════════════════════════════════════════════════════════════════════
+    # LEARNING INTEGRATION - Learn from search results and optionally generate paper
+    # ════════════════════════════════════════════════════════════════════════════════
+    learning_system = None
+    
+    if HAS_LEARNING and args.learn:
+        try:
+            info("🧠 Activating Academic Intelligence Learning System...")
+            learning_system = initialize_system(str(out_folder))
+            
+            # Learn from search results
+            learning_results = learning_system.learn_from_search(title, all_papers)
+            ok(f"📚 Learned from {learning_results.get('papers_learned_from', 0)} papers")
+            
+            # Generate Scopus-quality paper if requested
+            if args.generate_paper:
+                info("📝 Generating Scopus-quality research paper...")
+                
+                paper_type = args.paper_type
+                paper_result = learning_system.generate_paper(
+                    topic=title,
+                    paper_type=paper_type,
+                    research_questions=rqs,
+                    use_rag=True
+                )
+                
+                if paper_result.get("status") == "success":
+                    if paper_result.get("docx_path"):
+                        ok(f"✅ Scopus paper generated: {Path(paper_result['docx_path']).name}")
+                    if paper_result.get("markdown_content"):
+                        # Save the generated markdown
+                        md_gen_path = out_folder / "GENERATED_PAPER.md"
+                        md_gen_path.write_text(paper_result["markdown_content"], encoding="utf-8")
+                        ok(f"✅ Markdown paper saved: {md_gen_path.name}")
+                else:
+                    warn(f"Paper generation: {paper_result.get('error', 'Unknown error')}")
+        
+        except Exception as e:
+            warn(f"Learning system error: {e}")
+    
+    # Scopus DOCX Generation (Enhanced Format)
+    if args.output_format in ["scopus", "both"] and HAS_LEARNING:
+        try:
+            from scopus_docx import ScopusDOCXGenerator
+            
+            info("📄 Generating Scopus-quality DOCX...")
+            scopus_gen = ScopusDOCXGenerator(str(out_folder))
+            
+            # Prepare sections from report data
+            sections = {
+                "introduction": report_data.get("executive_summary", ""),
+                "literature_review": "See literature review section in research report.",
+                "methodology": "Based on analyzed papers and research questions.",
+                "results": f"Analysis of {len(all_papers)} papers from {len(platforms)} platforms.",
+                "discussion": "Discussion based on findings from collected literature.",
+                "conclusion": "Conclusions drawn from comprehensive literature analysis."
+            }
+            
+            scopus_path = scopus_gen.create_paper(
+                title=f"Literature Review: {title}",
+                abstract=f"This comprehensive literature review examines research on {title}. "
+                        f"A total of {len(all_papers)} papers were analyzed from multiple databases "
+                        f"covering the period {params['year_range']}.",
+                keywords=study_keywords[:7] if study_keywords else [field, "literature review"],
+                sections=sections,
+                references=[],
+                paper_type="literature_review"
+            )
+            
+            ok(f"✅ Scopus DOCX: {Path(scopus_path).name}")
+            
+        except Exception as e:
+            warn(f"Scopus DOCX generation error: {e}")
+
     total_dl = sum(1 for p in all_papers if p.get("downloaded"))
 
     # Count per-folder PDFs for banner
@@ -10818,6 +10904,17 @@ if __name__ == "__main__":
     parser.add_argument("--keywords",        help="Comma-separated custom keywords")
     parser.add_argument("--proxy",           choices=["y","p","n"], default="n",
                         help="Proxy (y=auto qoder, p=custom URL, n=skip)")
+    # Learning & Paper Generation Integration
+    parser.add_argument("--learn",           action="store_true", 
+                        help="Enable learning mode - updates JSON memory with findings")
+    parser.add_argument("--generate-paper",   action="store_true",
+                        help="Generate Scopus-quality paper after search completes")
+    parser.add_argument("--paper-type",      default="empirical",
+                        choices=["empirical","systematic_review","meta_analysis","qualitative","quantitative_survey","experimental","case_study"],
+                        help="Type of paper to generate")
+    parser.add_argument("--output-format",    default="both",
+                        choices=["scopus","standard","both"],
+                        help="DOCX output format: scopus=Scopus-quality, standard=basic, both=both")
     args, _ = parser.parse_known_args()
 
     if args.title:

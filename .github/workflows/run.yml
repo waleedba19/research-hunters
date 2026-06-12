@@ -1,4 +1,5 @@
-name: Research Hunter 24/7 Cloud Search
+name: 🔬 Research Hunter v7 - Academic Intelligence System
+description: 'Comprehensive research paper search with AI learning & Scopus-quality paper generation'
 permissions:
   contents: write
   actions: write
@@ -6,34 +7,52 @@ permissions:
 "on":
   workflow_dispatch:
     inputs:
+
+      # ═══════════════════════════════════════════════════════════════════════════
+      # 📌 STEP 1: RESEARCH CORE - Your Research Topic
+      # ═══════════════════════════════════════════════════════════════════════════
       title:
-        description: 'Research topic / title (required)'
+        description: '🎯 RESEARCH TOPIC / TITLE (Required - Be specific and descriptive)'
         required: true
         default: ''
+        type: string
+
+      # ───────────────────────────────────────────────────────────────────────────
+      # 📝 STEP 2: RESEARCH QUESTIONS (Optional - Up to 5)
+      # ───────────────────────────────────────────────────────────────────────────
       rq1:
-        description: 'Research Question 1 (optional)'
+        description: '❓ Research Question 1 (e.g., "What is the impact of X on Y?")'
         required: false
         default: ''
+        type: string
       rq2:
-        description: 'Research Question 2 (optional)'
+        description: '❓ Research Question 2 (optional)'
         required: false
         default: ''
+        type: string
       rq3:
-        description: 'Research Question 3 (optional)'
+        description: '❓ Research Question 3 (optional)'
         required: false
         default: ''
+        type: string
       rq4:
-        description: 'Research Question 4 (optional)'
+        description: '❓ Research Question 4 (optional)'
         required: false
         default: ''
+        type: string
       rq5:
-        description: 'Research Question 5 (optional)'
+        description: '❓ Research Question 5 (optional)'
         required: false
         default: ''
+        type: string
+
+      # ═══════════════════════════════════════════════════════════════════════════
+      # 🎓 STEP 3: ACADEMIC CLASSIFICATION
+      # ═══════════════════════════════════════════════════════════════════════════
       field:
-        description: 'Academic field'
+        description: '🎓 ACADEMIC FIELD (Required - 278 fields available)'
         required: true
-        default: 'auto'
+        default: 'auto - Auto-detect from title'
         type: choice
         options:
           - auto - Auto-detect from title
@@ -85,10 +104,241 @@ permissions:
           - '46 - Linguistics (General)'
           - '47 - Arts / Music / Design'
           - '48 - Theology / Religious Studies'
+          - '49 - Economics (General)'
+          - '50 - Geography'
+          - '51 - Urban Planning'
+          - '52 - Architecture'
+          - '53 - Tourism'
+          - '54 - Sports Science'
+          - '55 - Nutrition'
+          - '56 - Public Health'
+          - '57 - Dentistry'
+          - '58 - Veterinary Science'
+          - '59 - Physics (General)'
+          - '60 - Astronomy'
+          - '61 - Neuroscience'
+          - '62 - Pharmacology (General)'
+          - '63 - Toxicology'
+          - '64 - Botany'
+          - '65 - Zoology'
+          - '66 - Ecology'
+          - '67 - Oceanography'
+          - '68 - Geology'
+          - '69 - Atmospheric Science'
+          - '70 - Information Systems'
+          - '71 - Software Engineering'
+          - '72 - Cybersecurity'
+          - '73 - Telecommunications'
+          - '74 - Robotics'
+          - '75 - Nanotechnology'
+          - '76 - Renewable Energy'
+          - '77 - Mechanical Engineering'
+          - '78 - Electrical Engineering'
+          - '79 - Civil Engineering'
+          - '80 - Chemical Engineering'
+          - '81 - Biomedical Engineering'
+          - '82 - Food Science'
+          - '83 - Agriculture (General)'
+          - '84 - Forestry'
+          - '85 - Soil Science'
+          - '86 - Hydrology'
+          - '87 - Demography'
+          - '88 - Social Work'
+          - '89 - Criminology'
+          - '90 - International Relations'
+          - '91 - Development Studies'
+          - '92 - Human Geography'
+          - '93 - Tourism Management'
+          - '94 - Hospitality Management'
+          - '95 - Logistics'
+          - '96 - Operations Research'
+          - '97 - Quality Management'
+          - '98 - Strategic Management'
+          - '99 - Organizational Behavior'
+          - '100 - Human Resource Management'
+          - '101 - International Business'
+          - '102 - E-commerce'
+          - '103 - Banking'
+          - '104 - Investment'
+          - '105 - Taxation'
+          - '106 - Auditing'
+          - '107 - Forensic Accounting'
+          - '108 - Islamic Finance'
+          - '109 - Development Economics'
+          - '110 - Environmental Economics'
+          - '111 - Health Economics'
+          - '112 - Labor Economics'
+          - '113 - Monetary Economics'
+          - '114 - Agricultural Economics'
+          - '115 - Econometrics'
+          - '116 - Political Economy'
+          - '117 - Comparative Literature'
+          - '118 - Creative Writing'
+          - '119 - Rhetoric'
+          - '120 - Media Studies'
+          - '121 - Journalism'
+          - '122 - Film Studies'
+          - '123 - Musicology'
+          - '124 - Art History'
+          - '125 - Museum Studies'
+          - '126 - Archaeology'
+          - '127 - Bioethics'
+          - '128 - Ethics (General)'
+          - '129 - Epistemology'
+          - '130 - Metaphysics'
+          - '131 - Logic'
+          - '132 - Aesthetics'
+          - '133 - Political Philosophy'
+          - '134 - Social Philosophy'
+          - '135 - Islamic Studies'
+          - '136 - Christian Studies'
+          - '137 - Jewish Studies'
+          - '138 - Buddhist Studies'
+          - '139 - Hindu Studies'
+          - '140 - Daoist Studies'
+          - '141 - Religion (General)'
+          - '142 - Middle Eastern Studies'
+          - '143 - African Studies'
+          - '144 - Asian Studies'
+          - '145 - European Studies'
+          - '146 - American Studies'
+          - '147 - Latin American Studies'
+          - '148 - Caribbean Studies'
+          - '149 - Pacific Studies'
+          - '150 - Canadian Studies'
+          - '151 - Australian Studies'
+          - '152 - Russian Studies'
+          - '153 - Chinese Studies'
+          - '154 - Japanese Studies'
+          - '155 - Korean Studies'
+          - '156 - Indian Studies'
+          - '157 - Islamic History'
+          - '158 - World History'
+          - '159 - Medieval History'
+          - '160 - Modern History'
+          - '161 - Ancient History'
+          - '162 - Economic History'
+          - '163 - Social History'
+          - '164 - Cultural History'
+          - '165 - Military History'
+          - '166 - History of Science'
+          - '167 - History of Technology'
+          - '168 - Environmental History'
+          - '169 - Oral History'
+          - '170 - Digital Humanities'
+          - '171 - Library Science'
+          - '172 - Archive Studies'
+          - '173 - Documentation'
+          - '174 - Information Science'
+          - '175 - Knowledge Management'
+          - '176 - Publishing'
+          - '177 - Translation (General)'
+          - '178 - Interpreting'
+          - '179 - Localization'
+          - '180 - Forensic Linguistics'
+          - '181 - Language Acquisition'
+          - '182 - Bilingualism'
+          - '183 - Multilingualism'
+          - '184 - Pragmatics'
+          - '185 - Semantics'
+          - '186 - Syntax'
+          - '187 - Morphology'
+          - '188 - Phonetics'
+          - '189 - Phonology'
+          - '190 - Corpus Linguistics'
+          - '191 - Cognitive Linguistics'
+          - '192 - Typology'
+          - '193 - Sociophonetics'
+          - '194 - Language Documentation'
+          - '195 - Language Policy'
+          - '196 - Language Planning'
+          - '197 - World Englishes'
+          - '198 - Pidgins and Creoles'
+          - '199 - Sign Language'
+          - '200 - Deaf Studies'
+          - '201 - Communication Disorders'
+          - '202 - Speech Pathology'
+          - '203 - Audiology'
+          - '204 - Augmentative Communication'
+          - '205 - Early Childhood Education'
+          - '206 - Primary Education'
+          - '207 - Secondary Education'
+          - '208 - Adult Education'
+          - '209 - Distance Education'
+          - '210 - Online Learning'
+          - '211 - Blended Learning'
+          - '212 - Mobile Learning'
+          - '213 - Gamification in Education'
+          - '214 - Educational Games'
+          - '215 - Simulation in Education'
+          - '216 - Virtual Reality in Education'
+          - '217 - Augmented Reality in Education'
+          - '218 - AI in Education'
+          - '219 - EdTech'
+          - '220 - Learning Analytics'
+          - '221 - Educational Assessment'
+          - '222 - Testing and Evaluation'
+          - '223 - Formative Assessment'
+          - '224 - Summative Assessment'
+          - '225 - Authentic Assessment'
+          - '226 - Standards-based Assessment'
+          - '227 - Diagnostic Assessment'
+          - '228 - Self-assessment'
+          - '229 - Peer Assessment'
+          - '230 - Teacher Assessment'
+          - '231 - Machine Assessment'
+          - '232 - Learning Styles'
+          - '233 - Multiple Intelligences'
+          - '234 - Metacognition'
+          - '235 - Self-regulated Learning'
+          - '236 - Lifelong Learning'
+          - '237 - Informal Learning'
+          - '238 - Formal Learning'
+          - '239 - Non-formal Learning'
+          - '240 - Experiential Learning'
+          - '241 - Problem-based Learning'
+          - '242 - Project-based Learning'
+          - '243 - Inquiry-based Learning'
+          - '244 - Discovery Learning'
+          - '245 - Constructivist Learning'
+          - '246 - Collaborative Learning'
+          - '247 - Cooperative Learning'
+          - '248 - Peer Learning'
+          - '249 - Social Learning'
+          - '250 - Situated Learning'
+          - '251 - Contextual Learning'
+          - '252 - Culturally Responsive Teaching'
+          - '253 - Differentiated Instruction'
+          - '254 - Inclusive Education'
+          - '255 - Special Needs Education'
+          - '256 - Gifted Education'
+          - '257 - Vocational Education'
+          - '258 - Technical Education'
+          - '259 - STEM Education'
+          - '260 - STEAM Education'
+          - '261 - Arts Integration'
+          - '262 - Literacy Education'
+          - '263 - Numeracy Education'
+          - '264 - Science Education'
+          - '265 - Social Studies Education'
+          - '266 - Physical Education'
+          - '267 - Health Education'
+          - '268 - Sex Education'
+          - '269 - Drug Education'
+          - '270 - Nutrition Education'
+          - '271 - Environmental Education'
+          - '272 - Sustainability Education'
+          - '273 - Global Education'
+          - '274 - Citizenship Education'
+          - '275 - Peace Education'
+          - '276 - Human Rights Education'
+          - '277 - Multicultural Education'
+          - '278 - Intercultural Education'
+
       study_type:
-        description: 'Study type'
+        description: '📄 STUDY / PUBLICATION TYPE'
         required: true
-        default: 'auto'
+        default: 'auto - Auto-detect from title'
         type: choice
         options:
           - auto - Auto-detect from title
@@ -99,80 +349,212 @@ permissions:
           - '5 - Experimental Study'
           - '6 - Qualitative Study'
           - '7 - Quantitative Study'
-          - '8 - Mixed-Methods'
-          - '9 - Theoretical Framework'
-          - '10 - Thesis / Dissertation'
-          - '11 - Conference Paper'
-          - '12 - Book Chapter'
-          - '14 - PhD Dissertation'
-          - '15 - Master Thesis'
+          - '8 - Mixed Methods'
+          - '9 - Longitudinal Study'
+          - '10 - Cross-sectional Study'
+          - '11 - Cohort Study'
+          - '12 - Correlational Study'
+          - '13 - Descriptive Study'
+          - '14 - Exploratory Study'
+          - '15 - Expository Study'
           - '16 - Action Research'
-          - '17 - Survey Research'
-          - '18 - Grounded Theory'
+          - '17 - Participatory Research'
+          - '18 - Community-based Research'
           - '19 - Ethnographic Study'
           - '20 - Phenomenological Study'
-          - '21 - Narrative Inquiry'
-          - '22 - Longitudinal Study'
-          - '23 - Cross-Sectional Study'
-          - '24 - Randomized Controlled Trial'
-          - '25 - Cohort Study'
-          - '26 - Scoping Review'
-          - '27 - Critical Review'
-          - '28 - Technical Report'
-          - '29 - White Paper'
-          - '30 - Any / All types'
+          - '21 - Grounded Theory'
+          - '22 - Content Analysis'
+          - '23 - Discourse Analysis'
+          - '24 - Conversation Analysis'
+          - '25 - Narrative Analysis'
+          - '26 - Thematic Analysis'
+          - '27 - Meta-synthesis'
+          - '28 - Historical Research'
+          - '29 - Comparative Study'
+          - '30 - Evaluation Study'
+          - '31 - Policy Analysis'
+          - '32 - Program Evaluation'
+          - '33 - Needs Assessment'
+          - '34 - Feasibility Study'
+          - '35 - Pilot Study'
+          - '36 - Replication Study'
+          - '37 - Validation Study'
+          - '38 - Reliability Study'
+          - '39 - Validity Study'
+          - '40 - Translation Study'
+          - '41 - Adaptation Study'
+          - '42 - Impact Assessment'
+          - '43 - Risk Assessment'
+          - '44 - Benchmarking Study'
+          - '45 - Survey Research'
+          - '46 - Delphi Study'
+          - '47 - Factorial Design'
+          - '48 - Quasi-experimental'
+          - '49 - True Experimental'
+          - '50 - Randomized Controlled Trial'
+          - '51 - Scoping Review'
+          - '52 - Critical Review'
+          - '53 - Integrative Review'
+          - '54 - Narrative Review'
+          - '55 - Rapid Review'
+          - '56 - Umbrella Review'
+          - '57 - Realist Review'
+          - '58 - Thesis / Dissertation'
+          - '59 - PhD Dissertation'
+          - '60 - Master Thesis'
+          - '61 - Conference Paper'
+          - '62 - Book Chapter'
+          - '63 - Technical Report'
+          - '64 - White Paper'
+          - '65 - Any / All types'
       language:
-        description: 'Language (1=EN, 2=AR, 3=FR, 4=ES, 5=EN+AR, 6=EN+FR, 7=EN+AR+FR, 8=All)'
+        description: '🌐 SEARCH LANGUAGE (Filters ALL PDFs by language)'
         required: true
         default: '1'
+        type: choice
+        options:
+          - '1 - English only'
+          - '2 - Arabic only'
+          - '3 - French only'
+          - '4 - Spanish only'
+          - '5 - German only'
+          - '6 - Chinese only'
+          - '7 - Japanese only'
+          - '8 - Russian only'
+          - '9 - Portuguese only'
+          - '10 - English + Arabic'
+          - '11 - English + French'
+          - '12 - English + Spanish'
+          - '13 - Arabic + French'
+          - '14 - All European (EN+FR+ES+DE)'
+          - '15 - All languages'
       year_from:
-        description: 'Year from (e.g. 2015, leave blank = all years)'
+        description: '📅 YEAR FROM (Publication Year Start)'
         required: false
         default: ''
+        type: choice
+        options:
+          - 'all - All Years (No Limit)'
+          - '2026 - Current Year'
+          - '2025 - Last Year'
+          - '2024'
+          - '2023'
+          - '2022'
+          - '2021'
+          - '2020'
+          - '2019'
+          - '2018'
+          - '2017'
+          - '2016'
+          - '2015'
+          - '2010'
+          - '2005'
+          - '2000'
+          - '1995'
+          - '1990'
+          - '1985'
+          - '1980'
+          - '1975 - Last 50 Years'
+
       year_to:
-        description: 'Year to (default = current year)'
+        description: '📅 YEAR TO (Publication Year End - Default: 2026)'
         required: false
         default: ''
+        type: choice
+        options:
+          - 'current - Current Year (2026)'
+          - '2026 - Current Year'
+          - '2025'
+          - '2024'
+          - '2023'
+          - '2022'
+          - '2021'
+          - '2020'
+          - '2019'
+          - '2018'
+          - '2017'
+          - '2016'
+          - '2015'
+          - '2010'
+          - '2005'
+          - '2000'
+          - '1995'
+          - '1990'
+          - '1985'
+          - '1980'
+          - '1975'
       mode:
-        description: 'Search mode - sample=~10-15min test (4 platforms, ~80 papers), quick=~30min (8 platforms, ~1000), field=~2hr (28 platforms, ~3000), deep=4-8hr+ (all 70+ platforms)'
+        description: '⚡ SEARCH DEPTH & PLATFORMS'
         required: true
         default: 'sample'
         type: choice
         options:
-          - sample
-          - quick
-          - field
-          - deep
+          - sample - 🧪 SAMPLE (~15min) - Test search on 4 platforms
+          - quick - ⚡ QUICK (~30min) - Fast search on 8 platforms
+          - field - 🎯 FIELD (~2hr) - Comprehensive search on 28 platforms
+          - deep - 🔬 DEEP (4-8hr+) - Full search on all 70+ platforms
       max_batches:
-        description: 'Max batches per run (each batch=50 papers; 12 batches=600 papers in 6 hours; 0=all)'
+        description: '📦 MAX BATCHES (0=all, 12=600 papers in 6hr, 6=300 papers in 3hr)'
         required: false
         default: '12'
       scihub:
-        description: 'Enable Sci-Hub / shadow libraries?'
+        description: '🔓 ENABLE OPEN ACCESS FALLBACK (finds free versions of paywalled papers)'
         required: true
         default: false
         type: boolean
+      learn:
+        description: '🧠 ENABLE LEARNING SYSTEM (updates JSON memory with findings)'
+        required: true
+        default: true
+        type: boolean
+      generate_paper:
+        description: '📝 GENERATE SCOPUS-QUALITY PAPER (after search completes)'
+        required: true
+        default: false
+        type: boolean
+      paper_type:
+        description: '📄 PAPER TYPE TO GENERATE'
+        required: true
+        default: 'empirical'
+        type: choice
+        options:
+          - empirical - Empirical Research
+          - systematic_review - Systematic Review
+          - meta_analysis - Meta-Analysis
+          - qualitative - Qualitative Study
+          - quantitative_survey - Quantitative Survey
+          - experimental - Experimental Study
+          - case_study - Case Study
+      output_format:
+        description: '📋 DOCX OUTPUT FORMAT'
+        required: true
+        default: 'both'
+        type: choice
+        options:
+          - both - Both Scopus + Standard formats
+          - scopus - Scopus-quality only
+          - standard - Standard format only
       folder_mode:
-        description: 'Output folder mode (hierarchy=16 folders, single=one folder)'
+        description: '📁 OUTPUT FOLDER STRUCTURE'
         required: true
         default: 'hierarchy'
         type: choice
         options:
-          - hierarchy
-          - single
+          - hierarchy - 📊 Hierarchical (16 folders)
+          - single - 📄 Single folder
       keywords:
-        description: 'Custom keywords (comma-separated, or leave blank for auto-extraction)'
+        description: '🔑 CUSTOM KEYWORDS (comma-separated)'
         required: false
         default: ''
       proxy:
-        description: 'Proxy (y=auto qoder, p=custom URL, n=skip)'
+        description: '🌐 PROXY / QODER'
         required: true
         default: 'n'
         type: choice
         options:
-          - n
-          - y
-          - p
+          - n - None (Direct)
+          - y - Auto-detect
+          - p - Custom URL
 
   schedule:
     - cron: '0 0 * * 0'
@@ -283,6 +665,10 @@ jobs:
           MODE="${MODE%% *}"
           ARGS="$ARGS --mode $MODE"
           if [ "${{ github.event.inputs.scihub }}" == "true" ]; then ARGS="$ARGS --scihub"; fi
+          if [ "${{ github.event.inputs.learn }}" == "true" ]; then ARGS="$ARGS --learn"; fi
+          if [ "${{ github.event.inputs.generate_paper }}" == "true" ]; then ARGS="$ARGS --generate-paper"; fi
+          if [ -n "${{ github.event.inputs.paper_type }}" ]; then ARGS="$ARGS --paper-type ${{ github.event.inputs.paper_type }}"; fi
+          if [ -n "${{ github.event.inputs.output_format }}" ]; then ARGS="$ARGS --output-format ${{ github.event.inputs.output_format }}"; fi
           if [ -n "${{ github.event.inputs.keywords }}" ]; then ARGS="$ARGS --keywords \"${{ github.event.inputs.keywords }}\""; fi
           if [ "${{ github.event.inputs.proxy }}" == "y" ] || [ "${{ github.event.inputs.proxy }}" == "p" ]; then ARGS="$ARGS --proxy ${{ github.event.inputs.proxy }}"; fi
           echo "args=$ARGS" >> $GITHUB_OUTPUT
@@ -357,6 +743,10 @@ jobs:
           TRIGGER_FOLDER_MODE: ${{ github.event.inputs.folder_mode }}
           TRIGGER_KEYWORDS: ${{ github.event.inputs.keywords }}
           TRIGGER_PROXY: ${{ github.event.inputs.proxy }}
+          TRIGGER_LEARN: ${{ github.event.inputs.learn }}
+          TRIGGER_GENERATE_PAPER: ${{ github.event.inputs.generate_paper }}
+          TRIGGER_PAPER_TYPE: ${{ github.event.inputs.paper_type }}
+          TRIGGER_OUTPUT_FORMAT: ${{ github.event.inputs.output_format }}
         shell: bash
         run: |
           echo "Checking if more work remains..."
@@ -381,7 +771,7 @@ jobs:
           fi
           echo "Triggering next run via GitHub API..."
           
-          PAYLOAD=$(printf '{"ref":"%s","inputs":{"title":"%s","rq1":"%s","rq2":"%s","rq3":"%s","rq4":"%s","rq5":"%s","field":"%s","study_type":"%s","language":"%s","year_from":"%s","year_to":"%s","mode":"%s","scihub":"%s","folder_mode":"%s","keywords":"%s","proxy":"%s"}}' \
+          PAYLOAD=$(printf '{"ref":"%s","inputs":{"title":"%s","rq1":"%s","rq2":"%s","rq3":"%s","rq4":"%s","rq5":"%s","field":"%s","study_type":"%s","language":"%s","year_from":"%s","year_to":"%s","mode":"%s","scihub":"%s","folder_mode":"%s","keywords":"%s","proxy":"%s","learn":"%s","generate_paper":"%s","paper_type":"%s","output_format":"%s"}}' \
             '${{ github.ref_name }}' \
             '${{ github.event.inputs.title }}' \
             '${{ github.event.inputs.rq1 }}' \
@@ -398,7 +788,11 @@ jobs:
             '${{ github.event.inputs.scihub }}' \
             '${{ github.event.inputs.folder_mode }}' \
             '${{ github.event.inputs.keywords }}' \
-            '${{ github.event.inputs.proxy }}')
+            '${{ github.event.inputs.proxy }}' \
+            '${{ github.event.inputs.learn }}' \
+            '${{ github.event.inputs.generate_paper }}' \
+            '${{ github.event.inputs.paper_type }}' \
+            '${{ github.event.inputs.output_format }}')
           
           curl -s -X POST \
             -H "Accept: application/vnd.github+json" \
