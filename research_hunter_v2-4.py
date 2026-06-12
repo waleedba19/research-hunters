@@ -9548,6 +9548,7 @@ def wizard() -> dict:
     # STEP 10: 🌍 Search Language
     # ══════════════════════════════════════════════════════════════════════════
     SEARCH_LANGUAGES = {
+        # Number-based keys (for CLI compatibility)
         "1": ("English",              ["en"], "Search English papers only"),
         "2": ("Arabic",               ["ar"], "Search Arabic papers only (اللغة العربية)"),
         "3": ("French",               ["fr"], "Search French papers only"),
@@ -9566,6 +9567,16 @@ def wizard() -> dict:
         "16":("All European Languages", ["en", "fr", "es", "de", "pt", "it"], "EN, FR, ES, DE, PT, IT"),
         "17":("All Asian Languages",   ["zh", "ja", "ko", "ar", "tr"], "ZH, JA, KO, AR, TR"),
         "18":("All Languages",        ["en", "ar", "fr", "es", "de", "zh", "pt", "tr", "ru", "ja", "ko"], "Maximum coverage"),
+        # Language code keys (for Arabic workflow)
+        "ar": ("العربية",             ["ar"], "البحث في الأوراق العربية فقط"),
+        "fr": ("Français",            ["fr"], "Rechercher en français uniquement"),
+        "es": ("Español",             ["es"], "Buscar solo en español"),
+        "de": ("Deutsch",             ["de"], "Nur auf Deutsch suchen"),
+        "zh": ("中文",                ["zh"], "仅搜索中文文献"),
+        "ru": ("Русский",             ["ru"], "Поиск только на русском"),
+        "tr": ("Türkçe",              ["tr"], "Sadece Türkçe ara"),
+        "ur": ("اردو",                ["ur"], "صرف اردو میں تلاش کریں"),
+        "en": ("English",             ["en"], "Search English papers only"),
     }
     print(f"\n{'='*72}")
     print(f"  🌍 STEP 6: SEARCH LANGUAGE")
@@ -10897,8 +10908,8 @@ if __name__ == "__main__":
                         help="Maximum papers to collect (0=unlimited, use mode default)")
     parser.add_argument("--quartile-filter",  type=int, default=7,
                         help="Quartile filter number (1-12, default=7 for All Quartiles)")
-    parser.add_argument("--language",        choices=["1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18"], default="1",
-                        help="Search language (default: 1=English)")
+    parser.add_argument("--language",        default="1",
+                        help="Search language (default: 1=English, ar=Arabic, fr=French, etc.)")
     parser.add_argument("--scihub",          action="store_true", help="Enable Sci-Hub")
     parser.add_argument("--single-folder",   action="store_true", help="Single folder mode")
     parser.add_argument("--keywords",        help="Comma-separated custom keywords")
@@ -10974,6 +10985,7 @@ if __name__ == "__main__":
             study_types = suggested_types or ["Qualitative Study"]
 
         SEARCH_LANGUAGES = {
+            # Number-based keys
             "1": ("English",              ["en"]),
             "2": ("Arabic",               ["ar"]),
             "3": ("French",               ["fr"]),
@@ -10982,6 +10994,15 @@ if __name__ == "__main__":
             "6": ("English + French",     ["en", "fr"]),
             "7": ("English + Arabic + French", ["en","ar","fr"]),
             "8": ("All Languages",        ["en","ar","fr","es","de","zh","pt","tr"]),
+            # Language code keys (for Arabic/French workflow)
+            "ar": ("العربية",             ["ar"]),
+            "fr": ("Français",            ["fr"]),
+            "es": ("Español",             ["es"]),
+            "de": ("Deutsch",             ["de"]),
+            "zh": ("中文",                ["zh"]),
+            "ru": ("Русский",             ["ru"]),
+            "tr": ("Türkçe",              ["tr"]),
+            "en": ("English",             ["en"]),
         }
         lang_label, lang_codes = SEARCH_LANGUAGES.get(args.language, ("English", ["en"]))
 
