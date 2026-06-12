@@ -1196,7 +1196,7 @@ jobs:
           fi
           echo "Triggering next run via GitHub API..."
           
-          PAYLOAD=$(printf '{"ref":"%s","inputs":{"title":"%s","rq1":"%s","rq2":"%s","rq3":"%s","rq4":"%s","rq5":"%s","field":"%s","study_type":"%s","language":"%s","year_from":"%s","year_to":"%s","mode":"%s","scihub":"%s","folder_mode":"%s","keywords":"%s","proxy":"%s","learn":"%s","generate_paper":"%s","paper_type":"%s","output_format":"%s"}}' \
+          PAYLOAD=$(printf '{"ref":"%s","inputs":{"title":"%s","rq1":"%s","rq2":"%s","rq3":"%s","rq4":"%s","rq5":"%s","field":"%s","study_type":"%s","language":"%s","year_from":"%s","year_to":"%s","mode":"%s","max_batches":"%s","scihub":"%s","folder_mode":"%s","keywords":"%s","proxy":"%s","learn":"%s","generate_paper":"%s","paper_type":"%s","output_format":"%s"}}' \
             '${{ github.ref_name }}' \
             '${{ github.event.inputs.title }}' \
             '${{ github.event.inputs.rq1 }}' \
@@ -1210,6 +1210,7 @@ jobs:
             '${{ github.event.inputs.year_from }}' \
             '${{ github.event.inputs.year_to }}' \
             '${{ github.event.inputs.mode }}' \
+            '${{ github.event.inputs.max_batches }}' \
             '${{ github.event.inputs.scihub }}' \
             '${{ github.event.inputs.folder_mode }}' \
             '${{ github.event.inputs.keywords }}' \
