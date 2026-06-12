@@ -1,20 +1,20 @@
-name: Research Hunter v7 - Ultra Comprehensive Search (9 Languages)
+name: Research Hunter v7 - Ultra Comprehensive Search
 
 on:
   workflow_dispatch:
     inputs:
 
       # ═══════════════════════════════════════════════════════════════════════════
-      # 🌐 DISPLAY LANGUAGE SELECTOR
-      # ملاحظة: اختر لغة العرض المفضلة - جميع الخيارات تظهر بلغتين!
+      # 🌐 SELECT YOUR LANGUAGE
+      # This affects: Search language, Output language, Translation
       # ═══════════════════════════════════════════════════════════════════════════
       form_language:
         description: |
-          🌐 DISPLAY LANGUAGE / لغة العرض
+          🌐 SELECT YOUR LANGUAGE
           
           English | العربية | Français | Español | Deutsch | 中文 | Русский | Türkçe | اردو
           
-          Select your language → The system will:
+          This selection determines:
           ✅ Search papers in YOUR language
           ✅ Generate results in YOUR language
           ✅ Translate all outputs accordingly
@@ -32,49 +32,49 @@ on:
           - 'tr - Türkçe (Turkish)'
           - 'ur - اردو (Urdu)'
 
-      # ─────────────────────────────────────────────────────────────────────────
-      # 📌 RESEARCH TOPIC | الموضوع البحثي (Required | مطلوب)
-      # ─────────────────────────────────────────────────────────────────────────
+      # ═══════════════════════════════════════════════════════════════════════════
+      # 📌 RESEARCH TOPIC (Required)
+      # ═══════════════════════════════════════════════════════════════════════════
       research_topic:
-        description: '📌 Research Topic | الموضوع البحثي (Required | مطلوب)'
+        description: '📌 Research Topic (Required)'
         required: true
         type: string
 
       research_question_1:
-        description: '❓ RQ1 | سؤال البحث 1 (Optional | اختياري)'
+        description: '❓ Research Question 1 (Optional)'
         required: false
         type: string
         default: ''
       
       research_question_2:
-        description: '❓ RQ2 | سؤال البحث 2 (Optional | اختياري)'
+        description: '❓ Research Question 2 (Optional)'
         required: false
         type: string
         default: ''
       
       research_question_3:
-        description: '❓ RQ3 | سؤال البحث 3 (Optional | اختياري)'
+        description: '❓ Research Question 3 (Optional)'
         required: false
         type: string
         default: ''
       
       research_question_4:
-        description: '❓ RQ4 | سؤال البحث 4 (Optional | اختياري)'
+        description: '❓ Research Question 4 (Optional)'
         required: false
         type: string
         default: ''
       
       research_question_5:
-        description: '❓ RQ5 | سؤال البحث 5 (Optional | اختياري)'
+        description: '❓ Research Question 5 (Optional)'
         required: false
         type: string
         default: ''
 
       # ─────────────────────────────────────────────────────────────────────────
-      # 🎓 ACADEMIC FIELD | المجال الأكاديمي (279+ fields | مجالات)
+      # 🎓 ACADEMIC FIELD 
       # ─────────────────────────────────────────────────────────────────────────
       academic_field:
-        description: '🎓 Academic Field | المجال الأكاديمي (279+ fields | مجالات)'
+        description: '🎓 Academic Field '
         required: true
         type: choice
         options:
@@ -360,10 +360,10 @@ on:
         default: '1. Applied Linguistics'
 
       # ─────────────────────────────────────────────────────────────────────────
-      # 📄 PUBLICATION TYPE | نوع النشر (49 types | أنواع)
+      # 📄 PUBLICATION TYPE 
       # ─────────────────────────────────────────────────────────────────────────
       publication_type:
-        description: '📄 Publication Type | نوع النشر (49 types | أنواع)'
+        description: '📄 Publication Type '
         required: true
         type: choice
         options:
@@ -419,10 +419,10 @@ on:
         default: '49. Any / All Publication Types'
 
       # ─────────────────────────────────────────────────────────────────────────
-      # 🎓 STUDY LEVEL | مستوى الدراسة (12 levels | مستويات)
+      # 🎓 STUDY LEVEL 
       # ─────────────────────────────────────────────────────────────────────────
       study_level:
-        description: '🎓 Study Level | مستوى الدراسة (12 levels | مستويات)'
+        description: '🎓 Study Level '
         required: true
         type: choice
         options:
@@ -441,10 +441,10 @@ on:
         default: '12. Any / All Levels'
 
       # ─────────────────────────────────────────────────────────────────────────
-      # 🔬 RESEARCH METHODOLOGY | منهجية البحث (51 types | أنواع)
+      # 🔬 RESEARCH METHODOLOGY 
       # ─────────────────────────────────────────────────────────────────────────
       research_methodology:
-        description: '🔬 Methodology | منهجية البحث (51 types | أنواع)'
+        description: '🔬 Methodology '
         required: true
         type: choice
         options:
@@ -502,10 +502,10 @@ on:
         default: '51. Any / All Methodologies'
 
       # ─────────────────────────────────────────────────────────────────────────
-      # 📑 THESIS PART | جزء الرسالة (28 parts | أجزاء)
+      # 📑 THESIS PART 
       # ─────────────────────────────────────────────────────────────────────────
       dissertation_part:
-        description: '📑 Thesis Part | جزء الرسالة (28 parts | أجزاء)'
+        description: '📑 Thesis Part '
         required: true
         type: choice
         options:
@@ -540,10 +540,10 @@ on:
         default: '28. Any / All Parts'
 
       # ─────────────────────────────────────────────────────────────────────────
-      # 🌐 SEARCH LANGUAGE | لغة البحث (Filters ALL PDFs!)
+      # 🌐 SEARCH LANGUAGE  (Filters ALL PDFs!)
       # ─────────────────────────────────────────────────────────────────────────
       search_language:
-        description: '🌐 Search Language | لغة البحث'
+        description: '🌐 Search Language '
         required: true
         type: choice
         options:
@@ -568,10 +568,10 @@ on:
         default: '1. English — Search English papers only'
 
       # ─────────────────────────────────────────────────────────────────────────
-      # 📊 QUARTILE / RANKING | تصنيف المجلة (12 options | خيارات)
+      # 📊 QUARTILE / RANKING 
       # ─────────────────────────────────────────────────────────────────────────
       quartile_filter:
-        description: '📊 Journal Ranking | تصنيف المجلة (12 options | خيارات)'
+        description: '📊 Journal Ranking '
         required: true
         type: choice
         options:
@@ -590,12 +590,12 @@ on:
         default: '7. All Quartiles (Q1-Q4)'
 
       # ─────────────────────────────────────────────────────────────────────────
-      # 📦 PAPER LIMIT | عدد الأوراق العلمية (12 options | خيارات)
+      # 📦 PAPER LIMIT 
       # ─────────────────────────────────────────────────────────────────────────
       # Paper limits are based on actual platform coverage
       
       paper_limit:
-        description: '📦 Paper Limit | عدد الأوراق العلمية (12 options | خيارات)'
+        description: '📦 Paper Limit '
         required: true
         type: choice
         options:
@@ -614,11 +614,11 @@ on:
         default: '4. Extended — 500 papers (~3-4 hrs) — Standard research [RECOMMENDED]'
 
       # ─────────────────────────────────────────────────────────────────────────
-      # ⚡ SEARCH DEPTH | عمق البحث (8 options | خيارات)
+      # ⚡ SEARCH DEPTH 
       # ─────────────────────────────────────────────────────────────────────────
       
       search_mode:
-        description: '⚡ Search Depth | عمق البحث (8 options | خيارات)'
+        description: '⚡ Search Depth '
         required: true
         type: choice
         options:
@@ -633,10 +633,10 @@ on:
         default: 'Extended (~4-6 hrs) — 128 platforms — Deep academic [RECOMMENDED]'
 
       # ─────────────────────────────────────────────────────────────────────────
-      # 📅 YEAR FROM | سنة البداية
+      # 📅 YEAR FROM 
       # ─────────────────────────────────────────────────────────────────────────
       year_from:
-        description: '📅 Year From | سنة البداية'
+        description: '📅 Year From '
         required: false
         type: choice
         options:
@@ -791,10 +791,10 @@ on:
         default: 'All Years (No Limit)'
 
       # ─────────────────────────────────────────────────────────────────────────
-      # 📅 YEAR TO | سنة النهاية
+      # 📅 YEAR TO 
       # ─────────────────────────────────────────────────────────────────────────
       year_to:
-        description: '📅 Year To | سنة النهاية'
+        description: '📅 Year To '
         required: false
         type: choice
         options:
@@ -919,7 +919,7 @@ on:
       # 🌍 GEOGRAPHIC AREA | المنطقة الجغرافية
       # ─────────────────────────────────────────────────────────────────────────
       geographic_area:
-        description: '🌍 Geographic Area | المنطقة الجغرافية (77 options | خيارات)'
+        description: '🌍 Geographic Area '
         required: false
         type: choice
         options:
@@ -1003,10 +1003,10 @@ on:
         default: '🌍 Worldwide (All Countries)'
 
       # ─────────────────────────────────────────────────────────────────────────
-      # 🔑 CUSTOM KEYWORDS | الكلمات المفتاحية المخصصة
+      # 🔑 CUSTOM KEYWORDS 
       # ─────────────────────────────────────────────────────────────────────────
       custom_keywords:
-        description: '🔑 Custom Keywords | الكلمات المفتاحية المخصصة'
+        description: '🔑 Custom Keywords '
         required: false
         type: string
         default: ''
@@ -1015,34 +1015,34 @@ on:
       # 🔓 OPEN ACCESS | الوصول المفتوح
       # ─────────────────────────────────────────────────────────────────────────
       enable_scihub:
-        description: '🔓 Open Access | الوصول المفتوح للاوراق العلمية'
+        description: '🔓 Open Access '
         required: false
         type: boolean
         default: false
 
       # ─────────────────────────────────────────────────────────────────────────
-      # 🧠 LEARNING SYSTEM | نظام التعلم الذكي
+      # 🧠 LEARNING SYSTEM 
       # ─────────────────────────────────────────────────────────────────────────
       enable_learning:
-        description: '🧠 Learning System | نظام التعلم الذكي'
+        description: '🧠 Learning System '
         required: false
         type: boolean
         default: true
 
       # ─────────────────────────────────────────────────────────────────────────
-      # 📝 GENERATE PAPER | توليد الورقة البحثية
+      # 📝 GENERATE PAPER 
       # ─────────────────────────────────────────────────────────────────────────
       generate_paper:
-        description: '📝 Generate Paper | توليد الورقة البحثية'
+        description: '📝 Generate Paper '
         required: false
         type: boolean
         default: false
 
       # ─────────────────────────────────────────────────────────────────────────
-      # 📄 PAPER TYPE | نوع الورقة البحثية (39 types | أنواع)
+      # 📄 PAPER TYPE 
       # ─────────────────────────────────────────────────────────────────────────
       paper_type:
-        description: '📄 Paper Type | نوع الورقة البحثية (39 types | أنواع)'
+        description: '📄 Paper Type '
         required: false
         type: choice
         options:
@@ -1088,10 +1088,10 @@ on:
         default: 'empirical'
 
       # ─────────────────────────────────────────────────────────────────────────
-      # 📋 OUTPUT FORMAT | تنسيق الاخراج (16 formats | صيغ)
+      # 📋 OUTPUT FORMAT 
       # ─────────────────────────────────────────────────────────────────────────
       output_format:
-        description: '📋 Output Format | تنسيق الاخراج (16 formats | صيغ)'
+        description: '📋 Output Format '
         required: false
         type: choice
         options:
