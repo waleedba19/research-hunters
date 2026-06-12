@@ -1,36 +1,8 @@
-name: Research Hunter v7 - Ultra Comprehensive Search
+name: Research Hunter v7 - Ultra Comprehensive Search (9 Languages)
 
 on:
   workflow_dispatch:
     inputs:
-
-      # ═══════════════════════════════════════════════════════════════════════════
-      # 🌐 SELECT YOUR LANGUAGE
-      # This affects: Search language, Output language, Translation
-      # ═══════════════════════════════════════════════════════════════════════════
-      form_language:
-        description: |
-          🌐 SELECT YOUR LANGUAGE
-          
-          English | العربية | Français | Español | Deutsch | 中文 | Русский | Türkçe | اردو
-          
-          This selection determines:
-          ✅ Search papers in YOUR language
-          ✅ Generate results in YOUR language
-          ✅ Translate all outputs accordingly
-        required: true
-        default: 'en'
-        type: choice
-        options:
-          - 'en - English'
-          - 'ar - العربية (Arabic)'
-          - 'fr - Français (French)'
-          - 'es - Español (Spanish)'
-          - 'de - Deutsch (German)'
-          - 'zh - 中文 (Chinese)'
-          - 'ru - Русский (Russian)'
-          - 'tr - Türkçe (Turkish)'
-          - 'ur - اردو (Urdu)'
 
       # ═══════════════════════════════════════════════════════════════════════════
       # 📌 RESEARCH TOPIC (Required)
@@ -71,10 +43,10 @@ on:
         default: ''
 
       # ─────────────────────────────────────────────────────────────────────────
-      # 🎓 ACADEMIC FIELD 
+      # 🎓 ACADEMIC FIELD (279+ fields)
       # ─────────────────────────────────────────────────────────────────────────
       academic_field:
-        description: '🎓 Academic Field '
+        description: '🎓 Academic Field (279+ fields)'
         required: true
         type: choice
         options:
@@ -360,10 +332,10 @@ on:
         default: '1. Applied Linguistics'
 
       # ─────────────────────────────────────────────────────────────────────────
-      # 📄 PUBLICATION TYPE 
+      # 📄 PUBLICATION TYPE (49 types)
       # ─────────────────────────────────────────────────────────────────────────
       publication_type:
-        description: '📄 Publication Type '
+        description: '📄 Publication Type (49 types)'
         required: true
         type: choice
         options:
@@ -419,10 +391,10 @@ on:
         default: '49. Any / All Publication Types'
 
       # ─────────────────────────────────────────────────────────────────────────
-      # 🎓 STUDY LEVEL 
+      # 🎓 STUDY LEVEL (12 levels)
       # ─────────────────────────────────────────────────────────────────────────
       study_level:
-        description: '🎓 Study Level '
+        description: '🎓 Study Level (12 levels)'
         required: true
         type: choice
         options:
@@ -441,10 +413,10 @@ on:
         default: '12. Any / All Levels'
 
       # ─────────────────────────────────────────────────────────────────────────
-      # 🔬 RESEARCH METHODOLOGY 
+      # 🔬 RESEARCH METHODOLOGY (51 types)
       # ─────────────────────────────────────────────────────────────────────────
       research_methodology:
-        description: '🔬 Methodology '
+        description: '🔬 Research Methodology (51 types)'
         required: true
         type: choice
         options:
@@ -502,10 +474,10 @@ on:
         default: '51. Any / All Methodologies'
 
       # ─────────────────────────────────────────────────────────────────────────
-      # 📑 THESIS PART 
+      # 📑 THESIS / PAPER PART (28 parts)
       # ─────────────────────────────────────────────────────────────────────────
       dissertation_part:
-        description: '📑 Thesis Part '
+        description: '📑 Thesis/Paper Part (28 parts)'
         required: true
         type: choice
         options:
@@ -540,10 +512,10 @@ on:
         default: '28. Any / All Parts'
 
       # ─────────────────────────────────────────────────────────────────────────
-      # 🌐 SEARCH LANGUAGE  (Filters ALL PDFs!)
+      # 🌐 SEARCH LANGUAGE (Filters PDFs by Language)
       # ─────────────────────────────────────────────────────────────────────────
       search_language:
-        description: '🌐 Search Language '
+        description: '🌐 Search Language (Filters PDFs by Language)'
         required: true
         type: choice
         options:
@@ -568,10 +540,10 @@ on:
         default: '1. English — Search English papers only'
 
       # ─────────────────────────────────────────────────────────────────────────
-      # 📊 QUARTILE / RANKING 
+      # 📊 JOURNAL RANKING / QUARTILE (12 options)
       # ─────────────────────────────────────────────────────────────────────────
       quartile_filter:
-        description: '📊 Journal Ranking '
+        description: '📊 Journal Ranking / Quartile (12 options)'
         required: true
         type: choice
         options:
@@ -595,7 +567,7 @@ on:
       # Paper limits are based on actual platform coverage
       
       paper_limit:
-        description: '📦 Paper Limit '
+        description: '📦 Paper Limit (12 options)'
         required: true
         type: choice
         options:
@@ -618,7 +590,7 @@ on:
       # ─────────────────────────────────────────────────────────────────────────
       
       search_mode:
-        description: '⚡ Search Depth '
+        description: '⚡ Search Depth (8 options)'
         required: true
         type: choice
         options:
@@ -636,7 +608,7 @@ on:
       # 📅 YEAR FROM 
       # ─────────────────────────────────────────────────────────────────────────
       year_from:
-        description: '📅 Year From '
+        description: '📅 Year From'
         required: false
         type: choice
         options:
@@ -794,7 +766,7 @@ on:
       # 📅 YEAR TO 
       # ─────────────────────────────────────────────────────────────────────────
       year_to:
-        description: '📅 Year To '
+        description: '📅 Year To'
         required: false
         type: choice
         options:
@@ -919,7 +891,7 @@ on:
       # 🌍 GEOGRAPHIC AREA | المنطقة الجغرافية
       # ─────────────────────────────────────────────────────────────────────────
       geographic_area:
-        description: '🌍 Geographic Area '
+        description: '🌍 Geographic Area (77 options)'
         required: false
         type: choice
         options:
@@ -1006,7 +978,7 @@ on:
       # 🔑 CUSTOM KEYWORDS 
       # ─────────────────────────────────────────────────────────────────────────
       custom_keywords:
-        description: '🔑 Custom Keywords '
+        description: '🔑 Custom Keywords'
         required: false
         type: string
         default: ''
@@ -1015,7 +987,7 @@ on:
       # 🔓 OPEN ACCESS | الوصول المفتوح
       # ─────────────────────────────────────────────────────────────────────────
       enable_scihub:
-        description: '🔓 Open Access '
+        description: '🔓 Open Access (Find free versions of paywalled papers)'
         required: false
         type: boolean
         default: false
@@ -1024,7 +996,7 @@ on:
       # 🧠 LEARNING SYSTEM 
       # ─────────────────────────────────────────────────────────────────────────
       enable_learning:
-        description: '🧠 Learning System '
+        description: '🧠 Learning System (Learn from papers and build knowledge base)'
         required: false
         type: boolean
         default: true
@@ -1033,16 +1005,16 @@ on:
       # 📝 GENERATE PAPER 
       # ─────────────────────────────────────────────────────────────────────────
       generate_paper:
-        description: '📝 Generate Paper '
+        description: '📝 Generate Paper (Automatically generate academic paper)'
         required: false
         type: boolean
         default: false
 
       # ─────────────────────────────────────────────────────────────────────────
-      # 📄 PAPER TYPE 
+      # 📄 PAPER TYPE (39 types)
       # ─────────────────────────────────────────────────────────────────────────
       paper_type:
-        description: '📄 Paper Type '
+        description: '📄 Paper Type (39 types)'
         required: false
         type: choice
         options:
@@ -1088,10 +1060,10 @@ on:
         default: 'empirical'
 
       # ─────────────────────────────────────────────────────────────────────────
-      # 📋 OUTPUT FORMAT 
+      # 📋 OUTPUT FORMAT (16 options)
       # ─────────────────────────────────────────────────────────────────────────
       output_format:
-        description: '📋 Output Format '
+        description: '📋 Output Format (16 options)'
         required: false
         type: choice
         options:
