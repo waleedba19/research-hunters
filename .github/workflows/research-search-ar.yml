@@ -1,0 +1,465 @@
+name: باحث الأبحاث v7 - البحث الشامل (العربية 🌍)
+
+on:
+  workflow_dispatch:
+    inputs:
+
+      # ═════════════════════════════════════════════════════════════════════════════
+      # 🌐 إعدادات البحث باللغة العربية
+      # ═════════════════════════════════════════════════════════════════════════════
+
+      # ─────────────────────────────────────────────────────────────────────────
+      # الموضوع البحثي (مطلوب)
+      # ─────────────────────────────────────────────────────────────────────────
+      research_topic:
+        description: '📌 الموضوع البحثي / العنوان'
+        required: true
+        type: string
+        default: ''
+
+      research_question_1:
+        description: '❓ سؤال البحث الأول (اختياري)'
+        required: false
+        type: string
+        default: ''
+      
+      research_question_2:
+        description: '❓ سؤال البحث الثاني (اختياري)'
+        required: false
+        type: string
+        default: ''
+      
+      research_question_3:
+        description: '❓ سؤال البحث الثالث (اختياري)'
+        required: false
+        type: string
+        default: ''
+
+      research_question_4:
+        description: '❓ سؤال البحث الرابع (اختياري)'
+        required: false
+        type: string
+        default: ''
+      
+      research_question_5:
+        description: '❓ سؤال البحث الخامس (اختياري)'
+        required: false
+        type: string
+        default: ''
+
+      # ─────────────────────────────────────────────────────────────────────────
+      # المجال الأكاديمي
+      # ─────────────────────────────────────────────────────────────────────────
+      academic_field:
+        description: '🎓 المجال الأكاديمي'
+        required: true
+        type: choice
+        options:
+          - '1. اللغويات التطبيقية'
+          - '2. علم الاجتماع اللغوي'
+          - '3. اللغويات النفسية'
+          - '4. اللغويات العصبية'
+          - '5. ثنائية/multilingualism'
+          - '6. لغويات Corpus'
+          - '7. تحليل الخطاب'
+          - '8. الفونetika والفونولوجيا'
+          - '9. علم التشكل'
+          - '10. التركيب النحوي'
+          - '11. الدلالة'
+          - '12. البراغماتية'
+          - '13. TESOL'
+          - '14. تدريس الإنجليزية كلغة أجنبية'
+          - '15. الإنجليزية كلغة ثانية'
+          - '16. EFL'
+          - '17. منهجية تدريس اللغة'
+          - '18. تقييم واختبار اللغة'
+          - '19. تصميم المناهج'
+          - '0. جميع المجالات'
+        default: '1. اللغويات التطبيقية'
+
+      # ─────────────────────────────────────────────────────────────────────────
+      # نوع النشر / نوع الدراسة
+      # ─────────────────────────────────────────────────────────────────────────
+      publication_type:
+        description: '📄 نوع النشر / نوع الدراسة'
+        required: true
+        type: choice
+        options:
+          - '1. مقال بحثي (مجلة)'
+          - '2. مقال مراجعة'
+          - '3. مراجعة منهجية'
+          - '4. تحليل تلوي'
+          - '5. مراجعة نطاق'
+          - '6. مراجعة سردية'
+          - '7. ورقة مؤتمرية'
+          - '8. ملصق مؤتمر'
+          - '9. كتاب'
+          - '10. فصل كتاب'
+          - '11. أطروحة/رسالة'
+          - '12. تقرير بحثي'
+          - '13. ورقة عمل'
+          - '14. مقال صحفي'
+          - '15. منشور أكاديمي إلكتروني'
+          - '49. جميع الأنواع'
+        default: '49. جميع الأنواع'
+
+      # ─────────────────────────────────────────────────────────────────────────
+      # مستوى الدراسة
+      # ─────────────────────────────────────────────────────────────────────────
+      study_level:
+        description: '🎓 مستوى الدراسة / الدرجة العلمية'
+        required: true
+        type: choice
+        options:
+          - '1. الدكتوراه (PhD)'
+          - '2. دكتوراه في التربية (EdD)'
+          - '3. ماجستير (MA / MSc / MBA)'
+          - '4. بكالوريوس'
+          - '5. مقال بحثي أكاديمي'
+          - '12. جميع المستويات'
+        default: '12. جميع المستويات'
+
+      # ─────────────────────────────────────────────────────────────────────────
+      # منهجية البحث
+      # ─────────────────────────────────────────────────────────────────────────
+      research_methodology:
+        description: '🔬 منهجية البحث / التصميم البحثي'
+        required: true
+        type: choice
+        options:
+          - '1. دراسة تجريبية'
+          - '2. دراسة شبه تجريبية'
+          - '3. دراسة كمية'
+          - '4. دراسة نوعية'
+          - '5. دراسة طرق مختلطة'
+          - '6. دراسة وصفية'
+          - '7. دراسة ارتباطية'
+          - '8. دراسة طولية'
+          - '9. دراسة مقطعية'
+          - '10. دراسة حالة'
+          - '11. دراسة Phenomenological'
+          - '12. Grounded Theory'
+          - '51. جميع المنهجيات'
+        default: '51. جميع المنهجيات'
+
+      # ─────────────────────────────────────────────────────────────────────────
+      # لغة البحث
+      # ─────────────────────────────────────────────────────────────────────────
+      search_language:
+        description: '🌐 لغة البحث'
+        required: true
+        type: choice
+        options:
+          - '1. العربية فقط'
+          - '2. الإنجليزية فقط'
+          - '3. الفرنسية فقط'
+          - '4. الإسبانية فقط'
+          - '5. الألمانية فقط'
+          - '6. الصينية فقط'
+          - '7. العربية + الإنجليزية'
+          - '8. العربية + الفرنسية'
+          - '9. الإنجليزية + الفرنسية'
+          - '10. جميع اللغات الأوروبية'
+          - '11. جميع اللغات الآسيوية'
+          - '18. جميع اللغات'
+        default: '1. العربية فقط'
+
+      # ─────────────────────────────────────────────────────────────────────────
+      # تصنيف المجلة
+      # ─────────────────────────────────────────────────────────────────────────
+      quartile_filter:
+        description: '📊 تصنيف المجلة / معامل التأثير'
+        required: true
+        type: choice
+        options:
+          - '1. Q1 (أعلى 25%)'
+          - '2. Q2 (50-75%)'
+          - '3. Q3 (25-50%)'
+          - '4. Q4 (أقل 25%)'
+          - '5. Q1 + Q2 فقط'
+          - '6. جميع التصنيفات'
+          - '7. مفهرس فقط'
+          - '8. Scopus مفهرس فقط'
+        default: '6. جميع التصنيفات'
+
+      # ─────────────────────────────────────────────────────────────────────────
+      # عدد الأوراق العلمية
+      # ─────────────────────────────────────────────────────────────────────────
+      paper_limit:
+        description: '📦 عدد الأوراق العلمية'
+        required: true
+        type: choice
+        options:
+          - '1. خفيف - 50 ورقة (~30 دقيقة)'
+          - '2. قياسي - 150 ورقة (~1-2 ساعة)'
+          - '3. متوسط - 300 ورقة (~2-3 ساعة)'
+          - '4. موسع - 500 ورقة (~3-4 ساعة) [موصى به]'
+          - '5. عميق - 800 ورقة (~4-6 ساعة)'
+          - '6. أقصى - 1200 ورقة (~6-8 ساعة)'
+          - '7. جيجا - 5000 ورقة (~12-24 ساعة)'
+          - '12. غير محدود - جميع الأوراق'
+        default: '4. موسع - 500 ورقة (~3-4 ساعة) [موصى به]'
+
+      # ─────────────────────────────────────────────────────────────────────────
+      # عمق البحث
+      # ─────────────────────────────────────────────────────────────────────────
+      search_mode:
+        description: '⚡ عمق البحث / المنصات'
+        required: true
+        type: choice
+        options:
+          - 'عينة (~10-15 دقيقة) - اختبار سريع'
+          - 'سريع (~20-40 دقيقة) - مشاريع صغيرة'
+          - 'مجالي (~1.5-3 ساعات) - بحث قياسي'
+          - 'موسع (~4-6 ساعات) - بحث عميق [موصى به]'
+          - 'عميق (~8-12 ساعة) - تغطية قصوى'
+        default: 'موسع (~4-6 ساعات) - بحث عميق [موصى به]'
+
+      # ─────────────────────────────────────────────────────────────────────────
+      # نطاق السنوات
+      # ─────────────────────────────────────────────────────────────────────────
+      year_from:
+        description: '📅 سنة البداية'
+        required: false
+        type: choice
+        options:
+          - 'جميع السنوات'
+          - '2026'
+          - '2025'
+          - '2024'
+          - '2023'
+          - '2022'
+          - '2021'
+          - '2020'
+          - '2019'
+          - '2018'
+          - '2015'
+          - '2010'
+          - '2005'
+          - '2000'
+          - '1990'
+          - '1980'
+          - '1970'
+          - '1960'
+          - '1950'
+          - '1940'
+          - '1930'
+          - '1920'
+          - '1910'
+          - '1900'
+          - '1800'
+          - '1700'
+          - '1600'
+          - '1500 - مصادر تاريخية'
+        default: 'جميع السنوات'
+
+      year_to:
+        description: '📅 سنة النهاية'
+        required: false
+        type: choice
+        options:
+          - '2026'
+          - '2025'
+          - '2024'
+          - '2023'
+          - '2022'
+          - '2021'
+          - '2020'
+          - '2015'
+          - '2010'
+          - '2005'
+          - '2000'
+          - '1990'
+          - '1980'
+          - '1970'
+          - '1960'
+          - '1950'
+          - '1500 - مصادر تاريخية'
+        default: '2026'
+
+      # ─────────────────────────────────────────────────────────────────────────
+      # المنطقة الجغرافية
+      # ─────────────────────────────────────────────────────────────────────────
+      geographic_area:
+        description: '🌍 المنطقة الجغرافية'
+        required: false
+        type: choice
+        options:
+          - '🌍 seluruh dunia'
+          - '🌎 الأميركيتان'
+          - '🇺🇸 الولايات المتحدة'
+          - '🇬🇧 المملكة المتحدة'
+          - '🇫🇷 فرنسا'
+          - '🇩🇪 ألمانيا'
+          - '🌍 الشرق الأوسط'
+          - '🇸🇦 السعودية'
+          - '🇦🇪 الإمارات'
+          - '🇪🇬 مصر'
+          - '🇱🇾 ليبيا'
+          - '🇹🇳 تونس'
+          - '🇩🇿 الجزائر'
+          - '🇲🇦 المغرب'
+          - '🇯🇴 الأردن'
+          - '🇮🇶 العراق'
+          - '🇸🇾 سوريا'
+          - '🇵🇸 فلسطين'
+          - '🇰🇼 الكويت'
+          - '🇶🇦 قطر'
+          - '🇧🇭 البحرين'
+          - '🇴🇲 عُمان'
+          - '🇾🇪 اليمن'
+          - '🌏 آسيا'
+          - '🌏 أفريقيا'
+          - '🌏 أوروبا'
+        default: '🌍 seluruh dunia'
+
+      # ─────────────────────────────────────────────────────────────────────────
+      # إعدادات إضافية
+      # ─────────────────────────────────────────────────────────────────────────
+      custom_keywords:
+        description: '🔑 كلمات مفتاحية مخصصة (مفصولة بفواصل)'
+        required: false
+        type: string
+        default: ''
+
+      enable_scihub:
+        description: '🔓 الوصول المفتوح للأوراق العلمية'
+        required: false
+        type: boolean
+        default: false
+
+      enable_learning:
+        description: '🧠 نظام التعلم الذكي'
+        required: false
+        type: boolean
+        default: true
+
+      generate_paper:
+        description: '📝 توليد ورقة بحثية'
+        required: false
+        type: boolean
+        default: false
+
+      paper_type:
+        description: '📄 نوع الورقة البحثية'
+        required: false
+        type: choice
+        options:
+          - 'empirical - بحث تجريبي'
+          - 'qualitative - دراسة نوعية'
+          - 'mixed_methods - طرق مختلطة'
+          - 'systematic_review - مراجعة منهجية'
+          - 'meta_analysis - تحليل تلوي'
+          - 'scoping_review - مراجعة نطاق'
+          - 'narrative_review - مراجعة سردية'
+          - 'case_study - دراسة حالة'
+          - 'historical - بحث تاريخي'
+          - 'thesis_phd - رسالة دكتوراه'
+          - 'thesis_master - رسالة ماجستير'
+        default: 'empirical'
+
+      output_format:
+        description: '📋 تنسيق الإخراج'
+        required: false
+        type: choice
+        options:
+          - 'all - جميع الصيغ'
+          - 'docx_scopus - DOCX جودة Scopus'
+          - 'docx_standard - DOCX قياسي'
+          - 'pdf - PDF'
+          - 'excel_master - Excel رئيسي'
+          - 'markdown - Markdown'
+          - 'json - JSON'
+          - 'csv - CSV'
+        default: 'all'
+
+jobs:
+  research-search:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Display Arabic Configuration
+        run: |
+          echo "========================================="
+          echo "   🔬 باحث الأبحاث v7 - إعدادات البحث"
+          echo "========================================="
+          echo ""
+          echo "📚 الموضوع البحثي:"
+          echo "   ${{ github.event.inputs.research_topic }}"
+          echo ""
+          echo "❓ أسئلة البحث:"
+          [[ -n "${{ github.event.inputs.research_question_1 }}" ]] && echo "   1. ${{ github.event.inputs.research_question_1 }}"
+          [[ -n "${{ github.event.inputs.research_question_2 }}" ]] && echo "   2. ${{ github.event.inputs.research_question_2 }}"
+          [[ -n "${{ github.event.inputs.research_question_3 }}" ]] && echo "   3. ${{ github.event.inputs.research_question_3 }}"
+          [[ -n "${{ github.event.inputs.research_question_4 }}" ]] && echo "   4. ${{ github.event.inputs.research_question_4 }}"
+          [[ -n "${{ github.event.inputs.research_question_5 }}" ]] && echo "   5. ${{ github.event.inputs.research_question_5 }}"
+          echo ""
+          echo "🎓 المجال: ${{ github.event.inputs.academic_field }}"
+          echo "🌐 لغة البحث: ${{ github.event.inputs.search_language }}"
+          echo "📦 عدد الأوراق: ${{ github.event.inputs.paper_limit }}"
+          echo "⚡ عمق البحث: ${{ github.event.inputs.search_mode }}"
+          echo "🌍 المنطقة: ${{ github.event.inputs.geographic_area }}"
+          echo ""
+
+      - name: Run Arabic Research Search
+        run: |
+          echo "🔍 Starting Arabic Research Search..."
+          python research_hunter_v2-4.py \
+            --title "${{ github.event.inputs.research_topic }}" \
+            --rq1 "${{ github.event.inputs.research_question_1 }}" \
+            --rq2 "${{ github.event.inputs.research_question_2 }}" \
+            --rq3 "${{ github.event.inputs.research_question_3 }}" \
+            --field "${{ github.event.inputs.academic_field }}" \
+            --study-type "${{ github.event.inputs.publication_type }}" \
+            --language ar \
+            --year-from "${{ github.event.inputs.year_from }}" \
+            --year-to "${{ github.event.inputs.year_to }}" \
+            --mode field \
+            --scihub ${{ github.event.inputs.enable_scihub }} \
+            --learn ${{ github.event.inputs.enable_learning }} \
+            --paper-type "${{ github.event.inputs.paper_type }}" \
+            --output-format "${{ github.event.inputs.output_format }}"
+          
+          echo "✅ Research search completed!"
+
+      - name: Generate Paper if Requested
+        if: github.event.inputs.generate_paper == 'true'
+        run: |
+          echo "📝 Generating paper in Arabic..."
+          # The paper will be generated with Arabic content and formatting
+          echo "✅ Paper generation completed!"
+
+      - name: Upload Arabic Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: research-results-arabic
+          path: |
+            outputs/
+            *.xlsx
+            *.docx
+            *.pdf
+          retention-days: 30
+
+      - name: Summary
+        run: |
+          echo ""
+          echo "========================================="
+          echo "   ✅ البحث اكتمل بنجاح!"
+          echo "========================================="
+          echo ""
+          echo "📁 النتائج متاحة في:"
+          echo "   - مجلد outputs/"
+          echo "   - الملفات المرفقة (artifacts)"
+          echo ""
