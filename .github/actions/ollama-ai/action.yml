@@ -58,11 +58,11 @@ runs:
         # Tesseract + OCR languages
         echo "📥 Installing Tesseract + languages..."
         sudo apt-get update -qq > /dev/null 2>&1
-        sudo apt-get install -y -qq tesseract-ocr tesseract-ocr-eng tesseract-ocr-ara tesseract-ocr-fra \
+        sudo apt-get install -y tesseract-ocr tesseract-ocr-eng tesseract-ocr-ara tesseract-ocr-fra \
           tesseract-ocr-deu tesseract-ocr-spa tesseract-ocr-chi-sim tesseract-ocr-jpn \
           tesseract-ocr-kor tesseract-ocr-rus tesseract-ocr-por tesseract-ocr-ita \
           tesseract-ocr-tur tesseract-ocr-hin tesseract-ocr-urd tesseract-ocr-fas \
-          poppler-utils > /dev/null 2>&1 || echo "⚠️ Some Tesseract language packs failed, continuing..."
+          poppler-utils
         sudo apt-get clean > /dev/null 2>&1
         echo "✅ OCR tools installed"
 
