@@ -39,6 +39,9 @@ smoke_reports/
 # Database files (regenerated each run)
 *.db
 
+# Brain report (regenerated each run)
+brain_report.md
+
 # Editor / OS
 .vscode/
 .idea/
