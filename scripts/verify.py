@@ -1501,6 +1501,13 @@ def section_deep_reader():
     deep_db = SCRIPTS_DIR / "deep_knowledge.db"
     check("deep_knowledge.db accessible", True)
 
+    # Initialize DeepReader first to create tables (CREATE TABLE IF NOT EXISTS)
+    try:
+        reader = DeepReader(max_papers=1)
+        check("DeepReader initialized, tables created", True)
+    except Exception as e:
+        check("DeepReader initialization", False, str(e)[:100])
+
     # Count processed papers
     try:
         import sqlite3
