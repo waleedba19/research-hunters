@@ -1277,6 +1277,8 @@ jobs:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    env:
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - name: Setup Ollama AI
@@ -1300,9 +1302,15 @@ jobs:
           path: scripts/proof_memory.db
           key: proof-memory-${{ github.run_id }}
           restore-keys: proof-memory-
+      - name: Restore deep reading knowledge (cross-run persistence)
+        uses: actions/cache@v4
+        with:
+          path: scripts/deep_knowledge.db
+          key: deep-knowledge-${{ github.run_id }}
+          restore-keys: deep-knowledge-
       - name: Install dependencies
         run: |
-          pip install -q requests rich ollama
+          pip install -q requests rich ollama pdfplumber pymupdf
       - name: Show current brain stats
         run: |
           python scripts/daily_learner.py --model qwen2.5vl:3b --stats || echo "No brain data yet"
@@ -1325,6 +1333,25 @@ jobs:
         with:
           name: brain-report-daily
           path: brain_report.md
+          retention-days: 90
+
+      - name: Deep PDF reading (learn from papers page-by-page)
+        run: |
+          echo " Starting deep PDF reading..."
+          echo " Reading up to 3 papers page-by-page..."
+          echo ""
+          python scripts/deep_reader.py --model qwen2.5vl:3b --max-papers 3
+      - name: Generate deep reading report
+        run: |
+          python scripts/deep_reader.py --model qwen2.5vl:3b --report --report-path deep_report.md
+      - name: Send daily Telegram notification
+        run: |
+          python scripts/deep_reader.py --model qwen2.5vl:3b --notify --max-papers 3 || echo "Notification skipped"
+      - name: Upload deep reading report
+        uses: actions/upload-artifact@v4
+        with:
+          name: deep-reading-report-daily
+          path: deep_report.md
           retention-days: 90
 
   research:

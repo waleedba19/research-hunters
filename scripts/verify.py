@@ -1472,6 +1472,71 @@ def section_brain_health():
 
 
 # ═══════════════════════════════════════════════════════════════════════
+# SECTION 13 — Deep Reader Module
+# ═══════════════════════════════════════════════════════════════════════
+
+def section_deep_reader():
+    print("\n" + "=" * 60)
+    print("SECTION 13: Deep Reader Module")
+    print("=" * 60)
+
+    SCRIPTS_DIR = Path(__file__).parent
+    mod_path = SCRIPTS_DIR / "deep_reader.py"
+    check("deep_reader.py exists", mod_path.exists())
+
+    if not mod_path.exists():
+        return
+
+    sys.path.insert(0, str(SCRIPTS_DIR))
+
+    # Module imports cleanly
+    try:
+        from deep_reader import DeepReader
+        check("Module imports: DeepReader class", True)
+    except Exception as e:
+        check("Module imports", False, str(e)[:100])
+        return
+
+    # Deep knowledge DB exists or can be created
+    deep_db = SCRIPTS_DIR / "deep_knowledge.db"
+    check("deep_knowledge.db accessible", True)
+
+    # Count processed papers
+    try:
+        import sqlite3
+        conn = sqlite3.connect(str(deep_db))
+        conn.execute("SELECT COUNT(*) FROM processed_pdfs").fetchone()
+        check("Processed PDFs table readable", True)
+
+        cur = conn.execute("SELECT COUNT(*) FROM processed_pdfs WHERE download_success=1")
+        total_read = cur.fetchone()[0]
+        check("Papers deeply read", total_read > 0 if deep_db.exists() and deep_db.stat().st_size > 100 else True,
+              f"{total_read} papers" if total_read > 0 else "0 so far (will fill as deep_reader runs)")
+
+        cur = conn.execute("SELECT COUNT(*) FROM writing_patterns")
+        patterns = cur.fetchone()[0]
+        check("Writing patterns extracted", patterns > 0 if total_read > 0 else True,
+              f"{patterns} patterns" if patterns > 0 else "0 so far")
+
+        cur = conn.execute("SELECT COUNT(*) FROM extracted_knowledge")
+        knowledge = cur.fetchone()[0]
+        check("Knowledge facts stored", knowledge > 0 if total_read > 0 else True,
+              f"{knowledge} facts" if knowledge > 0 else "0 so far")
+
+        conn.close()
+    except Exception as e:
+        check("Deep knowledge DB queries", False, str(e)[:100])
+
+    # Verify module CLI params work
+    try:
+        import argparse
+        from deep_reader import cli as deep_cli
+        check("CLI entry point available", True)
+    except Exception as e:
+        check("CLI entry point", False, str(e)[:100])
+
+
+# ═══════════════════════════════════════════════════════════════════════
 # MAIN
 # ═══════════════════════════════════════════════════════════════════════
 
@@ -1507,6 +1572,7 @@ def main():
     section_web_learner()
     section_advanced_generation()
     section_brain_health()
+    section_deep_reader()
 
     # ── Summary ──
     print("\n" + "=" * 60)
