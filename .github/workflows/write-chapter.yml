@@ -1,0 +1,53 @@
+name: Write Chapter (v0.2)
+
+# v0.2 feature: multi-day (24-48h) chapter writer pipeline.
+# 8 stages: read PDFs → summarize → themes → outline → user approves → write sections → Node.js format → Google Doc.
+# State persists in D:\opencode\lit_review_state.json (mounted) + Drive.
+# Each GHA job ≤6h, chains via repository_dispatch event_type=write_chapter_resume.
+
+on:
+  repository_dispatch:
+    types: [write_chapter_start, write_chapter_resume]
+  workflow_dispatch:
+    inputs:
+      chat_id:
+        description: "Telegram chat_id"
+        required: true
+      chapter_name:
+        description: "Chapter name"
+        required: true
+
+concurrency:
+  group: write-chapter
+  cancel-in-progress: false
+
+jobs:
+  pipeline:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/wo312092-creator/runner-base:latest
+    timeout-minutes: 360   # 6 hours per job
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start ollama
+        run: /usr/local/bin/ollama-start.sh
+      - name: Install Python deps
+        run: pip install --no-cache-dir -r requirements.txt
+      - name: Install Node.js for DOCX/PDF generation
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install Node deps
+        run: npm install --no-audit --no-fund
+      - name: Run chapter writer (one stage at a time)
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          GOOGLE_OAUTH_REFRESH: ${{ secrets.GOOGLE_OAUTH_REFRESH }}
+          GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+          GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT_TYPE: ${{ github.event_name == 'repository_dispatch' && github.event.action || 'write_chapter_start' }}
+          CHAT_ID: ${{ github.event.client_payload.chat_id || inputs.chat_id }}
+          CHAPTER_NAME: ${{ github.event.client_payload.chapter_name || inputs.chapter_name }}
+        run: |
+          python chapter_writer.py

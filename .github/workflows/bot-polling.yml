@@ -1,0 +1,142 @@
+name: Bot Polling
+
+# Long-poll Telegram @Search_Sleeping_bot every 5 minutes.
+# GHA free tier = 2000 min/month, this uses ~288 × 30s = 144 min/day of compute.
+# In v0.2 we switch to one long job that loops internally with shorter polls.
+
+on:
+  schedule:
+    # 1-min cron during live testing phase; switch to */5 in v0.2 when stable.
+    - cron: "*/1 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: bot-polling
+  cancel-in-progress: false
+
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/wo312092-creator/runner-base:latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Start ollama
+        run: |
+          # The bundled /usr/local/bin/ollama-start.sh has a `wait $OLLAMA_PID` at the
+          # end that keeps the container alive — when called as a GHA step it hangs
+          # forever. Inline the startup commands here so the step exits cleanly.
+          set -e
+          ollama serve > /tmp/ollama.log 2>&1 &
+          OLLAMA_PID=$!
+          echo "ollama started PID=$OLLAMA_PID"
+          for i in $(seq 1 60); do
+            if curl -s http://127.0.0.1:11434/api/tags > /dev/null 2>&1; then
+              echo "ollama ready after ${i}s"
+              break
+            fi
+            sleep 1
+          done
+          echo "Pre-warming qwen2.5vl-3b-16k..."
+          curl -s http://127.0.0.1:11434/api/generate \
+            -d '{"model":"qwen2.5vl-3b-16k","prompt":"hi","stream":false,"options":{"num_predict":1}}' \
+            > /dev/null || echo "pre-warm failed (model will be loaded on first request)"
+          echo "=== ollama list ==="
+          ollama list
+          echo "ollama ready"
+
+      - name: Install Python deps
+        run: pip install --no-cache-dir --break-system-packages -r requirements.txt
+
+      - name: Test enhanced bot functionality
+        run: |
+          python3 -c "
+          import os
+          os.environ['OLLAMA_HOST'] = 'http://127.0.0.1:11434'
+          
+          print('Testing enhanced Telegram bot...')
+          
+          # Test imports
+          import telegram_bot
+          print('✅ telegram_bot module loaded')
+          
+          # Test new functions exist
+          assert hasattr(telegram_bot, '_cmd_hunt'), 'Missing _cmd_hunt'
+          assert hasattr(telegram_bot, '_cmd_sleep'), 'Missing _cmd_sleep'
+          assert hasattr(telegram_bot, '_cmd_wake'), 'Missing _cmd_wake'
+          assert hasattr(telegram_bot, '_run_research_hunt'), 'Missing _run_research_hunt'
+          assert hasattr(telegram_bot, 'load_chat_state'), 'Missing load_chat_state'
+          assert hasattr(telegram_bot, 'save_chat_state'), 'Missing save_chat_state'
+          print('✅ All new functions present')
+          
+          # Test state management
+          state = {'test': 'data', 'chat_id': 12345}
+          telegram_bot.save_chat_state(12345, state)
+          loaded = telegram_bot.load_chat_state(12345)
+          assert loaded == state, 'State mismatch'
+          telegram_bot.clear_chat_state(12345)
+          print('✅ State management working')
+          
+          # Test query generation
+          queries = telegram_bot._generate_queries('technical')
+          assert len(queries) >= 3, 'Not enough queries generated'
+          print(f'✅ Query generation works ({len(queries)} queries)')
+          
+          # Test ollama integration
+          from precision_engine import _call_ollama
+          result = _call_ollama('Respond with OK', timeout=30)
+          assert 'OK' in result, 'Ollama test failed'
+          print('✅ Ollama integration working')
+          
+          print()
+          print('╔════════════════════════════════════════════════════════╗')
+          print('║     ENHANCED TELEGRAM BOT - READY FOR PRODUCTION       ║')
+          print('╚════════════════════════════════════════════════════════╝')
+          print()
+          print('Available Commands:')
+          print('  /hunt    - Interactive research hunt with platform selection')
+          print('  /research - Same as /hunt')
+          print('  /sleep   - Enable sleep mode (passive monitoring)')
+          print('  /wake    - Wake up from sleep mode')
+          print('  /find    - Quick paper search')
+          print('  /verify  - Verify references')
+          print()
+          print('Enhanced Features:')
+          print('  ✅ Interactive inline keyboards')
+          print('  ✅ Platform selection with visual feedback')
+          print('  ✅ Background research threading')
+          print('  ✅ Real-time progress updates')
+          print('  ✅ Sleep mode for passive monitoring')
+          print('  ✅ Chat state persistence')
+          print()
+          "
+
+      - name: Run bot (one long-poll cycle)
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          GOOGLE_OAUTH_REFRESH: ${{ secrets.GOOGLE_OAUTH_REFRESH }}
+          GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+          GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          OLLAMA_HOST: http://127.0.0.1:11434
+        run: |
+          python3 -c "
+          import telegram_bot
+          # Process up to 25 updates per cycle, then exit.
+          # Each /find takes 2-3 min with v2-4 + ollama, so we cap at 5 long-polls.
+          total = 0
+          for _ in range(5):
+              n = telegram_bot.run_once(timeout=30)
+              total += n
+              if total >= 25: break
+          print(f'Processed {total} updates this cycle')
+          "

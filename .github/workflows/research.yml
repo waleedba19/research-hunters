@@ -1,0 +1,1551 @@
+name: Research Hunter
+permissions:
+  contents: write
+  actions: write
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 0 * * 0"
+  workflow_dispatch:
+    inputs:
+
+      # ═══════════════════════════════════════════════════════════════════════════
+      # 🎯 UNIFIED MODE SELECTOR - What do you want to do?
+      # ═══════════════════════════════════════════════════════════════════════════
+      operation_mode:
+        description: '⚡ WHAT TO DO?'
+        required: true
+        default: 'full-research - All: Research + Learn + Generate'
+        type: choice
+        options:
+          - 'verify-only - Test system only'
+          - 'research-only - Search & download papers'
+          - 'learn-only - Learn patterns'
+          - 'generate-only - Generate paper'
+          - 'full-research - All: Research + Learn + Generate'
+
+      # ═══════════════════════════════════════════════════════════════════════════
+      # 📌 STEP 1: RESEARCH CORE - Your Research Topic
+      # ═══════════════════════════════════════════════════════════════════════════
+      title:
+        description: '🎯 RESEARCH TOPIC / TITLE (Required - Be specific and descriptive)'
+        required: true
+        default: ''
+        type: string
+
+      # ───────────────────────────────────────────────────────────────────────────
+      # 📝 STEP 2: RESEARCH QUESTIONS (Optional - Up to 3)
+      # ───────────────────────────────────────────────────────────────────────────
+      rq1:
+        description: '❓ Research Question 1 (e.g., "What is the impact of X on Y?")'
+        required: false
+        default: ''
+        type: string
+      rq2:
+        description: '❓ Research Question 2 (optional)'
+        required: false
+        default: ''
+        type: string
+      rq3:
+        description: '❓ Research Question 3 (optional)'
+        required: false
+        default: ''
+        type: string
+
+      # ═══════════════════════════════════════════════════════════════════════════
+      # 🎓 STEP 3: ACADEMIC CLASSIFICATION
+      # ═══════════════════════════════════════════════════════════════════════════
+      field:
+        description: '🎓 ACADEMIC FIELD (Required - 278 fields available)'
+        required: true
+        default: 'auto - Auto-detect from title'
+        type: choice
+        options:
+          - auto - Auto-detect from title
+          - '1 - Applied Linguistics'
+          - '2 - Second Language Acquisition'
+          - '3 - TESOL / EFL / ESL'
+          - '4 - Discourse Analysis'
+          - '5 - Sociolinguistics'
+          - '6 - Psycholinguistics'
+          - '7 - Translation Studies'
+          - '8 - Language Teaching Methods'
+          - '9 - Computational Linguistics'
+          - '10 - Historical Linguistics'
+          - '11 - Educational Technology'
+          - '12 - General Education'
+          - '13 - Curriculum and Instruction'
+          - '14 - Educational Psychology'
+          - '15 - Higher Education'
+          - '16 - Special Education'
+          - '17 - Psychology'
+          - '18 - Sociology'
+          - '19 - Anthropology'
+          - '20 - Political Science'
+          - '21 - Communication Studies'
+          - '22 - Cultural Studies'
+          - '23 - Gender Studies'
+          - '24 - History'
+          - '25 - Computer Science / AI'
+          - '26 - Data Science / ML'
+          - '27 - Medicine / Health Sciences'
+          - '28 - Nursing'
+          - '29 - Pharmacology'
+          - '30 - Biology / Life Sciences'
+          - '31 - Chemistry'
+          - '32 - Physics'
+          - '33 - Mathematics'
+          - '34 - Environmental Science'
+          - '35 - Engineering'
+          - '36 - Materials Science'
+          - '37 - Agricultural Sciences'
+          - '38 - Business / Economics'
+          - '39 - Marketing'
+          - '40 - Finance / Accounting'
+          - '41 - Management'
+          - '42 - Law / Legal Studies'
+          - '43 - Public Policy'
+          - '44 - Philosophy'
+          - '45 - Literature'
+          - '46 - Linguistics (General)'
+          - '47 - Arts / Music / Design'
+          - '48 - Theology / Religious Studies'
+          - '49 - Economics (General)'
+          - '50 - Geography'
+          - '51 - Urban Planning'
+          - '52 - Architecture'
+          - '53 - Tourism'
+          - '54 - Sports Science'
+          - '55 - Nutrition'
+          - '56 - Public Health'
+          - '57 - Dentistry'
+          - '58 - Veterinary Science'
+          - '59 - Physics (General)'
+          - '60 - Astronomy'
+          - '61 - Neuroscience'
+          - '62 - Pharmacology (General)'
+          - '63 - Toxicology'
+          - '64 - Botany'
+          - '65 - Zoology'
+          - '66 - Ecology'
+          - '67 - Oceanography'
+          - '68 - Geology'
+          - '69 - Atmospheric Science'
+          - '70 - Information Systems'
+          - '71 - Software Engineering'
+          - '72 - Cybersecurity'
+          - '73 - Telecommunications'
+          - '74 - Robotics'
+          - '75 - Nanotechnology'
+          - '76 - Renewable Energy'
+          - '77 - Mechanical Engineering'
+          - '78 - Electrical Engineering'
+          - '79 - Civil Engineering'
+          - '80 - Chemical Engineering'
+          - '81 - Biomedical Engineering'
+          - '82 - Food Science'
+          - '83 - Agriculture (General)'
+          - '84 - Forestry'
+          - '85 - Soil Science'
+          - '86 - Hydrology'
+          - '87 - Demography'
+          - '88 - Social Work'
+          - '89 - Criminology'
+          - '90 - International Relations'
+          - '91 - Development Studies'
+          - '92 - Human Geography'
+          - '93 - Tourism Management'
+          - '94 - Hospitality Management'
+          - '95 - Logistics'
+          - '96 - Operations Research'
+          - '97 - Quality Management'
+          - '98 - Strategic Management'
+          - '99 - Organizational Behavior'
+          - '100 - Human Resource Management'
+          - '101 - International Business'
+          - '102 - E-commerce'
+          - '103 - Banking'
+          - '104 - Investment'
+          - '105 - Taxation'
+          - '106 - Auditing'
+          - '107 - Forensic Accounting'
+          - '108 - Islamic Finance'
+          - '109 - Development Economics'
+          - '110 - Environmental Economics'
+          - '111 - Health Economics'
+          - '112 - Labor Economics'
+          - '113 - Monetary Economics'
+          - '114 - Agricultural Economics'
+          - '115 - Econometrics'
+          - '116 - Political Economy'
+          - '117 - Comparative Literature'
+          - '118 - Creative Writing'
+          - '119 - Rhetoric'
+          - '120 - Media Studies'
+          - '121 - Journalism'
+          - '122 - Film Studies'
+          - '123 - Musicology'
+          - '124 - Art History'
+          - '125 - Museum Studies'
+          - '126 - Archaeology'
+          - '127 - Bioethics'
+          - '128 - Ethics (General)'
+          - '129 - Epistemology'
+          - '130 - Metaphysics'
+          - '131 - Logic'
+          - '132 - Aesthetics'
+          - '133 - Political Philosophy'
+          - '134 - Social Philosophy'
+          - '135 - Islamic Studies'
+          - '136 - Christian Studies'
+          - '137 - Jewish Studies'
+          - '138 - Buddhist Studies'
+          - '139 - Hindu Studies'
+          - '140 - Daoist Studies'
+          - '141 - Religion (General)'
+          - '142 - Middle Eastern Studies'
+          - '143 - African Studies'
+          - '144 - Asian Studies'
+          - '145 - European Studies'
+          - '146 - American Studies'
+          - '147 - Latin American Studies'
+          - '148 - Caribbean Studies'
+          - '149 - Pacific Studies'
+          - '150 - Canadian Studies'
+          - '151 - Australian Studies'
+          - '152 - Russian Studies'
+          - '153 - Chinese Studies'
+          - '154 - Japanese Studies'
+          - '155 - Korean Studies'
+          - '156 - Indian Studies'
+          - '157 - Islamic History'
+          - '158 - World History'
+          - '159 - Medieval History'
+          - '160 - Modern History'
+          - '161 - Ancient History'
+          - '162 - Economic History'
+          - '163 - Social History'
+          - '164 - Cultural History'
+          - '165 - Military History'
+          - '166 - History of Science'
+          - '167 - History of Technology'
+          - '168 - Environmental History'
+          - '169 - Oral History'
+          - '170 - Digital Humanities'
+          - '171 - Library Science'
+          - '172 - Archive Studies'
+          - '173 - Documentation'
+          - '174 - Information Science'
+          - '175 - Knowledge Management'
+          - '176 - Publishing'
+          - '177 - Translation (General)'
+          - '178 - Interpreting'
+          - '179 - Localization'
+          - '180 - Forensic Linguistics'
+          - '181 - Language Acquisition'
+          - '182 - Bilingualism'
+          - '183 - Multilingualism'
+          - '184 - Pragmatics'
+          - '185 - Semantics'
+          - '186 - Syntax'
+          - '187 - Morphology'
+          - '188 - Phonetics'
+          - '189 - Phonology'
+          - '190 - Corpus Linguistics'
+          - '191 - Cognitive Linguistics'
+          - '192 - Typology'
+          - '193 - Sociophonetics'
+          - '194 - Language Documentation'
+          - '195 - Language Policy'
+          - '196 - Language Planning'
+          - '197 - World Englishes'
+          - '198 - Pidgins and Creoles'
+          - '199 - Sign Language'
+          - '200 - Deaf Studies'
+          - '201 - Communication Disorders'
+          - '202 - Speech Pathology'
+          - '203 - Audiology'
+          - '204 - Augmentative Communication'
+          - '205 - Early Childhood Education'
+          - '206 - Primary Education'
+          - '207 - Secondary Education'
+          - '208 - Adult Education'
+          - '209 - Distance Education'
+          - '210 - Online Learning'
+          - '211 - Blended Learning'
+          - '212 - Mobile Learning'
+          - '213 - Gamification in Education'
+          - '214 - Educational Games'
+          - '215 - Simulation in Education'
+          - '216 - Virtual Reality in Education'
+          - '217 - Augmented Reality in Education'
+          - '218 - AI in Education'
+          - '219 - EdTech'
+          - '220 - Learning Analytics'
+          - '221 - Educational Assessment'
+          - '222 - Testing and Evaluation'
+          - '223 - Formative Assessment'
+          - '224 - Summative Assessment'
+          - '225 - Authentic Assessment'
+          - '226 - Standards-based Assessment'
+          - '227 - Diagnostic Assessment'
+          - '228 - Self-assessment'
+          - '229 - Peer Assessment'
+          - '230 - Teacher Assessment'
+          - '231 - Machine Assessment'
+          - '232 - Learning Styles'
+          - '233 - Multiple Intelligences'
+          - '234 - Metacognition'
+          - '235 - Self-regulated Learning'
+          - '236 - Lifelong Learning'
+          - '237 - Informal Learning'
+          - '238 - Formal Learning'
+          - '239 - Non-formal Learning'
+          - '240 - Experiential Learning'
+          - '241 - Problem-based Learning'
+          - '242 - Project-based Learning'
+          - '243 - Inquiry-based Learning'
+          - '244 - Discovery Learning'
+          - '245 - Constructivist Learning'
+          - '246 - Collaborative Learning'
+          - '247 - Cooperative Learning'
+          - '248 - Peer Learning'
+          - '249 - Social Learning'
+          - '250 - Situated Learning'
+          - '251 - Contextual Learning'
+          - '252 - Culturally Responsive Teaching'
+          - '253 - Differentiated Instruction'
+          - '254 - Inclusive Education'
+          - '255 - Special Needs Education'
+          - '256 - Gifted Education'
+          - '257 - Vocational Education'
+          - '258 - Technical Education'
+          - '259 - STEM Education'
+          - '260 - STEAM Education'
+          - '261 - Arts Integration'
+          - '262 - Literacy Education'
+          - '263 - Numeracy Education'
+          - '264 - Science Education'
+          - '265 - Social Studies Education'
+          - '266 - Physical Education'
+          - '267 - Health Education'
+          - '268 - Sex Education'
+          - '269 - Drug Education'
+          - '270 - Nutrition Education'
+          - '271 - Environmental Education'
+          - '272 - Sustainability Education'
+          - '273 - Global Education'
+          - '274 - Citizenship Education'
+          - '275 - Peace Education'
+          - '276 - Human Rights Education'
+          - '277 - Multicultural Education'
+          - '278 - Intercultural Education'
+
+      study_type:
+        description: '📄 STUDY / PUBLICATION TYPE'
+        required: true
+        default: 'auto - Auto-detect from title'
+        type: choice
+        options:
+          - auto - Auto-detect from title
+          - '1 - Empirical Research'
+          - '2 - Systematic Review / Meta-Analysis'
+          - '3 - Literature Review'
+          - '4 - Case Study'
+          - '5 - Experimental Study'
+          - '6 - Qualitative Study'
+          - '7 - Quantitative Study'
+          - '8 - Mixed Methods'
+          - '9 - Longitudinal Study'
+          - '10 - Cross-sectional Study'
+          - '11 - Cohort Study'
+          - '12 - Correlational Study'
+          - '13 - Descriptive Study'
+          - '14 - Exploratory Study'
+          - '15 - Expository Study'
+          - '16 - Action Research'
+          - '17 - Participatory Research'
+          - '18 - Community-based Research'
+          - '19 - Ethnographic Study'
+          - '20 - Phenomenological Study'
+          - '21 - Grounded Theory'
+          - '22 - Content Analysis'
+          - '23 - Discourse Analysis'
+          - '24 - Conversation Analysis'
+          - '25 - Narrative Analysis'
+          - '26 - Thematic Analysis'
+          - '27 - Meta-synthesis'
+          - '28 - Historical Research'
+          - '29 - Comparative Study'
+          - '30 - Evaluation Study'
+          - '31 - Policy Analysis'
+          - '32 - Program Evaluation'
+          - '33 - Needs Assessment'
+          - '34 - Feasibility Study'
+          - '35 - Pilot Study'
+          - '36 - Replication Study'
+          - '37 - Validation Study'
+          - '38 - Reliability Study'
+          - '39 - Validity Study'
+          - '40 - Translation Study'
+          - '41 - Adaptation Study'
+          - '42 - Impact Assessment'
+          - '43 - Risk Assessment'
+          - '44 - Benchmarking Study'
+          - '45 - Survey Research'
+          - '46 - Delphi Study'
+          - '47 - Factorial Design'
+          - '48 - Quasi-experimental'
+          - '49 - True Experimental'
+          - '50 - Randomized Controlled Trial'
+          - '51 - Scoping Review'
+          - '52 - Critical Review'
+          - '53 - Integrative Review'
+          - '54 - Narrative Review'
+          - '55 - Rapid Review'
+          - '56 - Umbrella Review'
+          - '57 - Realist Review'
+          - '58 - Thesis / Dissertation'
+          - '59 - PhD Dissertation'
+          - '60 - Master Thesis'
+          - '61 - Conference Paper'
+          - '62 - Book Chapter'
+          - '63 - Technical Report'
+          - '64 - White Paper'
+          - '65 - Any / All types'
+
+      # ─────────────────────────────────────────────────────────────────────────
+      # 🎓 STUDY LEVEL (12 levels)
+      # ─────────────────────────────────────────────────────────────────────────
+      study_level:
+        description: '🎓 STUDY LEVEL (12 levels)'
+        required: true
+        default: '12 - Any / All Levels'
+        type: choice
+        options:
+          - '1 - PhD (Doctor of Philosophy)'
+          - '2 - EdD (Doctor of Education)'
+          - '3 - DBA (Doctor of Business Administration)'
+          - '4 - MD/PhD (Medical Doctor / Philosophy)'
+          - '5 - Professional Doctorate (e.g., DClinPsy, DBA)'
+          - "6 - Master's Degree (MA / MSc / MBA / MLIS / MEduc)"
+          - '7 - Postgraduate Diploma / Certificate'
+          - '8 - Honours Degree (BA/BSc Hons)'
+          - "9 - Bachelor's Degree (BA / BSc / BEd)"
+          - '10 - Associate Degree / Foundation'
+          - '11 - Research Article / Academic Paper'
+          - '12 - Any / All Levels'
+
+      # ─────────────────────────────────────────────────────────────────────────
+      # 🔬 RESEARCH METHODOLOGY (51 types)
+      # ─────────────────────────────────────────────────────────────────────────
+      methodology:
+        description: '🔬 RESEARCH METHODOLOGY (51 types)'
+        required: true
+        default: '51 - Any / All Methodologies'
+        type: choice
+        options:
+          - '1 - Experimental Study'
+          - '2 - Quasi-Experimental Study'
+          - '3 - True Experimental / RCT (Randomized Controlled Trial)'
+          - '4 - Non-Experimental / Correlational Study'
+          - '5 - Qualitative Study'
+          - '6 - Quantitative Study'
+          - '7 - Mixed-Methods Study'
+          - '8 - Case Study'
+          - '9 - Ethnographic Study'
+          - '10 - Phenomenological Study'
+          - '11 - Grounded Theory Study'
+          - '12 - Narrative Inquiry / Narrative Study'
+          - '13 - Action Research'
+          - '14 - Survey Research'
+          - '15 - Longitudinal Study'
+          - '16 - Cross-Sectional Study'
+          - '17 - Cohort Study'
+          - '18 - Cross-Cultural Study'
+          - '19 - Comparative Study'
+          - '20 - Historical Research'
+          - '21 - Content Analysis Study'
+          - '22 - Discourse Analysis Study'
+          - '23 - Conversational Analysis'
+          - '24 - Corpus-Based Study'
+          - '25 - Grounded Theory Methodology'
+          - '26 - Interpretive Phenomenological Analysis (IPA)'
+          - '27 - Framework Analysis'
+          - '28 - Thematic Analysis'
+          - '29 - Constant Comparative Method'
+          - '30 - Design-Based Research'
+          - '31 - Design Science Research'
+          - '32 - Delphi Study'
+          - '33 - Focus Group Study'
+          - '34 - Interview-Based Study'
+          - '35 - Observation Study'
+          - '36 - Triangulation Study'
+          - '37 - Replication Study'
+          - '38 - Systematic Review & Meta-Analysis'
+          - '39 - Bibliometric Analysis'
+          - '40 - Scientometric Study'
+          - '41 - Network Analysis Study'
+          - '42 - Simulation Study'
+          - '43 - Modelling Study'
+          - '44 - Computational Study'
+          - '45 - Theoretical / Conceptual Study'
+          - '46 - Philosophical Study'
+          - '47 - Critical Theory Study'
+          - '48 - Feminist Research'
+          - '49 - Participatory Action Research (PAR)'
+          - '50 - Community-Based Participatory Research (CBPR)'
+          - '51 - Any / All Methodologies'
+
+      # ─────────────────────────────────────────────────────────────────────────
+      # 📑 THESIS / DISSERTATION PART (28 parts)
+      # ─────────────────────────────────────────────────────────────────────────
+      thesis_part:
+        description: '📑 THESIS / DISSERTATION PART (28 parts)'
+        required: true
+        default: '28 - Any / All Parts'
+        type: choice
+        options:
+          - '1 - Abstract / Executive Summary'
+          - '2 - Introduction / Chapter 1'
+          - '3 - Literature Review / Chapter 2'
+          - '4 - Theoretical Framework'
+          - '5 - Methodology / Chapter 3'
+          - '6 - Results / Findings / Chapter 4'
+          - '7 - Discussion / Chapter 5'
+          - '8 - Conclusion & Recommendations'
+          - '9 - References / Bibliography'
+          - '10 - Appendices'
+          - '11 - Introduction (Article)'
+          - '12 - Literature Review (Article)'
+          - '13 - Methods (Article)'
+          - '14 - Results (Article)'
+          - '15 - Discussion (Article)'
+          - '16 - Conclusion (Article)'
+          - '17 - Preface / Foreword'
+          - '18 - Introduction (Book)'
+          - '19 - Chapter Content (Book)'
+          - '20 - Conclusion (Book)'
+          - '21 - Epilogue / Afterword'
+          - '22 - Executive Summary (Report)'
+          - '23 - Introduction (Report)'
+          - '24 - Methodology (Report)'
+          - '25 - Findings (Report)'
+          - '26 - Conclusions (Report)'
+          - '27 - Recommendations (Report)'
+          - '28 - Any / All Parts'
+
+      # ─────────────────────────────────────────────────────────────────────────
+      # 📊 JOURNAL RANKING / QUARTILE (12 options)
+      # ─────────────────────────────────────────────────────────────────────────
+      quartile:
+        description: '📊 JOURNAL RANKING / QUARTILE (12 options)'
+        required: true
+        default: '7 - All Quartiles (Q1-Q4)'
+        type: choice
+        options:
+          - '1 - Q1 (Top 25% - Highest Impact)'
+          - '2 - Q2 (50-75% - Above Average)'
+          - '3 - Q3 (25-50% - Average Impact)'
+          - '4 - Q4 (Bottom 25% - Lower Impact)'
+          - '5 - Q1 + Q2 (Top Tier Only)'
+          - '6 - Q1 + Q2 + Q3 (Mid-High Tier)'
+          - '7 - All Quartiles (Q1-Q4)'
+          - '8 - Not Indexed / Unknown Quartile'
+          - '9 - Indexed Only (Any Quartile)'
+          - '10 - Scopus-Indexed Only'
+          - '11 - Web of Science-Indexed Only'
+          - '12 - All Indexes'
+
+      language:
+        description: '🌐 SEARCH LANGUAGE (Filters ALL PDFs by language)'
+        required: true
+        default: '1 - English only'
+        type: choice
+        options:
+          - '1 - English only'
+          - '2 - Arabic only'
+          - '3 - French only'
+          - '4 - Spanish only'
+          - '5 - German only'
+          - '6 - Chinese only'
+          - '7 - Japanese only'
+          - '8 - Russian only'
+          - '9 - Portuguese only'
+          - '10 - English + Arabic'
+          - '11 - English + French'
+          - '12 - English + Spanish'
+          - '13 - Arabic + French'
+          - '14 - All European (EN+FR+ES+DE)'
+          - '15 - All languages'
+      year_from:
+        description: '📅 YEAR FROM (Publication Year Start - History researchers: go back to 1500!)'
+        required: false
+        default: ''
+        type: choice
+        options:
+          - 'all - All Years (No Limit)'
+          - '2026 - Current Year'
+          - '2025 - Last Year'
+          - '2024'
+          - '2023'
+          - '2022'
+          - '2021'
+          - '2020'
+          - '2019'
+          - '2018'
+          - '2017'
+          - '2016'
+          - '2015'
+          - '2014'
+          - '2013'
+          - '2012'
+          - '2011'
+          - '2010'
+          - '2009'
+          - '2008'
+          - '2007'
+          - '2006'
+          - '2005'
+          - '2004'
+          - '2003'
+          - '2002'
+          - '2001'
+          - '2000'
+          - '1999'
+          - '1998'
+          - '1997'
+          - '1996'
+          - '1995'
+          - '1994'
+          - '1993'
+          - '1992'
+          - '1991'
+          - '1990'
+          - '1989'
+          - '1988'
+          - '1987'
+          - '1986'
+          - '1985'
+          - '1984'
+          - '1983'
+          - '1982'
+          - '1981'
+          - '1980'
+          - '1979'
+          - '1978'
+          - '1977'
+          - '1976'
+          - '1975'
+          - '1974'
+          - '1973'
+          - '1972'
+          - '1971'
+          - '1970'
+          - '1969'
+          - '1968'
+          - '1967'
+          - '1966'
+          - '1965'
+          - '1964'
+          - '1963'
+          - '1962'
+          - '1961'
+          - '1960'
+          - '1959'
+          - '1958'
+          - '1957'
+          - '1956'
+          - '1955'
+          - '1954'
+          - '1953'
+          - '1952'
+          - '1951'
+          - '1950'
+          - '1949'
+          - '1948'
+          - '1947'
+          - '1946'
+          - '1945'
+          - '1944'
+          - '1943'
+          - '1942'
+          - '1941'
+          - '1940'
+          - '1939'
+          - '1938'
+          - '1937'
+          - '1936'
+          - '1935'
+          - '1934'
+          - '1933'
+          - '1932'
+          - '1931'
+          - '1930'
+          - '1929'
+          - '1928'
+          - '1927'
+          - '1926'
+          - '1925'
+          - '1924'
+          - '1923'
+          - '1922'
+          - '1921'
+          - '1920'
+          - '1919'
+          - '1918'
+          - '1917'
+          - '1916'
+          - '1915'
+          - '1914'
+          - '1913'
+          - '1912'
+          - '1911'
+          - '1910'
+          - '1909'
+          - '1908'
+          - '1907'
+          - '1906'
+          - '1905'
+          - '1904'
+          - '1903'
+          - '1902'
+          - '1901'
+          - '1900'
+          - '1899'
+          - '1898'
+          - '1897'
+          - '1896'
+          - '1895'
+          - '1894'
+          - '1893'
+          - '1892'
+          - '1891'
+          - '1890'
+          - '1889'
+          - '1888'
+          - '1887'
+          - '1886'
+          - '1885'
+          - '1884'
+          - '1883'
+          - '1882'
+          - '1881'
+          - '1880'
+          - '1879'
+          - '1878'
+          - '1877'
+          - '1876'
+          - '1875'
+          - '1874'
+          - '1873'
+          - '1872'
+          - '1871'
+          - '1870'
+          - '1869'
+          - '1868'
+          - '1867'
+          - '1866'
+          - '1865'
+          - '1864'
+          - '1863'
+          - '1862'
+          - '1861'
+          - '1860'
+          - '1859'
+          - '1858'
+          - '1857'
+          - '1856'
+          - '1855'
+          - '1854'
+          - '1853'
+          - '1852'
+          - '1851'
+          - '1850'
+          - '1849'
+          - '1848'
+          - '1847'
+          - '1846'
+          - '1845'
+          - '1844'
+          - '1843'
+          - '1842'
+          - '1841'
+          - '1840'
+          - '1839'
+          - '1838'
+          - '1837'
+          - '1836'
+          - '1835'
+          - '1834'
+          - '1833'
+          - '1832'
+          - '1831'
+          - '1830'
+          - '1829'
+          - '1828'
+          - '1827'
+          - '1826'
+          - '1825'
+          - '1824'
+          - '1823'
+          - '1822'
+          - '1821'
+          - '1820'
+          - '1819'
+          - '1818'
+          - '1817'
+          - '1816'
+          - '1815'
+          - '1814'
+          - '1813'
+          - '1812'
+          - '1811'
+          - '1810'
+          - '1809'
+          - '1808'
+          - '1807'
+          - '1806'
+          - '1805'
+          - '1804'
+          - '1803'
+          - '1802'
+          - '1801'
+          - '1800'
+          - '1799'
+          - '1798'
+          - '1797'
+          - '1796'
+          - '1795'
+          - '1794'
+          - '1793'
+          - '1792'
+          - '1791'
+          - '1790'
+          - '1789'
+          - '1788'
+          - '1787'
+          - '1786'
+          - '1785'
+          - '1784'
+          - '1783'
+          - '1782'
+          - '1781'
+          - '1780'
+          - '1775'
+          - '1770'
+          - '1765'
+          - '1760'
+          - '1755'
+          - '1750'
+          - '1745'
+          - '1740'
+          - '1735'
+          - '1730'
+          - '1725'
+          - '1720'
+          - '1715'
+          - '1710'
+          - '1705'
+          - '1700'
+          - '1695'
+          - '1690'
+          - '1685'
+          - '1680'
+          - '1675'
+          - '1670'
+          - '1665'
+          - '1660'
+          - '1655'
+          - '1650'
+          - '1645'
+          - '1640'
+          - '1635'
+          - '1630'
+          - '1625'
+          - '1620'
+          - '1615'
+          - '1610'
+          - '1605'
+          - '1600'
+          - '1595'
+          - '1590'
+          - '1585'
+          - '1580'
+          - '1575'
+          - '1570'
+          - '1565'
+          - '1560'
+          - '1555'
+          - '1550'
+          - '1545'
+          - '1540'
+          - '1535'
+          - '1530'
+          - '1525'
+          - '1520'
+          - '1515'
+          - '1510'
+          - '1505'
+          - '1500 - Ancient/Historical Sources'
+
+      year_to:
+        description: '📅 YEAR TO (Publication Year End - History researchers: include ancient sources to 1500!)'
+        required: false
+        default: ''
+        type: choice
+        options:
+          - 'current - Current Year (2026)'
+          - '2026 - Current Year'
+          - '2025'
+          - '2024'
+          - '2023'
+          - '2022'
+          - '2021'
+          - '2020'
+          - '2019'
+          - '2018'
+          - '2017'
+          - '2016'
+          - '2015'
+          - '2010'
+          - '2005'
+          - '2000'
+          - '1995'
+          - '1990'
+          - '1985'
+          - '1980'
+          - '1975'
+          - '1970'
+          - '1965'
+          - '1960'
+          - '1955'
+          - '1950'
+          - '1945'
+          - '1940'
+          - '1935'
+          - '1930'
+          - '1925'
+          - '1920'
+          - '1915'
+          - '1910'
+          - '1905'
+          - '1900'
+          - '1895'
+          - '1890'
+          - '1885'
+          - '1880'
+          - '1875'
+          - '1870'
+          - '1865'
+          - '1860'
+          - '1855'
+          - '1850'
+          - '1845'
+          - '1840'
+          - '1835'
+          - '1830'
+          - '1825'
+          - '1820'
+          - '1815'
+          - '1810'
+          - '1805'
+          - '1800'
+          - '1795'
+          - '1790'
+          - '1785'
+          - '1780'
+          - '1775'
+          - '1770'
+          - '1765'
+          - '1760'
+          - '1755'
+          - '1750'
+          - '1745'
+          - '1740'
+          - '1735'
+          - '1730'
+          - '1725'
+          - '1720'
+          - '1715'
+          - '1710'
+          - '1705'
+          - '1700'
+          - '1695'
+          - '1690'
+          - '1685'
+          - '1680'
+          - '1675'
+          - '1670'
+          - '1665'
+          - '1660'
+          - '1655'
+          - '1650'
+          - '1645'
+          - '1640'
+          - '1635'
+          - '1630'
+          - '1625'
+          - '1620'
+          - '1615'
+          - '1610'
+          - '1605'
+          - '1600'
+          - '1595'
+          - '1590'
+          - '1585'
+          - '1580'
+          - '1575'
+          - '1570'
+          - '1565'
+          - '1560'
+          - '1555'
+          - '1550'
+          - '1545'
+          - '1540'
+          - '1535'
+          - '1530'
+          - '1525'
+          - '1520'
+          - '1515'
+          - '1510'
+          - '1505'
+          - '1500 - Ancient/Historical Sources'
+      mode:
+        description: '⚡ SEARCH MODE — All modes search all 128+ platforms. Mode controls paper count, download depth, and Q-fill strategy. Every mode guarantees Excel (40+ sheets) + DOCX output.'
+        required: true
+        default: 'deep - DEEP (~3-6 hrs) - Max 2000 papers, full DL, all quartiles [RECOMMENDED]'
+        type: choice
+        options:
+          - 'sample - SAMPLE (~5-10 min) - Max 50 papers, NO downloads, Excel+DOCX guaranteed'
+          - 'simple - SIMPLE (~10-20 min) - Max 150 papers, metadata only, Excel+DOCX'
+          - 'quick - QUICK (~20-40 min) - Max 300 papers, 20% selective DL'
+          - 'field - FIELD (~45-90 min) - Max 500 papers, 50% DL [Student RECOMMENDED]'
+          - 'extended - EXTENDED (~1.5-3 hrs) - Max 1000 papers, full DL [RECOMMENDED]'
+          - 'deep - DEEP (~3-6 hrs) - Max 2000 papers, full DL, all quartiles [RECOMMENDED]'
+          - 'ultra - ULTRA (~8-16 hrs) - Max 5000 papers, full DL + Q1-Q4 stratified fill'
+          - 'maximum - MAXIMUM (~16-32 hrs) - Unlimited papers, exhaustive DL + Q1-Q4 fill'
+      paper_limit:
+        description: '📦 PAPER LIMIT — Overrides mode default. Sets maximum papers to collect across all platforms.'
+        required: true
+        default: '4 - Standard — 500 papers — Balanced [RECOMMENDED]'
+        type: choice
+        options:
+          - '1 - Light — 50 papers — Quick metadata test'
+          - '2 - Small — 150 papers — Basic search'
+          - '3 - Medium — 300 papers — Standard research'
+          - '4 - Standard — 500 papers — Balanced [RECOMMENDED]'
+          - '5 - Extended — 800 papers — Comprehensive'
+          - '6 - Deep — 1,200 papers — Thorough coverage'
+          - '7 - Ultra — 2,000 papers — Maximum standard'
+          - '8 - Mega — 5,000 papers — Extensive coverage'
+          - '9 - Giga — 10,000 papers — Very extensive'
+          - '10 - Tera — 20,000 papers — Near exhaustive'
+          - '11 - Infinite — 40,000+ papers — ALL available'
+          - '12 - Unlimited — 100,000+ papers — Complete exhaustive'
+      scihub:
+        description: '🔓 ENABLE OPEN ACCESS FALLBACK (finds free versions of paywalled papers)'
+        required: true
+        default: true
+        type: boolean
+      learn:
+        description: '🧠 ENABLE LEARNING SYSTEM (updates JSON memory with findings)'
+        required: true
+        default: true
+        type: boolean
+      generate_paper:
+        description: '📝 GENERATE SCOPUS-QUALITY PAPER (after search completes)'
+        required: true
+        default: false
+        type: boolean
+      paper_type:
+        description: '📄 PAPER TYPE TO GENERATE (45+ types available)'
+        required: true
+        default: 'empirical - 📊 Empirical Research (Quantitative)'
+        type: choice
+        options:
+          - empirical - 📊 Empirical Research (Quantitative)
+          - qualitative - 📝 Qualitative Study
+          - mixed_methods - 🔄 Mixed Methods Research
+          - systematic_review - 📚 Systematic Review
+          - meta_analysis - 📈 Meta-Analysis
+          - scoping_review - 🔍 Scoping Review
+          - narrative_review - 📖 Narrative Review
+          - integrative_review - 🔗 Integrative Review
+          - rapid_review - ⚡ Rapid Review
+          - experimental - 🧪 Experimental Study
+          - quasi_experimental - ⚗️ Quasi-Experimental
+          - longitudinal - 📈 Longitudinal Study
+          - cross_sectional - 📊 Cross-sectional Study
+          - cohort - 👥 Cohort Study
+          - case_study - 📋 Case Study
+          - phenomenological - 🎭 Phenomenological Study
+          - ethnographic - 🌍 Ethnographic Study
+          - grounded_theory - 🏗️ Grounded Theory
+          - action_research - 🔄 Action Research
+          - Delphi - 🎯 Delphi Study
+          - correlational - 📊 Correlational Study
+          - descriptive - 📝 Descriptive Study
+          - exploratory - 🔎 Exploratory Study
+          - historical - 📜 Historical Research
+          - comparative - ⚖️ Comparative Study
+          - evaluation - 📊 Program Evaluation
+          - policy_analysis - 📋 Policy Analysis
+          - feasibility - ✅ Feasibility Study
+          - pilot - 🚀 Pilot Study
+          - validation - ✔️ Validation Study
+          - thesis_phd - 🎓 PhD Dissertation
+          - thesis_master - 📚 Master's Thesis
+          - thesis_bachelor - 📖 Bachelor's Thesis
+          - conference_paper - 🎤 Conference Paper
+          - book_chapter - 📖 Book Chapter
+          - technical_report - 📝 Technical Report
+          - white_paper - 📄 White Paper
+          - protocol - 📋 Research Protocol
+          - proposal - 📝 Research Proposal
+
+      output_format:
+        description: '📋 OUTPUT FORMATS — Mode default is used unless overridden. "both_docx_xlsx" always produces Excel (40+ sheets) + DOCX + clickable links.'
+        required: true
+        default: 'both_docx_xlsx - 📊 Both DOCX + XLSX (40+ sheets) + clickable PDF links [RECOMMENDED]'
+        type: choice
+        options:
+          - all - 📦 ALL FORMATS (DOCX+PDF+Excel-MD+TXT+JSON+CSV+HTML)
+          - both_docx_xlsx - 📊 DOCX + XLSX 40-sheet + clickable links [RECOMMENDED]
+          - metadata_only - 📋 Metadata only — Excel + DOCX with links, NO PDF download
+          - search_only - 🔍 Search only — alias for metadata_only
+          - excel_40_sheets - 📊 Excel 40-sheet Ultimate Dashboard (with charts + world map)
+          - excel_ultimate - 🏆 Excel Ultimate (40+ sheets, charts, world map image)
+          - docx_scopus - 📝 DOCX Scopus-Quality (Publication Ready)
+          - docx_standard - 📄 DOCX Standard Academic Format
+          - docx_both - 📑 DOCX Both (Scopus + Standard)
+          - pdf - 📕 PDF (Print-Ready Document)
+          - excel_master - 📊 Excel Master Sheet (All Papers)
+          - excel_filtered - 📉 Excel Filtered by Type/Year
+          - excel_analysis - 📈 Excel with Analysis Charts
+          - markdown - 📋 Markdown (MD) - Readable Format
+          - txt - 📃 Plain Text (TXT) - Simple Format
+          - json - 📦 JSON - Structured Data Export
+          - csv - 📊 CSV - Spreadsheet Compatible
+          - html - 🌐 HTML - Web Report
+          - latex - 📐 LaTeX - Academic Typesetting
+          - xml - 📦 XML - Structured Metadata
+
+      # ─────────────────────────────────────────────────────────────────────────
+      # 🌍 GEOGRAPHIC AREA / REGION (77 options)
+      # ─────────────────────────────────────────────────────────────────────────
+      geographic_area:
+        description: '🌍 GEOGRAPHIC AREA / REGION (77 options)'
+        required: false
+        default: 'worldwide - 🌍 Worldwide (All Countries)'
+        type: choice
+        options:
+          - worldwide - 🌍 Worldwide (All Countries)
+          - americas - 🌎 Americas
+          - north_america - 🌎 North America (USA, Canada, Mexico)
+          - usa - 🇺🇸 United States (USA)
+          - canada - 🇨🇦 Canada
+          - mexico - 🇲🇽 Mexico
+          - latin_america - 🌎 Latin America (Central & South America)
+          - brazil - 🇧🇷 Brazil
+          - argentina - 🇦🇷 Argentina
+          - chile - 🇨🇱 Chile
+          - colombia - 🇨🇴 Colombia
+          - venezuela - 🇻🇪 Venezuela
+          - peru - 🇵🇪 Peru
+          - europe - 🌍 Europe
+          - uk - 🇬🇧 United Kingdom
+          - germany - 🇩🇪 Germany
+          - france - 🇫🇷 France
+          - italy - 🇮🇹 Italy
+          - spain - 🇪🇸 Spain
+          - netherlands - 🇳🇱 Netherlands
+          - belgium - 🇧🇪 Belgium
+          - switzerland - 🇨🇭 Switzerland
+          - austria - 🇦🇹 Austria
+          - poland - 🇵🇱 Poland
+          - sweden - 🇸🇪 Sweden
+          - norway - 🇳🇴 Norway
+          - denmark - 🇩🇰 Denmark
+          - finland - 🇫🇮 Finland
+          - portugal - 🇵🇹 Portugal
+          - greece - 🇬🇷 Greece
+          - czech_republic - 🇨🇿 Czech Republic
+          - hungary - 🇭🇺 Hungary
+          - romania - 🇷🇴 Romania
+          - bulgaria - 🇧🇬 Bulgaria
+          - middle_east - 🌍 Middle East
+          - saudi_arabia - 🇸🇦 Saudi Arabia
+          - uae - 🇦🇪 United Arab Emirates
+          - qatar - 🇶🇦 Qatar
+          - kuwait - 🇰🇼 Kuwait
+          - bahrain - 🇧🇭 Bahrain
+          - oman - 🇴🇲 Oman
+          - jordan - 🇯🇴 Jordan
+          - lebanon - 🇱🇧 Lebanon
+          - israel - 🇮🇱 Israel
+          - turkey - 🇹🇷 Turkey
+          - iran - 🇮🇷 Iran
+          - iraq - 🇮🇶 Iraq
+          - north_africa - 🌍 North Africa
+          - egypt - 🇪🇬 Egypt
+          - libya - 🇱🇾 Libya
+          - tunisia - 🇹🇳 Tunisia
+          - algeria - 🇩🇿 Algeria
+          - morocco - 🇲🇦 Morocco
+          - sudan - 🇸🇩 Sudan
+          - sub_saharan_africa - 🌍 Sub-Saharan Africa
+          - south_africa - 🇿🇦 South Africa
+          - nigeria - 🇳🇬 Nigeria
+          - kenya - 🇰🇪 Kenya
+          - ethiopia - 🇪🇹 Ethiopia
+          - ghana - 🇬🇭 Ghana
+          - tanzania - 🇹🇿 Tanzania
+          - uganda - 🇺🇬 Uganda
+          - asia_pacific - 🌏 Asia Pacific
+          - china - 🇨🇳 China
+          - japan - 🇯🇵 Japan
+          - south_korea - 🇰🇷 South Korea
+          - india - 🇮🇳 India
+          - singapore - 🇸🇬 Singapore
+          - hong_kong - 🇭🇰 Hong Kong
+          - taiwan - 🇹🇼 Taiwan
+          - australia - 🇦🇺 Australia
+          - new_zealand - 🇳🇿 New Zealand
+          - philippines - 🇵🇭 Philippines
+          - malaysia - 🇲🇾 Malaysia
+          - indonesia - 🇮🇩 Indonesia
+          - thailand - 🇹🇭 Thailand
+          - vietnam - 🇻🇳 Vietnam
+
+      folder_mode:
+        description: '📁 OUTPUT FOLDER STRUCTURE'
+        required: true
+        default: 'hierarchy - 📊 Hierarchical (16 folders)'
+        type: choice
+        options:
+          - hierarchy - 📊 Hierarchical (16 folders)
+          - single - 📄 Single folder
+      proxy:
+        description: '🌐 PROXY / QODER'
+        required: true
+        default: 'n - None (Direct)'
+        type: choice
+        options:
+          - n - None (Direct)
+          - y - Auto-detect
+          - p - Custom URL
+
+
+jobs:
+  verify:
+    if: github.event_name == 'push' || github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Ollama AI + OCR
+        id: setup
+        uses: ./.github/actions/ollama-ai
+        with:
+          model: "qwen2.5vl:3b"
+          ollama-version: "0.30.4"
+      - name: Check model health
+        if: steps.setup.outputs.model-ready != 'true'
+        run: |
+          echo "❌ Model failed all auto-repair attempts."
+          echo "Last known health: ${{ steps.setup.outputs.model-ready }}"
+          echo "See diagnostics above for root cause."
+          echo "Common fixes: clear ~/.ollama cache, or try a different model."
+          exit 1
+      - name: Install Python dependencies
+        run: pip install -q requests rich openpyxl python-docx python-pptx pdfplumber pymupdf pytesseract reportlab playwright pillow ollama
+      - name: Run full stack verification
+        run: python scripts/verify.py --model qwen2.5vl:3b --ci
+
+  research:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Setup Ollama AI + OCR
+        id: setup
+        uses: ./.github/actions/ollama-ai
+        with:
+          model: "qwen2.5vl:3b"
+          ollama-version: "0.30.4"
+      - name: Check model health
+        if: steps.setup.outputs.model-ready != 'true'
+        run: |
+          echo "❌ Model failed all auto-repair attempts."
+          echo "Health: ${{ steps.setup.outputs.model-ready }}"
+          echo "Research pipeline aborted — cannot proceed without working model."
+          exit 1
+      - name: Install dependencies
+        run: |
+          pip install -q requests rich openpyxl python-docx python-pptx pdfplumber pymupdf playwright pillow pytesseract reportlab ollama
+          python -m playwright install chromium 2>&1 | tail -5
+      - name: Determine output folder (deterministic name from title)
+        id: folder
+        shell: bash
+        run: |
+          TITLE="${{ github.event.inputs.title }}"
+          SAFE=$(echo "$TITLE" | sed 's/[^a-zA-Z0-9_\-]/_/g' | sed 's/__*/_/g' | cut -c1-50)
+          echo "folder_name=RESEARCH_${SAFE}" >> $GITHUB_OUTPUT
+          echo "Using folder: RESEARCH_${SAFE}"
+      - name: Download previous research data (cumulative)
+        if: always()
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: research-data-${{ steps.folder.outputs.folder_name }}
+          path: pdf_files_restore
+      - name: Download previous cache (resume support)
+        if: always()
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: cache-data
+          path: download_cache
+      - name: Restore cumulative data and cache
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: |
+          mkdir -p pdf_files
+          echo "Restoring previous data and cache..."
+          if [ -d "pdf_files_restore" ]; then
+            echo "Found previous research data"
+            cp -r pdf_files_restore/. pdf_files/
+            rm -rf pdf_files_restore
+          else
+            echo "No previous research data found - starting fresh"
+          fi
+          if [ -d "download_cache" ]; then
+            cp -f download_cache/*.json . 2>/dev/null || true
+            if [ -d "download_cache/pdf_files" ]; then
+              cp -rn download_cache/pdf_files/. pdf_files/ 2>/dev/null || true
+            fi
+            rm -rf download_cache
+          fi
+          echo "All data restored"
+          ls -la pdf_files/ 2>/dev/null | head -20
+      - name: Build command arguments
+        id: args
+        shell: bash
+        run: |
+          BASE_DIR="pdf_files/${{ steps.folder.outputs.folder_name }}"
+          mkdir -p "$BASE_DIR"
+          if [ "${{ github.event.inputs.folder_mode }}" == "single" ]; then
+            ARGS="--title \"${{ github.event.inputs.title }}\" --single-folder"
+          else
+            ARGS="--title \"${{ github.event.inputs.title }}\""
+          fi
+          if [ -n "${{ github.event.inputs.rq1 }}" ]; then ARGS="$ARGS --rq1 \"${{ github.event.inputs.rq1 }}\""; fi
+          if [ -n "${{ github.event.inputs.rq2 }}" ]; then ARGS="$ARGS --rq2 \"${{ github.event.inputs.rq2 }}\""; fi
+          if [ -n "${{ github.event.inputs.rq3 }}" ]; then ARGS="$ARGS --rq3 \"${{ github.event.inputs.rq3 }}\""; fi
+          FIELD_VAL="${{ github.event.inputs.field }}"
+          FIELD_NUM=$(echo "$FIELD_VAL" | cut -d' ' -f1)
+          if [ "$FIELD_NUM" != "auto" ] && [ -n "$FIELD_NUM" ]; then ARGS="$ARGS --field \"$FIELD_NUM\""; fi
+          ST_VAL="${{ github.event.inputs.study_type }}"
+          ST_NUM=$(echo "$ST_VAL" | cut -d' ' -f1)
+          if [ "$ST_NUM" != "auto" ] && [ -n "$ST_NUM" ]; then ARGS="$ARGS --study-type \"$ST_NUM\""; fi
+          SL_VAL="${{ github.event.inputs.study_level }}"
+          SL_NUM=$(echo "$SL_VAL" | cut -d' ' -f1)
+          if [ -n "$SL_NUM" ] && [ "$SL_NUM" != "12" ]; then ARGS="$ARGS --study-level $SL_NUM"; fi
+          METH_VAL="${{ github.event.inputs.methodology }}"
+          METH_NUM=$(echo "$METH_VAL" | cut -d' ' -f1)
+          if [ -n "$METH_NUM" ] && [ "$METH_NUM" != "51" ]; then ARGS="$ARGS --methodology $METH_NUM"; fi
+          TP_VAL="${{ github.event.inputs.thesis_part }}"
+          TP_NUM=$(echo "$TP_VAL" | cut -d' ' -f1)
+          if [ -n "$TP_NUM" ] && [ "$TP_NUM" != "28" ]; then ARGS="$ARGS --dissertation-part $TP_NUM"; fi
+          Q_VAL="${{ github.event.inputs.quartile }}"
+          Q_NUM=$(echo "$Q_VAL" | cut -d' ' -f1)
+          if [ -n "$Q_NUM" ]; then ARGS="$ARGS --quartile-filter $Q_NUM"; fi
+          LANG_VAL="${{ github.event.inputs.language }}"
+          LANG_NUM=$(echo "$LANG_VAL" | cut -d' ' -f1)
+          ARGS="$ARGS --language $LANG_NUM"
+          if [ -n "${{ github.event.inputs.year_from }}" ]; then ARGS="$ARGS --year-from ${{ github.event.inputs.year_from }}"; fi
+          if [ -n "${{ github.event.inputs.year_to }}" ]; then ARGS="$ARGS --year-to ${{ github.event.inputs.year_to }}"; fi
+          MODE="${{ github.event.inputs.mode }}"
+          MODE="${MODE%% *}"
+          ARGS="$ARGS --mode $MODE"
+          PLIMIT="${{ github.event.inputs.paper_limit }}"
+          PLIMIT_NUM=$(echo "$PLIMIT" | cut -d' ' -f1)
+          if [ -n "$PLIMIT_NUM" ]; then ARGS="$ARGS --max-batches $PLIMIT_NUM"; fi
+          if [ "${{ github.event.inputs.scihub }}" == "true" ]; then ARGS="$ARGS --scihub"; fi
+          if [ "${{ github.event.inputs.learn }}" == "true" ]; then ARGS="$ARGS --learn"; fi
+          if [ "${{ github.event.inputs.generate_paper }}" == "true" ]; then ARGS="$ARGS --generate-paper"; fi
+          PT_VAL="${{ github.event.inputs.paper_type }}"
+          PT_KEY=$(echo "$PT_VAL" | cut -d' ' -f1)
+          if [ -n "$PT_KEY" ]; then ARGS="$ARGS --paper-type $PT_KEY"; fi
+          OF_VAL="${{ github.event.inputs.output_format }}"
+          OF_KEY=$(echo "$OF_VAL" | cut -d' ' -f1)
+          if [ -n "$OF_KEY" ]; then ARGS="$ARGS --output-format $OF_KEY"; fi
+          if [ "${{ github.event.inputs.proxy }}" == "y" ] || [ "${{ github.event.inputs.proxy }}" == "p" ]; then ARGS="$ARGS --proxy ${{ github.event.inputs.proxy }}"; fi
+          echo "args=$ARGS" >> $GITHUB_OUTPUT
+
+      - name: Run Research Hunter (cumulative mode)
+        env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+          PYTHONIOENCODING: utf-8
+        run: |
+          echo "========================================================"
+          echo "  Research Hunter - CUMULATIVE MODE"
+          echo "  All runs accumulate into one folder and ZIP"
+          echo "========================================================"
+          echo ""
+          echo "Search Parameters:"
+          echo ""
+          python research_hunter_v2-4.py ${{ steps.args.outputs.args }}
+
+      - name: Check results
+        id: check_results
+        shell: bash
+        run: |
+          echo "=== Results Summary ==="
+          OUT_DIR="pdf_files/${{ steps.folder.outputs.folder_name }}"
+          PDF_COUNT=$(find "$OUT_DIR" -name "*.pdf" 2>/dev/null | wc -l)
+          JSON_COUNT=$(find "$OUT_DIR" -name "results.json" 2>/dev/null | wc -l)
+          echo "PDFs in cumulative folder: $PDF_COUNT"
+          echo "Results JSON: $JSON_COUNT"
+          echo "pdf_count=$PDF_COUNT" >> $GITHUB_OUTPUT
+          if [ "$PDF_COUNT" -gt 0 ] || [ "$JSON_COUNT" -gt 0 ]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+          else
+            echo "status=no_results" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Zip cumulative results
+        if: always()
+        shell: bash
+        run: |
+          OUT_DIR="pdf_files/${{ steps.folder.outputs.folder_name }}"
+          TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+          SAFE_TITLE=$(echo "${{ github.event.inputs.title }}" | sed 's/[^a-zA-Z0-9_\-]/_/g' | cut -c1-30)
+          ZIP_NAME="${SAFE_TITLE}_cumulative.zip"
+          echo "Creating cumulative ZIP: $ZIP_NAME"
+          if [ -d "$OUT_DIR" ] && [ "$(find "$OUT_DIR" -type f 2>/dev/null | wc -l)" -gt 0 ]; then
+            sudo apt-get update -qq && sudo apt-get install -y -qq zip unzip
+            zip -r -9 "$ZIP_NAME" "$OUT_DIR"
+            echo "ZIP created: $ZIP_NAME ($(du -h "$ZIP_NAME" | cut -f1))"
+          else
+            echo "No data to zip yet"
+            touch "$ZIP_NAME"
+          fi
+          echo "zip_name=$ZIP_NAME" >> $GITHUB_OUTPUT
+
+      - name: Auto-trigger next run (chain continuation)
+        if: always() && steps.check_results.outputs.status == 'success'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TRIGGER_TITLE: ${{ github.event.inputs.title }}
+          TRIGGER_RQ1: ${{ github.event.inputs.rq1 }}
+          TRIGGER_RQ2: ${{ github.event.inputs.rq2 }}
+          TRIGGER_RQ3: ${{ github.event.inputs.rq3 }}
+          TRIGGER_FIELD: ${{ github.event.inputs.field }}
+          TRIGGER_STUDY_TYPE: ${{ github.event.inputs.study_type }}
+          TRIGGER_LANGUAGE: ${{ github.event.inputs.language }}
+          TRIGGER_YEAR_FROM: ${{ github.event.inputs.year_from }}
+          TRIGGER_YEAR_TO: ${{ github.event.inputs.year_to }}
+          TRIGGER_MODE: ${{ github.event.inputs.mode }}
+          TRIGGER_FOLDER_MODE: ${{ github.event.inputs.folder_mode }}
+          TRIGGER_SCI_HUB: ${{ github.event.inputs.scihub }}
+          TRIGGER_PROXY: ${{ github.event.inputs.proxy }}
+          TRIGGER_LEARN: ${{ github.event.inputs.learn }}
+          TRIGGER_GENERATE_PAPER: ${{ github.event.inputs.generate_paper }}
+          TRIGGER_PAPER_TYPE: ${{ github.event.inputs.paper_type }}
+          TRIGGER_OUTPUT_FORMAT: ${{ github.event.inputs.output_format }}
+        shell: bash
+        run: |
+          echo "Checking if more work remains..."
+          CACHE_FILE="pdf_files/${{ steps.folder.outputs.folder_name }}/search_cache.json"
+          if [ ! -f "$CACHE_FILE" ]; then
+            echo "No cache file found - cannot determine remaining work"
+            exit 0
+          fi
+          TOTAL_FOUND=$(python3 -c "import json; d=json.load(open('$CACHE_FILE')); print(len(d.get('papers_found',{})))" 2>/dev/null || echo "0")
+          TOTAL_DL=$(python3 -c "import json; d=json.load(open('$CACHE_FILE')); print(len(d.get('papers_downloaded',{})))" 2>/dev/null || echo "0")
+          EXHAUSTED=$(python3 -c "import json; d=json.load(open('$CACHE_FILE')); print(str(d.get('queries_exhausted',False)))" 2>/dev/null || echo "False")
+          echo "Progress: $TOTAL_DL downloaded / $TOTAL_FOUND found / exhausted=$EXHAUSTED"
+          if [ "$EXHAUSTED" = "True" ] && [ "$TOTAL_FOUND" -le "$TOTAL_DL" ]; then
+            echo "All work complete - no need to trigger another run"
+            exit 0
+          fi
+          REMAINING=$(( (TOTAL_FOUND - TOTAL_DL + 49) / 50 ))
+          echo "Approximately $REMAINING batches remaining"
+          if [ "$REMAINING" -le 0 ]; then
+            echo "All papers downloaded - no need to trigger another run"
+            exit 0
+          fi
+          echo "Triggering next run via GitHub API..."
+          PAYLOAD=$(printf '{"ref":"%s","inputs":{"title":"%s","rq1":"%s","rq2":"%s","rq3":"%s","field":"%s","study_type":"%s","study_level":"%s","methodology":"%s","thesis_part":"%s","quartile":"%s","language":"%s","year_from":"%s","year_to":"%s","mode":"%s","paper_limit":"%s","folder_mode":"%s","scihub":"%s","proxy":"%s","learn":"%s","generate_paper":"%s","paper_type":"%s","output_format":"%s","geographic_area":"%s"}}' \
+            '${{ github.ref_name }}' \
+            '${{ github.event.inputs.title }}' \
+            '${{ github.event.inputs.rq1 }}' \
+            '${{ github.event.inputs.rq2 }}' \
+            '${{ github.event.inputs.rq3 }}' \
+            '${{ github.event.inputs.field }}' \
+            '${{ github.event.inputs.study_type }}' \
+            '${{ github.event.inputs.study_level }}' \
+            '${{ github.event.inputs.methodology }}' \
+            '${{ github.event.inputs.thesis_part }}' \
+            '${{ github.event.inputs.quartile }}' \
+            '${{ github.event.inputs.language }}' \
+            '${{ github.event.inputs.year_from }}' \
+            '${{ github.event.inputs.year_to }}' \
+            '${{ github.event.inputs.mode }}' \
+            '${{ github.event.inputs.paper_limit }}' \
+            '${{ github.event.inputs.folder_mode }}' \
+            '${{ github.event.inputs.scihub }}' \
+            '${{ github.event.inputs.proxy }}' \
+            '${{ github.event.inputs.learn }}' \
+            '${{ github.event.inputs.generate_paper }}' \
+            '${{ github.event.inputs.paper_type }}' \
+            '${{ github.event.inputs.output_format }}' \
+            '${{ github.event.inputs.geographic_area }}')
+          curl -s -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/research.yml/dispatches" \
+            -d "$PAYLOAD" \
+            -w "\nHTTP Status: %{http_code}"
+          echo ""
+          echo "Next run triggered!"
+          echo "https://github.com/${{ github.repository }}/actions"
+
+      - name: Upload cumulative research data
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: research-data-${{ steps.folder.outputs.folder_name }}
+          path: pdf_files/
+          retention-days: 90
+          compression-level: 1
+
+      - name: Upload cumulative ZIP
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.folder.outputs.folder_name }}_ZIP
+          path: ${{ steps.check_results.outputs.zip_name || '*.zip' }}
+          retention-days: 90
+          compression-level: 9
+
+      - name: Upload cache/logs (for resume capability)
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: cache-data
+          path: |
+            pdf_files/*/search_cache.json
+            search_cache.json
+            ghost_credentials.json
+            g4f_locked_config.json
+          retention-days: 30

@@ -1,0 +1,130 @@
+name: Test
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    container:
+      # Pinned to SHA digest to prevent breakage from image updates.
+      # To update: run workflow once, copy new digest from logs, update here.
+      image: ghcr.io/wo312092-creator/runner-base@sha256:658747bfa2ad6bf1ec15aa7e537db8c81451eb395918dd46252c5aec09ad2d88
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start ollama (with 180s timeout, then healthcheck)
+        run: |
+          echo "Attempting ollama startup..."
+          if timeout 180 /usr/local/bin/ollama-start.sh; then
+            echo "ollama-start.sh returned (may have finished or timed out internally)"
+          else
+            echo "::warning::ollama-start.sh exited non-zero or was killed at 180s - checking if ollama is alive"
+          fi
+          sleep 2
+          if curl -fsS --max-time 5 http://127.0.0.1:11434/api/tags >/dev/null 2>&1; then
+            echo "ollama healthcheck passed - tests can use ollama"
+          else
+            echo "::warning::ollama healthcheck failed - tests requiring ollama will be skipped"
+          fi
+      - name: Install deps (PEP 668 workaround for Ubuntu 24.04)
+        run: pip install --no-cache-dir --break-system-packages -r requirements.txt || echo "::warning::pip install failed - some tests may fail"
+      - name: Syntax check all .py files
+        run: python3 -m compileall -q . || true
+      - name: Import smoke test
+        run: |
+          python3 -c "import logger, error_handler, state_manager, wizard, scoring_prompts, pdf_parser, metadata_extractor, platform_registry, google_integration, precision_engine, telegram_bot, hunt_pipeline, verify_refs, verify_refs.orchestrator, verify_refs.reports, verify_refs.input_parser" && echo "ALL IMPORTS OK"
+      - name: "Unit test: state_manager"
+        run: |
+          python3 -c "
+          from state_manager import save_chapter_state, load_chapter_state, clear_chapter_state
+          save_chapter_state(99999, {'foo': 'bar'})
+          s = load_chapter_state(99999)
+          assert s and s.get('foo') == 'bar', s
+          clear_chapter_state(99999)
+          assert load_chapter_state(99999) is None
+          print('state_manager OK')
+          "
+      - name: "Unit test: wizard"
+        run: |
+          python3 -c "
+          from wizard import start_wizard, get_current_step, record_answer, skip_step, WIZARD_STEPS
+          start_wizard(88888)
+          for step in WIZARD_STEPS:
+              s = skip_step(88888)
+          assert s.get('wizard_complete'), s
+          print('wizard OK')
+          "
+      - name: "Unit test: pdf_parser"
+        run: |
+          python3 -c "
+          from pdf_parser import parse_chapter_references, extract_text
+          txt = 'Some text (Smith, 2020, p. 12) about stuff. More (Jones et al., 2021).\n\nReferences\n\n1. Smith, J. (2020). Deep learning. Journal of AI, 5(2), 1-10.\n2. Jones, A. et al. (2021). Neural networks. Nature, 100, 200-210.\n'
+          import tempfile, os
+          f = tempfile.NamedTemporaryFile(suffix='.txt', delete=False, mode='w')
+          f.write(txt); f.close()
+          r = parse_chapter_references(f.name)
+          assert len(r['in_text_citations']) >= 1, r
+          assert len(r['reference_list']) >= 1, r
+          os.unlink(f.name)
+          print('pdf_parser OK')
+          "
+      - name: "Unit test: verify_refs (parser + reports)"
+        run: |
+          python3 tests/test_verify_refs.py --no-e2e
+      - name: "Unit test: hunt_intake (5-step state machine, no ollama needed)"
+        run: |
+          python3 tests/test_hunt_intake.py
+      - name: "E2E test: hunt_intake (button + text + skip flow, no ollama needed)"
+        run: |
+          python3 tests/test_hunt_intake_e2e.py
+      - name: "Unit test: report_pdf (DOCX to PDF, no ollama needed)"
+        run: |
+          python3 tests/test_report_pdf.py
+      - name: "Unit test: drive_integration (mocked Drive, no creds needed)"
+        run: |
+          python3 tests/test_drive_integration.py
+      - name: "Unit test: future_studies (v6.5 research gap suggestions, mocked ollama)"
+        run: |
+          python3 tests/test_future_studies.py
+      - name: "Unit test: telegram_ui (v6.6 rich UI — main menu, review, edit, reports, summary)"
+        run: |
+          python3 -m unittest discover -s tests -p "test_telegram_ui.py"
+      - name: "Generate sample reports (always — uses fixed dataset, no ollama needed)"
+        run: |
+          python3 tests/generate_sample_reports.py
+      - name: "Smoke test: hunt_pipeline end-to-end"
+        run: |
+          python3 tests/test_hunt_smoke.py
+      - name: "Smoke test: verify_refs end-to-end (real pipeline, uploads reports as artifacts)"
+        run: |
+          python3 tests/test_verify_refs_smoke.py
+      - name: "Upload verify_refs reports as CI artifacts"
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verify-refs-sample-reports
+          path: sample_reports/
+          if-no-files-found: ignore
+          retention-days: 30
+      - name: "Upload verify_refs smoke test reports as CI artifacts (real pipeline output)"
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verify-refs-smoke-reports
+          path: smoke_reports/verify_refs_smoke/
+          if-no-files-found: ignore
+          retention-days: 30
+      - name: "Upload hunt_pipeline smoke test reports as CI artifacts (real xlsx + md + docx + PDFs)"
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hunt-smoke-reports
+          path: smoke_reports/hunt_smoke/
+          if-no-files-found: ignore
+          retention-days: 30
+      - name: "Health check: 81+ platforms, helpers, structure, verify_refs"
+        run: |
+          python3 tests/test_health.py

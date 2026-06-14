@@ -1,0 +1,8 @@
+Relax /find threshold: strict 0.85 first, then fall back to 0.50 candidates
+
+The 0.85 strict threshold returned 0 papers for vague queries like
+'Holiday hedging in academic writing' (real user query in the last
+GHA run, 196 raw papers but 0 above 0.85 because the query is too
+general). Now /find first tries the strict 0.85 (the 'verified'
+tier), and if nothing matches, falls back to 0.50 (the 'candidates'
+tier, flagged as uncertain). User always gets a result.

@@ -1,0 +1,46 @@
+name: OneOff - Verify New Problems Folder
+
+on:
+  workflow_dispatch:
+    inputs:
+      folder_id:
+        description: "Drive folder ID containing 'New problems' subfolder"
+        required: true
+        default: "1NjsBcaAb1qtRUl4d7KHNhvfm159ei2C4"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/wo312092-creator/runner-base:latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Start ollama
+        run: |
+          set -e
+          ollama serve > /tmp/ollama.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -s http://127.0.0.1:11434/api/tags > /dev/null 2>&1; then
+              echo "ollama ready after ${i}s"
+              break
+            fi
+            sleep 1
+          done
+          ollama list
+      - name: Install Python deps
+        run: pip install --no-cache-dir --break-system-packages -r requirements.txt
+      - name: Run verification
+        env:
+          FOLDER_ID: ${{ inputs.folder_id }}
+          GOOGLE_OAUTH_REFRESH: ${{ secrets.GOOGLE_OAUTH_REFRESH }}
+          GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+          GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+          OLLAMA_HOST: http://127.0.0.1:11434
+        run: python3 verify_new_problems.py
+      - name: Upload parsed refs
+        uses: actions/upload-artifact@v4
+        with:
+          name: parsed-refs
+          path: /tmp/parsed_refs.json

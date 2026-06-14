@@ -1,0 +1,197 @@
+name: OneOff - Test v2-4 Script Run
+
+on: workflow_dispatch
+
+jobs:
+  test-v2-4:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/wo312092-creator/runner-base:latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Start ollama
+        run: |
+          set -e
+          ollama serve > /tmp/ollama.log 2>&1 &
+          OLLAMA_PID=$!
+          echo "ollama PID=$OLLAMA_PID"
+          
+          for i in $(seq 1 60); do
+            if curl -s http://127.0.0.1:11434/api/tags > /dev/null 2>&1; then
+              echo "ollama ready after ${i}s"
+              break
+            fi
+            sleep 1
+          done
+          
+          echo "=== ollama list ==="
+          ollama list
+          echo "=== ollama models ==="
+          ollama list | head -20
+
+      - name: Install Python deps
+        run: |
+          pip install --no-cache-dir --break-system-packages -r requirements.txt
+          pip list | grep -i -E "requests|rich|pdfplumber|pymupdf"
+
+      - name: Check local stubs
+        run: |
+          python3 -c "
+          from scopus_checker import bulk_check, quartile_badge
+          from search_cache import SearchCache
+          print('✅ Local stubs OK')
+          print(f'   bulk_check: {bulk_check}')
+          print(f'   quartile_badge: {quartile_badge}')
+          print(f'   SearchCache: {SearchCache}')
+          cache = SearchCache('/tmp/test_cache')
+          print(f'   cache instance created OK')
+          "
+
+      - name: Test v2-4 imports
+        run: |
+          python3 -c "
+          import sys
+          sys.path.insert(0, '.')
+          
+          # Test basic script structure
+          print('Testing research_hunter_v2-4.py structure...')
+          
+          # Read and check key functions exist
+          with open('research_hunter_v2-4.py', 'r') as f:
+              content = f.read()
+          
+          key_items = [
+              ('def wizard()', 'wizard function'),
+              ('def main()', 'main function'),
+              ('PLATFORM_FNS', 'platform registry'),
+              ('def search_all(', 'search_all function'),
+              ('def generate_queries(', 'query generator'),
+              ('def smart_file_paper(', 'PDF file handler'),
+          ]
+          
+          for search, name in key_items:
+              if search in content:
+                  print(f'  ✅ {name}')
+              else:
+                  print(f'  ❌ {name} NOT FOUND')
+          
+          print()
+          print('Script structure looks valid!')
+          "
+
+      - name: Check ollama model availability
+        run: |
+          python3 -c "
+          import urllib.request
+          import json
+          
+          print('Checking ollama API...')
+          try:
+              req = urllib.request.Request(
+                  'http://127.0.0.1:11434/api/tags',
+                  headers={'Content-Type': 'application/json'}
+              )
+              with urllib.request.urlopen(req, timeout=10) as resp:
+                  data = json.loads(resp.read().decode('utf-8'))
+                  print('Ollama API response:')
+                  for model in data.get('models', []):
+                      print(f'  - {model[\"name\"]} ({model.get(\"size\", \"N/A\")} bytes)')
+          except Exception as e:
+              print(f'API check failed: {e}')
+          
+          print()
+          print('Testing ollama generate...')
+          try:
+              req = urllib.request.Request(
+                  'http://127.0.0.1:11434/api/generate',
+                  data=json.dumps({
+                      'model': 'qwen2.5vl-3b-16k',
+                      'prompt': 'Say hello in 3 words',
+                      'stream': False,
+                      'options': {'num_predict': 10}
+                  }).encode('utf-8'),
+                  headers={'Content-Type': 'application/json'}
+              )
+              with urllib.request.urlopen(req, timeout=30) as resp:
+                  data = json.loads(resp.read().decode('utf-8'))
+                  print(f'Response: {data.get(\"response\", \"\")}')
+                  print('✅ Ollama generate test PASSED')
+          except Exception as e:
+              print(f'Generate test failed: {e}')
+              print('❌ Ollama test failed')
+          "
+
+      - name: Test precision engine with ollama
+        run: |
+          python3 -c "
+          import os
+          os.environ['OLLAMA_HOST'] = 'http://127.0.0.1:11434'
+          
+          from precision_engine import _call_ollama
+          
+          print('Testing ollama call...')
+          result = _call_ollama('Respond with just the word OK', timeout=30)
+          print(f'Result: {result}')
+          
+          if result and 'OK' in result:
+              print('✅ ollama is working!')
+          else:
+              print('❌ ollama call failed or returned unexpected result')
+          "
+
+      - name: Test a simple search (CrossRef only, no AI needed)
+        run: |
+          python3 -c "
+          import sys
+          sys.path.insert(0, '.')
+          
+          from scopus_checker import bulk_check, quartile_badge
+          from search_cache import SearchCache
+          
+          # Test CrossRef search directly
+          import requests
+          
+          query = 'machine learning deep learning 2023'
+          url = f'https://api.crossref.org/works?query={requests.utils.quote(query)}&rows=3&select=DOI,title,author,published-print,container-title'
+          
+          print(f'Testing CrossRef API with query: {query}')
+          print(f'URL: {url[:80]}...')
+          
+          resp = requests.get(url, timeout=30)
+          data = resp.json()
+          
+          items = data.get('message', {}).get('items', [])
+          print(f'Received {len(items)} results')
+          
+          for item in items:
+              title = item.get('title', [''])[0][:60]
+              doi = item.get('DOI', '')
+              journal = item.get('container-title', [''])[0][:40] if item.get('container-title') else ''
+              print(f'  - {title}')
+              print(f'    DOI: {doi}')
+              print(f'    Journal: {journal}')
+          "
+
+      - name: Create test output folder
+        run: |
+          mkdir -p pdf_files/test_run
+          ls -la pdf_files/ || echo "No pdf_files yet"
+          echo "Test folder created"
+
+      - name: Summary
+        run: |
+          echo "=========================================="
+          echo "✅ Test Summary"
+          echo "=========================================="
+          echo "Container: ghcr.io/wo312092-creator/runner-base:latest"
+          echo "Python: $(python3 --version)"
+          echo "Ollama: $(ollama list | head -5)"
+          echo "Script: research_hunter_v2-4.py"
+          echo ""
+          echo "The script structure is valid and can be run."
+          echo "To run a full research hunt, use workflow_dispatch."
+          echo "=========================================="

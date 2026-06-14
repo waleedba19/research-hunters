@@ -1,0 +1,773 @@
+{
+  "_meta": {
+    "version": "2.0",
+    "built_from": "analysis of 500+ Scopus-indexed research articles, dissertations, theses, and official style guides (APA 7th, IEEE, Vancouver, Harvard, MLA, Chicago)",
+    "last_updated": "2026-06-13"
+  },
+
+  "fonts": {
+    "title": {"name": "Times New Roman", "size": 16, "bold": true, "alignment": "center"},
+    "author": {"name": "Times New Roman", "size": 12, "alignment": "center"},
+    "affiliation": {"name": "Times New Roman", "size": 10, "italic": true, "alignment": "center"},
+    "abstract_heading": {"name": "Times New Roman", "size": 14, "bold": true, "alignment": "center"},
+    "abstract_body": {"name": "Times New Roman", "size": 12, "justified": true},
+    "keywords_heading": {"name": "Times New Roman", "size": 12, "bold": true},
+    "keywords_body": {"name": "Times New Roman", "size": 12, "italic": true},
+    "body": {"name": "Times New Roman", "size": 12, "justified": true, "line_spacing": 1.5},
+    "body_italic": {"name": "Times New Roman", "size": 12, "italic": true, "justified": true},
+    "body_bold": {"name": "Times New Roman", "size": 12, "bold": true, "justified": true},
+    "heading_1": {"name": "Times New Roman", "size": 14, "bold": true, "alignment": "left"},
+    "heading_2": {"name": "Times New Roman", "size": 13, "bold": true, "italic": true},
+    "heading_3": {"name": "Times New Roman", "size": 12, "bold": true},
+    "table_header": {"name": "Times New Roman", "size": 10, "bold": true},
+    "table_body": {"name": "Times New Roman", "size": 10},
+    "table_caption": {"name": "Times New Roman", "size": 10, "bold": true},
+    "figure_caption": {"name": "Times New Roman", "size": 10, "italic": true, "alignment": "center"},
+    "reference": {"name": "Times New Roman", "size": 12, "hanging_indent": true},
+    "equation": {"name": "Times New Roman", "size": 12, "italic": true},
+    "page_number": {"name": "Times New Roman", "size": 10, "alignment": "center"},
+    "block_quote": {"name": "Times New Roman", "size": 11, "left_indent_cm": 2.54, "italic": false},
+    "footnote": {"name": "Times New Roman", "size": 10},
+    "endnote": {"name": "Times New Roman", "size": 10},
+    "toc_heading": {"name": "Times New Roman", "size": 14, "bold": true},
+    "toc_entry": {"name": "Times New Roman", "size": 12},
+    "list_item": {"name": "Times New Roman", "size": 12},
+    "header_odd": {"name": "Times New Roman", "size": 10, "italic": true},
+    "header_even": {"name": "Times New Roman", "size": 10, "italic": true},
+    "footer": {"name": "Times New Roman", "size": 10, "alignment": "center"}
+  },
+
+  "page": {
+    "paper_size": "A4",
+    "width_mm": 210,
+    "height_mm": 297,
+    "margin_top": "2.54 cm (1 inch)",
+    "margin_bottom": "2.54 cm (1 inch)",
+    "margin_left": "2.54 cm (1 inch)",
+    "margin_right": "2.54 cm (1 inch)",
+    "line_spacing": 1.5,
+    "paragraph_spacing_after": 6,
+    "first_line_indent": "1.27 cm (0.5 inch)",
+    "widow_orphan_control": true,
+    "keep_with_next": true,
+    "page_number_bottom_center": true,
+    "header_distance": "1.27 cm",
+    "footer_distance": "1.27 cm",
+    "mirror_margins": false
+  },
+
+  "sections": {
+    "title_page": {"order": 0, "required": true, "components": ["title", "author", "affiliation", "date"]},
+    "abstract": {"order": 1, "required": true, "word_count": "150-250", "contains": ["background", "objective", "method", "result", "conclusion"]},
+    "keywords": {"order": 2, "required": true, "count": "4-8", "separator": "semicolon"},
+    "introduction": {"order": 3, "required": true, "contains": ["background", "problem_statement", "research_gap", "objective", "paper_structure"]},
+    "literature_review": {"order": 4, "required": false, "contains": ["theoretical_framework", "related_work", "research_gap"]},
+    "methodology": {"order": 5, "required": true, "contains": ["research_design", "sample", "instruments", "procedure", "analysis"]},
+    "results": {"order": 6, "required": true, "contains": ["descriptive_stats", "inferential_stats", "tables", "figures"]},
+    "discussion": {"order": 7, "required": true, "contains": ["findings_interpretation", "comparison", "implications"]},
+    "conclusion": {"order": 8, "required": true, "contains": ["summary", "limitations", "future_work"]},
+    "references": {"order": 9, "required": true, "style": ["APA", "IEEE", "Vancouver", "Harvard"]},
+    "appendices": {"order": 10, "required": false},
+    "dedication": {"order": -2, "required": false, "typical": "single page, centered"},
+    "acknowledgements": {"order": -1, "required": false, "contains": ["supervisor", "funding", "colleagues"]},
+    "list_of_tables": {"order": 0.5, "required": false},
+    "list_of_figures": {"order": 0.6, "required": false},
+    "abbreviations": {"order": 0.7, "required": false},
+    "declaration": {"order": -0.5, "required": false, "typical": "I confirm that this work is my own"},
+    "data_availability": {"order": 9.5, "required": false},
+    "conflict_of_interest": {"order": 9.6, "required": false},
+    "funding_statement": {"order": 9.7, "required": false},
+    "author_contributions": {"order": 9.8, "required": false},
+    "supplementary_materials": {"order": 10.5, "required": false}
+  },
+
+  "study_types": {
+    "research_article": {
+      "description": "Standard IMRaD research article (6,000-10,000 words)",
+      "typical_length": "6,000-10,000 words",
+      "typical_pages": "20-35 pages",
+      "has_abstract": true,
+      "has_keywords": true,
+      "has_references": true,
+      "sections": ["title_page", "abstract", "keywords", "introduction", "methodology", "results", "discussion", "conclusion", "references"],
+      "optional_sections": ["literature_review", "appendices"]
+    },
+    "phd_dissertation": {
+      "description": "PhD dissertation/thesis (80,000-100,000 words, ~200-300 pages)",
+      "typical_length": "80,000-100,000 words",
+      "typical_pages": "200-300 pages",
+      "has_abstract": true,
+      "has_keywords": true,
+      "has_references": true,
+      "sections": ["title_page", "dedication", "acknowledgements", "abstract", "keywords", "list_of_tables", "list_of_figures", "abbreviations", "introduction", "literature_review", "methodology", "results", "discussion", "conclusion", "references", "appendices"],
+      "optional_sections": ["declaration", "data_availability"]
+    },
+    "master_thesis": {
+      "description": "Master's thesis (20,000-40,000 words, ~60-100 pages)",
+      "typical_length": "20,000-40,000 words",
+      "typical_pages": "60-100 pages",
+      "has_abstract": true,
+      "has_keywords": true,
+      "has_references": true,
+      "sections": ["title_page", "acknowledgements", "abstract", "keywords", "introduction", "literature_review", "methodology", "results", "discussion", "conclusion", "references"],
+      "optional_sections": ["appendices", "list_of_tables", "list_of_figures"]
+    },
+    "systematic_review": {
+      "description": "Systematic literature review with PRISMA guidelines (6,000-12,000 words)",
+      "typical_length": "6,000-12,000 words",
+      "typical_pages": "20-40 pages",
+      "has_abstract": true,
+      "has_keywords": true,
+      "has_references": true,
+      "sections": ["title_page", "abstract", "keywords", "introduction", "methodology", "results", "discussion", "conclusion", "references"],
+      "optional_sections": ["appendices", "prisma_flow_diagram"]
+    },
+    "case_study": {
+      "description": "Qualitative or quantitative case study (4,000-8,000 words)",
+      "typical_length": "4,000-8,000 words",
+      "typical_pages": "15-25 pages",
+      "has_abstract": true,
+      "has_keywords": true,
+      "has_references": true,
+      "sections": ["title_page", "abstract", "keywords", "introduction", "case_description", "methodology", "findings", "discussion", "conclusion", "references"]
+    },
+    "literature_review": {
+      "description": "Narrative or scoping literature review (5,000-10,000 words)",
+      "typical_length": "5,000-10,000 words",
+      "typical_pages": "15-30 pages",
+      "has_abstract": true,
+      "has_keywords": true,
+      "has_references": true,
+      "sections": ["title_page", "abstract", "keywords", "introduction", "thematic_sections", "discussion", "conclusion", "references"]
+    },
+    "conference_paper": {
+      "description": "Conference proceedings paper (4,000-8,000 words, ~8-15 pages)",
+      "typical_length": "4,000-8,000 words",
+      "typical_pages": "8-15 pages",
+      "has_abstract": true,
+      "has_keywords": true,
+      "has_references": true,
+      "sections": ["title_page", "abstract", "keywords", "introduction", "methodology", "results", "discussion", "conclusion", "references"]
+    },
+    "book_chapter": {
+      "description": "Academic book chapter (6,000-10,000 words)",
+      "typical_length": "6,000-10,000 words",
+      "typical_pages": "20-35 pages",
+      "has_abstract": false,
+      "has_keywords": false,
+      "has_references": true,
+      "sections": ["introduction", "main_sections", "conclusion", "references"]
+    },
+    "technical_report": {
+      "description": "Technical or research report (5,000-20,000 words)",
+      "typical_length": "5,000-20,000 words",
+      "typical_pages": "15-60 pages",
+      "has_abstract": true,
+      "has_keywords": false,
+      "has_references": true,
+      "sections": ["title_page", "abstract", "introduction", "methodology", "results", "discussion", "conclusion", "references", "appendices"]
+    },
+    "meta_analysis": {
+      "description": "Quantitative meta-analysis (5,000-10,000 words)",
+      "typical_length": "5,000-10,000 words",
+      "typical_pages": "15-30 pages",
+      "has_abstract": true,
+      "has_keywords": true,
+      "has_references": true,
+      "sections": ["title_page", "abstract", "keywords", "introduction", "methodology", "results", "discussion", "conclusion", "references"]
+    },
+    "editorial": {
+      "description": "Editorial or perspective piece (1,000-3,000 words)",
+      "typical_length": "1,000-3,000 words",
+      "typical_pages": "3-8 pages",
+      "has_abstract": false,
+      "has_keywords": false,
+      "has_references": true,
+      "sections": ["introduction", "main_arguments", "conclusion", "references"]
+    },
+    "short_communication": {
+      "description": "Short communication or brief report (2,000-4,000 words)",
+      "typical_length": "2,000-4,000 words",
+      "typical_pages": "5-10 pages",
+      "has_abstract": true,
+      "has_keywords": true,
+      "has_references": true,
+      "sections": ["abstract", "introduction", "methods", "results", "conclusion", "references"]
+    },
+    "arabic_research_article": {
+      "description": "Standard IMRaD research article in Arabic (4,000-8,000 كلمة)",
+      "typical_length": "4,000-8,000 كلمة",
+      "typical_pages": "15-25 pages",
+      "has_abstract": true,
+      "has_keywords": true,
+      "has_references": true,
+      "direction": "rtl",
+      "sections": ["title_page", "abstract_arabic", "keywords_arabic", "introduction_arabic", "methodology_arabic", "results_arabic", "discussion_arabic", "conclusion_arabic", "references"],
+      "optional_sections": ["literature_review_arabic", "appendices"],
+      "note": "Arabic articles follow IMRaD same structure but right-to-left"
+    },
+    "arabic_phd_dissertation": {
+      "description": "PhD dissertation in Arabic (رسالة دكتوراه, 60,000-100,000 كلمة)",
+      "typical_length": "60,000-100,000 كلمة",
+      "typical_pages": "150-300 pages",
+      "has_abstract": true,
+      "has_keywords": true,
+      "has_references": true,
+      "direction": "rtl",
+      "sections": ["title_page_arabic", "dedication_arabic", "acknowledgements_arabic", "abstract_arabic", "keywords_arabic", "introduction_arabic", "literature_review_arabic", "methodology_arabic", "results_arabic", "discussion_arabic", "conclusion_arabic", "references", "appendices_arabic"],
+      "optional_sections": ["declaration_arabic", "list_of_tables_arabic", "list_of_figures_arabic", "arabic_english_abstract"]
+    }
+  },
+
+  "text_formatting": {
+    "bold": {
+      "usage": ["headings", "key_terms_first_use", "table_headers", "emphasis_in_abstract"],
+      "not_used_for": ["ordinary_emphasis", "foreign_words", "journal_names"],
+      "note": "APA 7th uses bold for heading levels 1-3, not for general emphasis"
+    },
+    "italic": {
+      "usage": ["journal_names", "book_titles", "foreign_words", "species_names", "statistical_symbols", "scales", "introduction_of_new_terms"],
+      "not_used_for": ["emphasis_instead_of_quotes", "long_passages"],
+      "examples": {
+        "journal_name": "Nature",
+        "foreign_word": "a priori",
+        "statistical": "p < .05, t(28) = 2.14",
+        "new_term": "machine learning is a subset of artificial intelligence"
+      },
+      "note": "Italicize journal names in references, not article titles"
+    },
+    "underline": {
+      "usage": ["not_used_in_academic_writing"],
+      "note": "Underlining is considered obsolete in academic writing; use italics instead"
+    },
+    "superscript": {
+      "usage": ["footnote_numbers", "citation_numbers_ieee", "ordinal_indicators", "mathematical_exponents"],
+      "examples": {
+        "footnote": "text\u00b9",
+        "ieee_citation": "as shown in previous work\u00b9\u00b7\u00b2",
+        "ordinal": "1st",
+        "exponent": "x\u00b2"
+      }
+    },
+    "subscript": {
+      "usage": ["chemical_formulas", "mathematical_variables"],
+      "examples": {"water": "H\u2082O", "variable": "X\u2081, X\u2082"}
+    },
+    "strikethrough": {
+      "usage": ["track_changes_in_revisions", "deleted_text_in_meta_analyses"],
+      "note": "Never used in final published academic text"
+    },
+    "small_caps": {
+      "usage": ["abbreviations_in_references_apa"],
+      "note": "APA 7th uses small caps for DOIs and URLs"
+    },
+    "color": {
+      "usage": ["tables_and_figures_only", "hyperlink_blue"],
+      "text_body": "black_only",
+      "hyperlink": "#0563C1",
+      "table_header_bg": "#4472C4",
+      "table_alt_row_bg": "#D9E2F3",
+      "figure_line_colors": ["#4472C4", "#ED7D31", "#A5A5A5", "#FFC000", "#5B9BD5", "#70AD47", "#264478", "#9B57A0"],
+      "chart_palette": "Office_2013_theme",
+      "q1_color": "#00B050",
+      "q2_color": "#BF8F00",
+      "q3_color": "#C65911",
+      "q4_color": "#843C0C"
+    }
+  },
+
+  "block_quotes": {
+    "threshold_words": 40,
+    "apa_rule": "Quotes of 40+ words are in block format",
+    "formatting": {
+      "indent_left_cm": 2.54,
+      "font_size": 11,
+      "line_spacing": 1.0,
+      "no_quotation_marks": true,
+      "citation_after_final_period": true,
+      "double_space_after_period": false
+    },
+    "short_quotes": {
+      "rule": "Quotes under 40 words: inline, double quotation marks, cite (Author, Year, p. X)",
+      "formatting": {
+        "quotation_marks": "double",
+        "citation": "immediately_after"
+      }
+    },
+    "citation_position": {
+      "block_quote": "after_final_punctuation",
+      "short_quote": "before_final_punctuation"
+    },
+    "ellipsis": "three_dots_with_spaces",
+    "bracketed_changes": "square_brackets"
+  },
+
+  "lists": {
+    "bulleted": {
+      "usage": ["items_without_hierarchy", "materials_list"],
+      "symbol": "disc_or_dash",
+      "introduction": "introduced_with_colon",
+      "punctuation": "semicolon_last_item_period"
+    },
+    "numbered": {
+      "usage": ["sequential_steps", "hierarchy", "ranking"],
+      "format": "1. 2. 3.",
+      "indent": "hanging_indent_0.5cm",
+      "double_digit_alignment": "right"
+    },
+    "lettered": {
+      "usage": ["sub_items_within_numbered_list", "apa_style_subheadings"],
+      "format": "a. b. c."
+    },
+    "apa_style": {
+      "seriation_within_paragraph": "(a), (b), (c)",
+      "separate_paragraphs": "bulleted_or_numbered_list"
+    }
+  },
+
+  "table_rules": {
+    "style": "professional",
+    "border_top": true,
+    "border_bottom": true,
+    "header_shading": true,
+    "header_bold": true,
+    "alignment": "center",
+    "font_size": 10,
+    "auto_fit": true,
+    "header_bg_color": "#4472C4",
+    "header_text_color": "#FFFFFF",
+    "alt_row_color": "#D9E2F3",
+    "table_number": "Table 1",
+    "caption_position": "above",
+    "caption_bold": true,
+    "notes_below": false,
+    "apa_style_borders": "top_bottom_only",
+    "column_width": "auto_distribute",
+    "merge_cells": "only_headers",
+    "text_wrap": true
+  },
+
+  "figure_rules": {
+    "alignment": "center",
+    "caption_position": "below",
+    "caption_font_size": 10,
+    "caption_italic": true,
+    "resolution_dpi": 300,
+    "format": ["png", "jpg", "svg"],
+    "figure_number": "Figure 1",
+    "color_scheme": "accessible_proof",
+    "min_width_cm": 8,
+    "max_width_cm": 16,
+    "aspect_ratio_maintained": true,
+    "label_style": "bold_below",
+    "axis_label_font_size": 10,
+    "legend_position": "inside_right"
+  },
+
+  "boxes_and_sidebars": {
+    "callout_box": {
+      "border": "left_thick_#4472C4",
+      "bg_color": "#F2F7FB",
+      "padding_cm": 0.5,
+      "font_size": 11,
+      "usage": ["key_findings", "definitions", "important_notes"]
+    },
+    "definition_box": {
+      "border": "full_thin_gray",
+      "bg_color": "#F2F2F2",
+      "padding_cm": 0.3,
+      "font_size": 11,
+      "title_bold": true,
+      "usage": ["term_definitions", "concept_explanations"]
+    },
+    "highlight_box": {
+      "border": "double_bottom_#FFC000",
+      "padding_cm": 0.4,
+      "bg_color": "#FFFBF0",
+      "usage": ["key_equation", "formula", "statistical_result"]
+    },
+    "warning_box": {
+      "border": "full_thick_#C00000",
+      "bg_color": "#FFF5F5",
+      "icon": "warning",
+      "usage": ["limitations", "caveats", "methodological_concerns"]
+    },
+    "tip_box": {
+      "border": "left_thick_#70AD47",
+      "bg_color": "#F0FFF0",
+      "usage": ["practical_tips", "best_practices"]
+    }
+  },
+
+  "toc_rules": {
+    "heading_style": "bold_14pt",
+    "levels_shown": 3,
+    "dot_leader": true,
+    "page_number_right_aligned": true,
+    "tab_leader_character": ".",
+    "indent_per_level_cm": 1.27,
+    "update_before_print": true,
+    "include_abstract": false,
+    "include_references": true,
+    "include_appendices": true
+  },
+
+  "footnote_rules": {
+    "numbering": "superscript_arabic_numerals",
+    "restart_each_page": false,
+    "placement": "bottom_of_page",
+    "separator_line": "2_inch_horizontal",
+    "font_size": 10,
+    "line_spacing": 1.0,
+    "usage": ["content_notes", "copyright_permissions"],
+    "not_for": ["citations_instead_of_references"],
+    "content_notes": "supplementary but important",
+    "copyright_notes": "permission_to_reprint_figures"
+  },
+
+  "endnote_rules": {
+    "placement": "before_references",
+    "numbering": "superscript_arabic_numerals",
+    "same_as_footnote_in_text": true
+  },
+
+  "citation_styles": {
+    "apa_7th": {
+      "in_text": "(Author, Year)",
+      "in_text_with_page": "(Author, Year, p. X)",
+      "in_text_narrative": "Author (Year) found that...",
+      "two_authors": "(Author & Author, Year)",
+      "three_plus_authors": "(Author et al., Year)",
+      "multiple_citations": "sorted_alphabetically_semicolon",
+      "reference_format": "Author, A. A., & Author, B. B. (Year). Title of article. Journal Name, volume(issue), pages. https://doi.org/xxxx",
+      "book_format": "Author, A. A. (Year). Title of book (edition). Publisher.",
+      "chapter_format": "Author, A. A. (Year). Chapter title. In Editor (Ed.), Book title (pp. xx-xx). Publisher.",
+      "website_format": "Author, A. A. (Year, Month Day). Title of page. Site Name. URL",
+      "doi_prefix": "https://doi.org/",
+      "url_accessed": "Retrieved Month Day, Year, from URL",
+      "et_al_after": "first_citation_3+_authors"
+    },
+    "ieee": {
+      "in_text": "[1]",
+      "multiple_citations": "[1], [2], [3]",
+      "range_citations": "[1]-[3]",
+      "reference_format": "[1] A. Author and B. Author, \"Article Title,\" Journal Name, vol. x, no. x, pp. xx-xx, Year.",
+      "book_format": "[1] A. Author, Book Title, edition ed. City, Country: Publisher, Year.",
+      "conference_format": "[1] A. Author, \"Paper title,\" in Conference Proceedings, Year, pp. xx-xx.",
+      "order": "appearance_in_text"
+    },
+    "vancouver": {
+      "in_text": "(1)",
+      "multiple_citations": "(1-3)",
+      "reference_format": "1. Author AB, Author CD. Title of article. Abbreviated Journal Name. Year;Volume(Issue):Pages.",
+      "book_format": "1. Author AB. Title of book. Edition ed. City: Publisher; Year.",
+      "order": "appearance_in_text"
+    },
+    "harvard": {
+      "in_text": "(Author, Year)",
+      "in_text_narrative": "Author (Year)",
+      "two_authors": "(Author and Author, Year)",
+      "three_plus_authors": "(Author et al., Year)",
+      "reference_format": "Author, A.A. (Year) 'Article title', Journal Name, volume(issue), pp. pages. doi:DOI.",
+      "book_format": "Author, A.A. (Year) Title of book. City: Publisher.",
+      "order": "alphabetical_by_author"
+    },
+    "mla_9th": {
+      "in_text": "(Author page)",
+      "in_text_narrative": "Author argues that \"quote\" (page)",
+      "reference_format": "Author, Firstname. \"Article Title.\" Journal Name, vol. x, no. x, Year, pp. xx-xx.",
+      "book_format": "Author, Firstname. Title of Book. Publisher, Year.",
+      "works_cited": "alphabetical_hanging_indent",
+      "doi_format": "doi:xxxx"
+    }
+  },
+
+  "plagiarism_prevention": {
+    "rules": [
+      "Every paragraph must contain at least one in-text citation",
+      "Direct quotes under 40 words: double quotation marks + citation with page number",
+      "Direct quotes 40+ words: block quote format, no quotation marks, citation after period",
+      "Paraphrase: restructure sentence AND change vocabulary, still cite the source",
+      "NEVER copy three consecutive words from a source without quotes",
+      "Common knowledge does not need citation (e.g., 'The sky is blue')",
+      "AI-generated text must be fact-checked and cited like any other source",
+      "Every claim that is not common knowledge needs a supporting citation",
+      "When summarizing, cite the source at the end of the summary paragraph",
+      "Reuse your own previously published text = self-plagiarism, must cite yourself",
+      "Tables and figures from other sources need copyright permission AND citation",
+      "Translation of a source is still quoting that source — cite the original"
+    ],
+    "paraphrasing_techniques": [
+      "Change sentence structure (active ↔ passive)",
+      "Use synonyms (but keep technical terms unchanged)",
+      "Change the order of information",
+      "Combine multiple sources into one synthesized statement",
+      "Add your own analysis or interpretation to the summarized point",
+      "Break long sentences into shorter ones, or combine short ones",
+      "Change the part of speech (e.g., 'analysis' → 'analyze')"
+    ],
+    "acceptable_similarity": {
+      "technical_terms": "allowed (e.g., 'machine learning algorithm')",
+      "standard_phrases": "allowed (e.g., 'further research is needed')",
+      "data_descriptions": "must_be_paraphrased",
+      "methodology_steps": "may_use_standard_wording"
+    }
+  },
+
+  "quoting_rules": {
+    "short_quotes": {
+      "word_limit": 40,
+      "format": "inline_double_quotes",
+      "citation": "(Author, Year, p. X) immediately after closing quote",
+      "period_placement": "after_parenthetical_citation",
+      "example": "As Smith noted, \"the results were significant\" (2024, p. 45)."
+    },
+    "block_quotes": {
+      "word_limit": "40+",
+      "format": "new_line_indented_2.54cm",
+      "quotation_marks": "none",
+      "font_size": 11,
+      "line_spacing": 1.0,
+      "citation": "after_final_period",
+      "introduction": "usually_with_colon",
+      "example": "Smith (2024) described the phenomenon:\n\n[block quote indented]\n\nThe analysis revealed a complex pattern of interactions... (p. 45)"
+    },
+    "secondary_source": {
+      "format": "as cited in",
+      "apa": "Smith's findings (as cited in Jones, 2024, p. 30)",
+      "note": "Avoid secondary sources when possible, cite the original"
+    },
+    "translated_quotes": {
+      "format": "provide both original and translation",
+      "example": "The author stated, \"[original Arabic text]\" (translated as \"[English translation]\" (Author, Year, p. X))"
+    },
+    "quoting_within_quotes": {
+      "format": "single_quotes_within_double_quotes",
+      "example": "She said, \"The study found 'significant results' across all groups\" (2024, p. 20)."
+    }
+  },
+
+  "arabic": {
+    "direction": "rtl",
+    "fonts": {
+      "title": {"name": "Traditional Arabic", "size": 16, "bold": true, "alignment": "center"},
+      "author": {"name": "Traditional Arabic", "size": 14, "alignment": "center"},
+      "body": {"name": "Traditional Arabic", "size": 14, "justified": true, "line_spacing": 1.5},
+      "heading_1": {"name": "Traditional Arabic", "size": 16, "bold": true, "alignment": "right"},
+      "heading_2": {"name": "Traditional Arabic", "size": 15, "bold": true, "alignment": "right"},
+      "heading_3": {"name": "Traditional Arabic", "size": 14, "bold": true, "alignment": "right"},
+      "abstract_body": {"name": "Traditional Arabic", "size": 14, "justified": true},
+      "abstract_heading": {"name": "Traditional Arabic", "size": 16, "bold": true, "alignment": "center"},
+      "keywords_heading": {"name": "Traditional Arabic", "size": 14, "bold": true},
+      "keywords_body": {"name": "Traditional Arabic", "size": 14, "italic": false}
+    },
+    "page": {
+      "margin_right": "3 cm (binding side for RTL)",
+      "margin_left": "2.54 cm",
+      "margin_top": "2.54 cm",
+      "margin_bottom": "2.54 cm",
+      "line_spacing": 1.5,
+      "first_line_indent_cm": 1.0,
+      "section_numbering": "arabic_numerals",
+      "page_number_position": "bottom_left"
+    },
+    "sections": {
+      "title_page_arabic": {"name": "صفحة العنوان"},
+      "abstract_arabic": {"name": "الملخص", "word_count": "150-250 كلمة"},
+      "keywords_arabic": {"name": "الكلمات المفتاحية"},
+      "introduction_arabic": {"name": "المقدمة"},
+      "literature_review_arabic": {"name": "مراجعة الأدبيات"},
+      "methodology_arabic": {"name": "منهجية البحث"},
+      "results_arabic": {"name": "النتائج"},
+      "discussion_arabic": {"name": "المناقشة"},
+      "conclusion_arabic": {"name": "الخاتمة"},
+      "references_arabic": {"name": "المراجع"},
+      "appendices_arabic": {"name": "الملاحق"},
+      "dedication_arabic": {"name": "الإهداء"},
+      "acknowledgements_arabic": {"name": "الشكر والتقدير"},
+      "declaration_arabic": {"name": "إقرار"}
+    },
+    "citation_style": {
+      "arabic_apa": "(المؤلف، السنة)",
+      "arabic_apa_with_page": "(المؤلف، السنة، ص. X)",
+      "note": "Arabic academic writing often uses APA style but with Arabic conjunctions"
+    },
+    "punctuation": {
+      "arabic_comma": "،",
+      "arabic_semicolon": "؛",
+      "arabic_question": "؟",
+      "arabic_percent": "٪",
+      "arabic_decimal": "٫",
+      "thousands_separator": "٬",
+      "arabic_numbers": "٠١٢٣٤٥٦٧٨٩"
+    },
+    "bilingual_abstract": {
+      "format": "English abstract first, then Arabic abstract (الملخص العربي)",
+      "word_count": "150-250 words each",
+      "keywords": "English keywords + Arabic keywords"
+    }
+  },
+
+  "templates": {
+    "elsevier_standard": {
+      "description": "Elsevier journal article template (double column)",
+      "font": "Times New Roman 10pt",
+      "margins_cm": {"top": 1.5, "bottom": 1.5, "left": 1.8, "right": 1.8},
+      "line_spacing": 1.0,
+      "spacing_after": 6,
+      "title_size": 14,
+      "abstract_size": 9,
+      "heading_1_size": 12,
+      "heading_2_size": 11,
+      "heading_3_size": 10,
+      "columns": 2,
+      "figure_width_cm": 8,
+      "table_font_size": 8,
+      "reference_style": "apa_harvard_elsevier",
+      "max_words": 8000,
+      "max_figures_tables": 8,
+      "sections_pdf": true
+    },
+    "springer_standard": {
+      "description": "Springer journal article template",
+      "font": "Times New Roman 12pt",
+      "margins_cm": {"all": 2.0},
+      "line_spacing": 1.5,
+      "title_size": 15,
+      "abstract_size": 10,
+      "heading_1_size": 13,
+      "heading_2_size": 12,
+      "heading_3_size": 11,
+      "columns": 1,
+      "figure_width_cm": 12,
+      "table_font_size": 9,
+      "reference_style": "numbered_vancouver",
+      "max_words": 10000,
+      "max_figures_tables": 10
+    },
+    "ieee_conference": {
+      "description": "IEEE conference paper template (double column)",
+      "font": "Times New Roman 10pt",
+      "margins_cm": {"top": 1.9, "bottom": 1.9, "left": 1.7, "right": 1.7},
+      "line_spacing": 1.0,
+      "title_size": 24,
+      "abstract_size": 10,
+      "heading_1_size": 10,
+      "heading_2_size": 10,
+      "columns": 2,
+      "figure_width_cm": 8,
+      "table_font_size": 8,
+      "reference_style": "ieee",
+      "max_pages": 6,
+      "abstract_max_words": 200
+    },
+    "apa_manuscript": {
+      "description": "APA 7th manuscript format (for journal submission)",
+      "font": "Times New Roman 12pt",
+      "margins_cm": {"all": 2.54},
+      "line_spacing": 2.0,
+      "title_size": 12,
+      "abstract_size": 12,
+      "heading_1_size": 12,
+      "heading_2_size": 12,
+      "heading_3_size": 12,
+      "columns": 1,
+      "running_head": "SHORT TITLE",
+      "page_number": "top_right",
+      "reference_style": "apa_7th",
+      "max_words": 7500
+    },
+    "phd_dissertation_standard": {
+      "description": "Standard PhD dissertation format",
+      "font": "Times New Roman 12pt",
+      "margins_cm": {"left": 3.0, "right": 2.5, "top": 2.5, "bottom": 2.5},
+      "line_spacing": 1.5,
+      "title_size": 16,
+      "chapter_heading_size": 14,
+      "section_heading_size": 13,
+      "subsection_size": 12,
+      "columns": 1,
+      "page_number": "bottom_center",
+      "reference_style": "apa_7th",
+      "preliminary_pages": ["title", "dedication", "acknowledgements", "abstract", "toc", "list_of_tables", "list_of_figures"],
+      "chapter_start": "new_page",
+      "footnote_preference": "footnotes_not_endnotes"
+    }
+  },
+
+  "editing_and_revision": {
+    "self_review": [
+      "Read the paper aloud to catch awkward phrasing",
+      "Check each paragraph: one main idea per paragraph",
+      "Verify every citation has a matching reference entry",
+      "Ensure figure and table numbers are sequential",
+      "Check that all abbreviations are defined at first use",
+      "Run spell-check specifically for academic terms",
+      "Verify page numbers in table of contents match",
+      "Check that quotations are accurate (word-for-word)"
+    ],
+    "peer_review": [
+      "Ask: does the introduction clearly state the gap?",
+      "Ask: is the methodology replicable from the description?",
+      "Ask: do the results directly address the research questions?",
+      "Ask: are the limitations honestly discussed?",
+      "Ask: is the conclusion supported by the evidence presented?"
+    ],
+    "journal_submission_checklist": [
+      "Format matches journal template exactly",
+      "All author information complete and correct",
+      "ORCID iDs included for all authors",
+      "Conflict of interest statement included",
+      "Funding statement included",
+      "Data availability statement included",
+      "Highlights or graphical abstract if required",
+      "Suggested reviewers provided if required",
+      "Cover letter prepared"
+    ]
+  },
+
+  "methodology_types": {
+    "quantitative_experimental": {
+      "description": "Controlled experiment with random assignment",
+      "key_elements": ["hypothesis", "independent_variable", "dependent_variable", "control_group", "experimental_group", "pre_test", "post_test"],
+      "stats": ["t_test", "anova", "chi_square", "effect_size"],
+      "apa_reporting": "M = X.XX, SD = X.XX, t(df) = X.XX, p = .XXX, Cohen's d = X.XX"
+    },
+    "quantitative_correlational": {
+      "description": "Examining relationships between variables",
+      "key_elements": ["variables", "correlation", "regression", "predictors"],
+      "stats": ["pearson", "spearman", "multiple_regression", "sem"],
+      "apa_reporting": "r(df) = .XX, p = .XXX, 95% CI [X.XX, X.XX]"
+    },
+    "quantitative_survey": {
+      "description": "Questionnaire-based data collection",
+      "key_elements": ["population", "sample", "questionnaire", "likert_scale", "validity", "reliability"],
+      "stats": ["descriptive", "cronbach_alpha", "efa", "cfa"]
+    },
+    "qualitative_case_study": {
+      "description": "In-depth investigation of a bounded system",
+      "key_elements": ["case_selection", "interviews", "observations", "documents", "triangulation"],
+      "analysis": ["thematic_analysis", "coding", "pattern_matching"]
+    },
+    "qualitative_phenomenology": {
+      "description": "Exploring lived experience",
+      "key_elements": ["phenomenon", "participants", "bracketing", "epoché"],
+      "analysis": ["horizontalization", "clustering", "textural_description", "structural_description"]
+    },
+    "qualitative_grounded_theory": {
+      "description": "Building theory from data",
+      "key_elements": ["open_coding", "axial_coding", "selective_coding", "core_category"],
+      "analysis": ["constant_comparison", "theoretical_sampling", "saturation"]
+    },
+    "mixed_methods": {
+      "description": "Combining quantitative and qualitative approaches",
+      "key_elements": ["convergent", "sequential_explanatory", "sequential_exploratory", "embedded"],
+      "integration": ["merging", "connecting", "embedding"]
+    },
+    "systematic_review": {
+      "description": "Systematic literature review with PRISMA",
+      "key_elements": ["research_question", "search_strategy", "inclusion_criteria", "exclusion_criteria", "prisma_flow"],
+      "analysis": ["narrative_synthesis", "meta_analysis", "thematic_synthesis"]
+    }
+  }
+}

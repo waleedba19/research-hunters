@@ -1,0 +1,54 @@
+# Build artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+
+# Credentials — NEVER commit (loaded from D:\opencode\ or with_env.bat)
+credentials/
+*.json
+!sample_reports/*.json
+!tests/sample_refs.txt
+!package.json
+!tests/generate_sample_reports.py
+
+# Environment
+.env
+.venv/
+venv/
+env/
+
+# State / data (per-chat JSON)
+data/state/
+data/logs/
+*.log
+
+# Local downloads
+downloads/
+/tmp/lit_downloads/
+pdf_files/
+
+# smoke_reports/ regenerated each CI run; sample_reports/ IS committed
+smoke_reports/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Coverage
+.coverage
+htmlcov/
+*.cover
+.tox/
+
+# Node (for v0.2 chapter writer)
+node_modules/
+package-lock.json
+with_env.bat  

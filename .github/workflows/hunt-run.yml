@@ -1,0 +1,59 @@
+name: Hunt Runner
+
+on:
+  workflow_dispatch:
+    inputs:
+      chat_id:
+        description: "Telegram chat ID to send results to"
+        required: true
+        type: string
+      params_json:
+        description: "JSON-encoded hunt parameters"
+        required: true
+        type: string
+
+concurrency:
+  group: hunt-runner-${{ inputs.chat_id }}
+  cancel-in-progress: true
+
+jobs:
+  hunt:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/wo312092-creator/runner-base:latest
+    timeout-minutes: 360
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Start ollama
+        run: |
+          set -e
+          ollama serve > /tmp/ollama.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -s http://127.0.0.1:11434/api/tags > /dev/null 2>&1; then
+              echo "ollama ready after ${i}s"
+              break
+            fi
+            sleep 1
+          done
+          ollama list
+
+      - name: Install deps
+        run: pip install --no-cache-dir --break-system-packages -r requirements.txt
+
+      - name: Write params
+        env:
+          RAW_JSON: '${{ inputs.params_json }}'
+        run: python3 -c "import os; open('/tmp/hunt_params.json','w').write(os.environ['RAW_JSON'])"
+
+      - name: Run hunt
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          GOOGLE_OAUTH_REFRESH: ${{ secrets.GOOGLE_OAUTH_REFRESH }}
+          GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+          GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+          OLLAMA_HOST: http://127.0.0.1:11434
+          CHAT_ID: ${{ inputs.chat_id }}
+        run: python3 gha_run_hunt.py

@@ -1,0 +1,279 @@
+name: Diagnostic - Full System Check
+
+on:
+  workflow_dispatch:
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/wo312092-creator/runner-base:latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Start ollama
+        run: |
+          set -e
+          ollama serve > /tmp/ollama.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -s http://127.0.0.1:11434/api/tags > /dev/null 2>&1; then
+              echo "✅ Ollama ready after ${i}s"
+              break
+            fi
+            sleep 1
+          done
+          ollama list
+
+      - name: Install deps
+        run: pip install --no-cache-dir --break-system-packages -r requirements.txt
+
+      - name: "🔍 DIAGNOSTIC: Check Secrets & Tokens"
+        run: |
+          echo "╔════════════════════════════════════════════════════════════════╗"
+          echo "║         CHECKING SECRETS & TOKEN CONFIGURATION                ║"
+          echo "╚════════════════════════════════════════════════════════════════╝"
+          echo
+          
+          echo "1. GitHub Actions Secrets:"
+          echo "   TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:+SET (hidden)}"
+          if [ -z "$TELEGRAM_BOT_TOKEN" ]; then
+            echo "   ❌ NOT SET - This is why the bot doesn't respond!"
+          else
+            echo "   ✅ SET"
+          fi
+          
+          echo "   GOOGLE_OAUTH_REFRESH: ${GOOGLE_OAUTH_REFRESH:+SET (hidden)}"
+          if [ -z "$GOOGLE_OAUTH_REFRESH" ]; then
+            echo "   ⚠️  NOT SET - Google integration may not work"
+          else
+            echo "   ✅ SET"
+          fi
+          
+          echo
+          echo "2. Alternative token sources:"
+          
+          # Check memory.json
+          for path in "/tmp/memory.json" "./memory.json" "$HOME/memory.json"; do
+            if [ -f "$path" ]; then
+              echo "   ✅ Found: $path"
+            fi
+          done
+          
+          # Check token files
+          for path in "/secrets/telegram_token.txt" "/tmp/telegram_token.txt" "./telegram_token.txt"; do
+            if [ -f "$path" ]; then
+              echo "   ✅ Found token file: $path"
+            fi
+          done
+
+      - name: "🔍 DIAGNOSTIC: Test Telegram Connection"
+        run: |
+          echo
+          echo "╔════════════════════════════════════════════════════════════════╗"
+          echo "║              TESTING TELEGRAM CONNECTION                      ║"
+          echo "╚════════════════════════════════════════════════════════════════╝"
+          echo
+          
+          python3 << 'PYEOF'
+          import os
+          import sys
+          sys.path.insert(0, '.')
+          
+          from telegram_bot import _get_token, _tg_call
+          
+          print("Testing Telegram connection...")
+          print()
+          
+          # Get token
+          token = _get_token()
+          if not token:
+              print("❌ FAILED: No Telegram token found!")
+              print()
+              print("SOLUTION:")
+              print("  1. Go to: https://github.com/wo312092-creator/literature-review-verifier/settings/secrets")
+              print("  2. Click 'New repository secret'")
+              print("  3. Name: TELEGRAM_BOT_TOKEN")
+              print("  4. Value: Your Telegram bot token from @BotFather")
+              print()
+              sys.exit(1)
+          
+          print(f"✅ Token found: {token[:20]}...{token[-10:]}")
+          
+          # Test getMe
+          print()
+          print("Testing getMe API call...")
+          resp = _tg_call("getMe")
+          if resp.get("ok"):
+              bot = resp.get("result", {})
+              print(f"✅ Bot connected!")
+              print(f"   Name: {bot.get('first_name', 'Unknown')}")
+              print(f"   Username: @{bot.get('username', 'Unknown')}")
+              print(f"   Can join groups: {bot.get('can_join_groups', False)}")
+              print(f"   Supports inline queries: {bot.get('supports_inline_queries', False)}")
+          else:
+              print(f"❌ FAILED: {resp.get('description', 'Unknown error')}")
+              error = resp.get('error', '')
+              if 'not found' in error.lower():
+                  print("   The bot token is invalid or has been revoked!")
+              elif 'unauthorized' in error.lower():
+                  print("   The bot token is not authorized!")
+          
+          PYEOF
+
+      - name: "🔍 DIAGNOSTIC: Test Ollama & AI"
+        run: |
+          echo
+          echo "╔════════════════════════════════════════════════════════════════╗"
+          echo "║                    TESTING OLLAMA & AI                         ║"
+          echo "╚════════════════════════════════════════════════════════════════╝"
+          echo
+          
+          python3 << 'PYEOF'
+          import os
+          os.environ['OLLAMA_HOST'] = 'http://127.0.0.1:11434'
+          
+          from precision_engine import _call_ollama
+          
+          print("Testing Ollama connection...")
+          
+          try:
+              result = _call_ollama("Respond with exactly: HELLO WORLD", timeout=30)
+              if "HELLO" in result.upper():
+                  print("✅ Ollama working!")
+                  print(f"   Response: {result[:100]}")
+              else:
+                  print(f"⚠️  Ollama responded but unexpected: {result[:100]}")
+          except Exception as e:
+              print(f"❌ Ollama failed: {e}")
+          
+          print()
+          print("Testing precision engine...")
+          try:
+              from precision_engine import precision_search
+              results = precision_search("machine learning", threshold=0.7)
+              print(f"✅ Precision search returned {len(results)} results")
+          except Exception as e:
+              print(f"⚠️  Precision search issue: {e}")
+          
+          PYEOF
+
+      - name: "🔍 DIAGNOSTIC: Test Modules"
+        run: |
+          echo
+          echo "╔════════════════════════════════════════════════════════════════╗"
+          echo "║                  TESTING ALL MODULES                          ║"
+          echo "╚════════════════════════════════════════════════════════════════╝"
+          echo
+          
+          python3 << 'PYEOF'
+          import sys
+          sys.path.insert(0, '.')
+          
+          modules = [
+              ("telegram_bot", "Telegram Bot"),
+              ("precision_engine", "Precision Engine"),
+              ("platform_registry", "Platform Registry"),
+              ("wizard", "Wizard"),
+              ("state_manager", "State Manager"),
+              ("pdf_parser", "PDF Parser"),
+              ("google_integration", "Google Integration"),
+          ]
+          
+          results = []
+          for module_name, display_name in modules:
+              try:
+                  mod = __import__(module_name)
+                  funcs = [f for f in dir(mod) if not f.startswith('_')][:5]
+                  print(f"✅ {display_name}: {len(funcs)} functions")
+                  results.append(True)
+              except Exception as e:
+                  print(f"❌ {display_name}: {e}")
+                  results.append(False)
+          
+          print()
+          if all(results):
+              print("🎉 ALL MODULES WORKING!")
+          else:
+              print(f"⚠️  {sum(results)}/{len(results)} modules working")
+          
+          PYEOF
+
+      - name: "🔍 DIAGNOSTIC: Test Bot Commands"
+        run: |
+          echo
+          echo "╔════════════════════════════════════════════════════════════════╗"
+          echo "║              TESTING BOT COMMAND HANDLERS                     ║"
+          echo "╚════════════════════════════════════════════════════════════════╝"
+          echo
+          
+          python3 << 'PYEOF'
+          import sys
+          sys.path.insert(0, '.')
+          
+          import telegram_bot
+          
+          commands = [
+              "_cmd_hunt",
+              "_cmd_sleep",
+              "_cmd_wake",
+              "_cmd_find",
+              "_cmd_help",
+              "handle_message",
+              "run_once",
+          ]
+          
+          print("Checking command handlers:")
+          for cmd in commands:
+              if hasattr(telegram_bot, cmd):
+                  print(f"  ✅ {cmd}")
+              else:
+                  print(f"  ❌ {cmd} - MISSING!")
+          
+          print()
+          print("Checking enhanced features:")
+          features = [
+              ("_generate_queries", "Query Generator"),
+              ("_run_research_hunt", "Background Research"),
+              ("load_chat_state", "Chat State"),
+              ("save_chat_state", "State Persistence"),
+          ]
+          
+          for func, name in features:
+              if hasattr(telegram_bot, func):
+                  print(f"  ✅ {name}")
+              else:
+                  print(f"  ❌ {name} - MISSING!")
+          
+          PYEOF
+
+      - name: "📋 SUMMARY"
+        run: |
+          echo
+          echo "╔════════════════════════════════════════════════════════════════╗"
+          echo "║                    DIAGNOSTIC COMPLETE                        ║"
+          echo "╚════════════════════════════════════════════════════════════════╝"
+          echo
+          echo "To enable the Telegram bot, you MUST:"
+          echo
+          echo "1. Get your Telegram bot token from @BotFather:"
+          echo "   - Open Telegram and search for @BotFather"
+          echo "   - Send /newbot to create a new bot"
+          echo "   - Copy the token (looks like: 123456789:ABCdef...)"
+          echo
+          echo "2. Add the secret to GitHub:"
+          echo "   - Go to: https://github.com/wo312092-creator/literature-review-verifier/settings/secrets"
+          echo "   - Click 'New repository secret'"
+          echo "   - Name: TELEGRAM_BOT_TOKEN"
+          echo "   - Value: <paste your token>"
+          echo "   - Click 'Add secret'"
+          echo
+          echo "3. Also add these secrets (for full functionality):"
+          echo "   - GOOGLE_OAUTH_REFRESH: For Google Sheets"
+          echo "   - GOOGLE_OAUTH_CLIENT_ID: For Google auth"
+          echo "   - GOOGLE_OAUTH_CLIENT_SECRET: For Google auth"
+          echo
+          echo "4. Re-run the bot-polling workflow after adding secrets"
+          echo

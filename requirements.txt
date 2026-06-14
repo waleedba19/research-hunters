@@ -1,0 +1,17 @@
+# Literature Review Verifier — Python dependencies
+# Core (also in runner-base:latest)
+pdfplumber>=0.11.0
+PyMuPDF>=1.24.0
+python-docx>=1.1.0
+odfpy>=1.4.1
+# Excel reports (verify_refs)
+openpyxl>=3.1.0
+# Telegram bot
+requests>=2.31.0
+# Google integration
+google-api-python-client>=2.100.0
+google-auth>=2.27.0
+google-auth-oauthlib>=1.2.0
+gspread>=6.0.0
+# Utility
+python-dotenv>=1.0.0

@@ -1,0 +1,23 @@
+{
+  "name": "literature-review-verifier-reports",
+  "version": "0.2.0",
+  "description": "Node.js report generators for chapter writing (v0.2)",
+  "private": true,
+  "scripts": {
+    "report:docx": "node scripts/reports/generate_chapter_docx.js",
+    "report:pdf": "node scripts/reports/generate_search_pdf.js",
+    "report:excel": "node scripts/reports/generate_excel_summary.js",
+    "report:markdown": "node scripts/reports/generate_markdown_report.js",
+    "verify:cli": "python -m verify_refs.cli",
+    "verify:test": "python tests/test_verify_refs.py --no-e2e"
+  },
+  "dependencies": {
+    "docx": "^9.0.2",
+    "puppeteer": "^24.0.0",
+    "pdfkit": "^0.15.0",
+    "exceljs": "^4.4.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

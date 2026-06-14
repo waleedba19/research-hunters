@@ -1,0 +1,26 @@
+name: OneOff - List Drive Folder
+
+on:
+  workflow_dispatch:
+    inputs:
+      folder_id:
+        description: "Drive folder ID to list"
+        required: true
+        default: "1NjsBcaAb1qtRUl4d7KHNhvfm159ei2C4"
+
+jobs:
+  list:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/wo312092-creator/runner-base:latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Run
+        env:
+          FOLDER_ID: ${{ inputs.folder_id }}
+          GOOGLE_OAUTH_REFRESH: ${{ secrets.GOOGLE_OAUTH_REFRESH }}
+          GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+          GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+        run: python3 oneoff_drive_list.py

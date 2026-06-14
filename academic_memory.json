@@ -1,0 +1,118 @@
+{
+  "_schema_version": "3.0",
+  "_last_updated": "2026-06-12T01:35:21.051285",
+  "what_i_read": {
+    "total_papers_read": 5,
+    "papers": [
+      {
+        "title": "Mobile Learning in Higher Education: A Systematic Review",
+        "year": 2023,
+        "journal": "Computers & Education",
+        "citations": 120,
+        "abstract": "This systematic review examines the effectiveness of mobile learning.",
+        "learned_at": "2026-06-12T01:34:21.912034"
+      },
+      {
+        "title": "Impact of Digital Technologies on Student Achievement in Libyan Universities",
+        "year": 2022,
+        "journal": "Education and Information Technologies",
+        "citations": 45,
+        "abstract": "This study investigates the impact of digital technologies.",
+        "learned_at": "2026-06-12T01:34:21.912241"
+      },
+      {
+        "title": "E-Learning Challenges in the MENA Region: A Qualitative Study",
+        "year": 2023,
+        "journal": "International Journal of Educational Development",
+        "citations": 32,
+        "abstract": "This qualitative study explores e-learning challenges.",
+        "learned_at": "2026-06-12T01:34:21.912420"
+      },
+      {
+        "title": "Mobile Learning in Higher Education: A Systematic Review",
+        "year": 2023,
+        "journal": "Computers & Education",
+        "citations": 120,
+        "abstract": "This systematic review examines the effectiveness of mobile learning.",
+        "learned_at": "2026-06-12T01:35:21.038761"
+      },
+      {
+        "title": "Impact of Digital Technologies on Student Achievement in Libyan Universities",
+        "year": 2022,
+        "journal": "Education and Information Technologies",
+        "citations": 45,
+        "abstract": "This study investigates the impact of digital technologies.",
+        "learned_at": "2026-06-12T01:35:21.039681"
+      }
+    ],
+    "by_field": {
+      "education": [
+        "Mobile Learning in Higher Education: A Systematic Review",
+        "Impact of Digital Technologies on Student Achievement in Libyan Universities",
+        "E-Learning Challenges in the MENA Region: A Qualitative Study",
+        "Mobile Learning in Higher Education: A Systematic Review",
+        "Impact of Digital Technologies on Student Achievement in Libyan Universities"
+      ]
+    },
+    "by_year": {
+      "2023": [
+        "Mobile Learning in Higher Education: A Systematic Review",
+        "E-Learning Challenges in the MENA Region: A Qualitative Study"
+      ],
+      "2022": [
+        "Impact of Digital Technologies on Student Achievement in Libyan Universities"
+      ],
+      "2023": [
+        "Mobile Learning in Higher Education: A Systematic Review"
+      ],
+      "2022": [
+        "Impact of Digital Technologies on Student Achievement in Libyan Universities"
+      ]
+    }
+  },
+  "what_i_wrote": {
+    "total_outputs_generated": 1,
+    "literature_reviews": [],
+    "full_articles": [
+      {
+        "title": "Understanding Mobile Learning Effectiveness In Higher Education",
+        "topic": "Mobile Learning Effectiveness in Higher Education",
+        "paper_type": "empirical",
+        "generated_at": "2026-06-12T01:35:21.040500",
+        "docx_path": null,
+        "status": "error"
+      }
+    ]
+  },
+  "what_i_know": {
+    "theoretical_frameworks": [],
+    "key_concepts": {},
+    "research_methods": [],
+    "topics_covered": [
+      "education"
+    ]
+  },
+  "what_i_intend_to_write": {
+    "active_projects": [
+      "Mobile Learning Effectiveness in Higher Education"
+    ],
+    "pending_sections": []
+  },
+  "learning_history": [
+    {
+      "timestamp": "2026-06-12T01:34:21.912429",
+      "query": "mobile learning in higher education",
+      "papers_learned": 0,
+      "concepts_added": [],
+      "patterns_learned": []
+    },
+    {
+      "timestamp": "2026-06-12T01:35:21.039696",
+      "query": "mobile learning in higher education",
+      "papers_learned": 2,
+      "concepts_added": [],
+      "patterns_learned": []
+    }
+  ],
+  "session_history": []
+}
