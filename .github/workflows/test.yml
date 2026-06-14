@@ -9,25 +9,25 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    container:
-      # Pinned to SHA digest to prevent breakage from image updates.
-      # To update: run workflow once, copy new digest from logs, update here.
-      image: ghcr.io/wo312092-creator/runner-base@sha256:658747bfa2ad6bf1ec15aa7e537db8c81451eb395918dd46252c5aec09ad2d88
     steps:
       - uses: actions/checkout@v4
+      - name: Install ollama
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
       - name: Start ollama (with 180s timeout, then healthcheck)
         run: |
           echo "Attempting ollama startup..."
-          if timeout 180 /usr/local/bin/ollama-start.sh; then
-            echo "ollama-start.sh returned (may have finished or timed out internally)"
-          else
-            echo "::warning::ollama-start.sh exited non-zero or was killed at 180s - checking if ollama is alive"
-          fi
-          sleep 2
-          if curl -fsS --max-time 5 http://127.0.0.1:11434/api/tags >/dev/null 2>&1; then
-            echo "ollama healthcheck passed - tests can use ollama"
-          else
-            echo "::warning::ollama healthcheck failed - tests requiring ollama will be skipped"
+          ollama serve &
+          for i in $(seq 1 60); do
+            if curl -fsS --max-time 3 http://127.0.0.1:11434/api/tags >/dev/null 2>&1; then
+              echo "ollama healthcheck passed"
+              break
+            fi
+            echo "waiting for ollama... ($i/60)"
+            sleep 3
+          done
+          if ! curl -fsS --max-time 5 http://127.0.0.1:11434/api/tags >/dev/null 2>&1; then
+            echo "::warning::ollama failed to start within 180s - tests requiring ollama will be skipped"
           fi
       - name: Install deps (PEP 668 workaround for Ubuntu 24.04)
         run: pip install --no-cache-dir --break-system-packages -r requirements.txt || echo "::warning::pip install failed - some tests may fail"
