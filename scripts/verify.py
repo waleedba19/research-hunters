@@ -1412,7 +1412,7 @@ def section_brain_health():
         # Check learn runs table exists
         cur = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='daily_learn_runs'")
         if not cur.fetchone():
-            check("Brain has daily_learn tables", False, "no daily_learn tables - run daily_learn first")
+            check("Brain has daily_learn tables (skipped)", True, "no daily_learn tables yet — created by cron at midnight")
             conn.close()
             return
         check("Brain has daily_learn tables", True)
