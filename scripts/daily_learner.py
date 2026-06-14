@@ -386,7 +386,7 @@ class DailyLearner:
             """, (
                 qhash, topic["category"], topic["query"],
                 qhash, datetime.now().isoformat(), datetime.now().isoformat(),
-                qhash, len(results),
+                qhash, qhash, len(results),
                 qhash, new_count,
                 1 if len(results) == 0 else 0
             ))
@@ -585,21 +585,25 @@ def cli():
     if args.stats:
         conn = sqlite3.connect(str(PROOF_DB))
         conn.row_factory = sqlite3.Row
-        cur = conn.execute("SELECT COUNT(*) as c FROM daily_learn_results")
-        total = cur.fetchone()["c"]
-        cur = conn.execute("SELECT COUNT(*) as c FROM daily_learn_topics")
-        tcount = cur.fetchone()["c"]
-        cur = conn.execute("SELECT COUNT(*) as c FROM daily_learn_runs")
-        runs = cur.fetchone()["c"]
-        cur = conn.execute("SELECT run_date, topics_attempted, new_results FROM daily_learn_runs ORDER BY id DESC LIMIT 5")
-        recent = [dict(r) for r in cur.fetchall()]
-        conn.close()
-        print(json.dumps({
-            "total_results_in_brain": total,
-            "total_topics_searched": tcount,
-            "total_runs": runs,
-            "recent_runs": recent,
-        }, indent=2))
+        try:
+            cur = conn.execute("SELECT COUNT(*) as c FROM daily_learn_results")
+            total = cur.fetchone()["c"]
+            cur = conn.execute("SELECT COUNT(*) as c FROM daily_learn_topics")
+            tcount = cur.fetchone()["c"]
+            cur = conn.execute("SELECT COUNT(*) as c FROM daily_learn_runs")
+            runs = cur.fetchone()["c"]
+            cur = conn.execute("SELECT run_date, topics_attempted, new_results FROM daily_learn_runs ORDER BY id DESC LIMIT 5")
+            recent = [dict(r) for r in cur.fetchall()]
+            conn.close()
+            print(json.dumps({
+                "total_results_in_brain": total,
+                "total_topics_searched": tcount,
+                "total_runs": runs,
+                "recent_runs": recent,
+            }, indent=2))
+        except sqlite3.OperationalError:
+            conn.close()
+            print(json.dumps({"note": "no daily_learn tables yet — created by cron at midnight"}, indent=2))
         return
 
     learner = DailyLearner(new_only=args.new_only, topics_per_run=args.topics)
