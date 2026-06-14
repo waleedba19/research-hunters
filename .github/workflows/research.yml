@@ -1316,6 +1316,15 @@ jobs:
       - name: Show updated brain stats
         run: |
           python scripts/daily_learner.py --model qwen2.5vl:3b --stats
+      - name: Generate brain report artifact
+        run: |
+          python scripts/daily_learner.py --model qwen2.5vl:3b --report --report-path brain_report.md
+      - name: Upload brain report
+        uses: actions/upload-artifact@v4
+        with:
+          name: brain-report-daily
+          path: brain_report.md
+          retention-days: 90
 
   research:
     if: github.event_name == 'workflow_dispatch'

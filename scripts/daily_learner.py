@@ -159,6 +159,7 @@ class DailyLearner:
         self.conn.row_factory = sqlite3.Row
         self._init_db()
         self.stats = defaultdict(int)
+        self.today_details = []
 
     def _init_db(self):
         self.conn.executescript("""
@@ -312,6 +313,8 @@ class DailyLearner:
         topics_attempted = 0
         topics_skipped = 0
 
+        self.today_details = []  # reset for each run
+
         for topic in topics:
             qhash = hashlib.sha256(topic["query"].encode()).hexdigest()[:16]
 
@@ -328,6 +331,7 @@ class DailyLearner:
             results = self._search_ddg(topic["query"], max_results=8)
 
             new_count = 0
+            topic_details = []
             for r in results:
                 rhash = hashlib.sha256(r["url"].encode()).hexdigest()[:16]
                 existing = self.conn.execute(
@@ -341,6 +345,8 @@ class DailyLearner:
                         (datetime.now().isoformat(), rhash)
                     )
                     total_rem += 1
+                    r["score"] = "remembered"
+                    r["assessment"] = ""
                 else:
                     assessment, score = self._ollama_assess(r["title"], r["snippet"])
                     self.conn.execute(
@@ -350,6 +356,23 @@ class DailyLearner:
                     )
                     new_count += 1
                     total_new += 1
+                    r["assessment"] = assessment
+                    r["score"] = score
+
+                topic_details.append({
+                    "title": r["title"],
+                    "url": r["url"],
+                    "score": r.get("score", "unknown"),
+                    "assessment": r.get("assessment", "")[:80],
+                })
+
+            self.today_details.append({
+                "category": topic["category"],
+                "query": topic["query"],
+                "results_count": len(results),
+                "new_count": new_count,
+                "results": topic_details[:5],
+            })
 
             self.conn.execute("""
                 INSERT OR REPLACE INTO daily_learn_topics
@@ -389,6 +412,140 @@ class DailyLearner:
         }
 
 
+    def _get_brain_summary(self) -> dict:
+        cur = self.conn.execute("SELECT COUNT(*) as c FROM daily_learn_results")
+        total_results = cur.fetchone()["c"]
+        cur = self.conn.execute("SELECT COUNT(*) as c FROM daily_learn_topics")
+        total_topics = cur.fetchone()["c"]
+        cur = self.conn.execute("SELECT COUNT(*) as c FROM daily_learn_runs")
+        total_runs = cur.fetchone()["c"]
+        cur = self.conn.execute("SELECT DISTINCT category FROM daily_learn_topics ORDER BY category")
+        categories = [r["category"] for r in cur.fetchall()]
+        cur = self.conn.execute(
+            "SELECT run_date, topics_attempted, topics_skipped, new_results, remembered_results, duration_seconds FROM daily_learn_runs ORDER BY id DESC LIMIT 7"
+        )
+        recent_runs = [dict(r) for r in cur.fetchall()]
+        cur = self.conn.execute(
+            "SELECT category, COUNT(*) as c FROM daily_learn_topics GROUP BY category ORDER BY c DESC"
+        )
+        topics_by_cat = [dict(r) for r in cur.fetchall()]
+        cur = self.conn.execute(
+            "SELECT title, url, relevance_score, first_seen FROM daily_learn_results WHERE relevance_score = 'high' ORDER BY first_seen DESC LIMIT 10"
+        )
+        top_discoveries = [dict(r) for r in cur.fetchall()]
+        return {
+            "total_results": total_results,
+            "total_topics": total_topics,
+            "total_runs": total_runs,
+            "categories_covered": len(categories),
+            "categories": categories,
+            "topics_by_category": topics_by_cat,
+            "recent_runs": recent_runs,
+            "top_high_relevance": top_discoveries,
+        }
+
+    def close(self):
+        self.conn.close()
+
+    def generate_report(self) -> str:
+        now = datetime.now()
+        day_name = now.strftime("%A")
+        date_str = now.strftime("%Y-%m-%d %H:%M:%S")
+        brain = self._get_brain_summary()
+        sep = "=" * 72
+        sub = "-" * 72
+
+        parts = []
+        parts.append(sep)
+        parts.append("  RESEARCH HUNTER BRAIN REPORT - Autonomous Daily Learning")
+        parts.append(f"  {date_str} ({day_name})")
+        parts.append(sep)
+        parts.append("")
+
+        parts.append(sub)
+        parts.append("  TODAY'S SESSION")
+        parts.append(sub)
+        if self.today_details:
+            total_found = sum(d["results_count"] for d in self.today_details)
+            total_new = sum(d["new_count"] for d in self.today_details)
+            parts.append(f"  Topics attempted: {len(self.today_details)}")
+            parts.append(f"  Results found:    {total_found}")
+            parts.append(f"  New to brain:     {total_new}")
+            parts.append(f"  Remembered:       {total_found - total_new}")
+            parts.append("")
+            for td in self.today_details:
+                parts.append(f"  [{td['category']}]")
+                parts.append(f"    Query: {td['query'][:80]}")
+                parts.append(f"    Results: {td['results_count']} ({td['new_count']} new)")
+                for r in td["results"][:3]:
+                    tag = {"high":" [HIGH]","medium":" [MED]","low":" [LOW]","remembered":"","unknown":""}.get(r.get("score",""),"")
+                    parts.append(f"    - {r['title'][:90]}{tag}")
+                if len(td["results"]) > 3:
+                    parts.append(f"      ... +{len(td['results'])-3} more")
+                parts.append("")
+        else:
+            parts.append("  No topics were searched (all fully explored or none pending).")
+            parts.append("")
+
+        parts.append(sub)
+        parts.append("  BRAIN STATISTICS (Lifetime)")
+        parts.append(sub)
+        parts.append(f"  Total academic sources stored: {brain['total_results']}")
+        parts.append(f"  Topics ever searched:          {brain['total_topics']}")
+        parts.append(f"  Categories covered:            {brain['categories_covered']}")
+        parts.append(f"  Total learning runs:           {brain['total_runs']}")
+        parts.append("")
+        if brain["topics_by_category"]:
+            parts.append("  Topics per category:")
+            for tc in brain["topics_by_category"]:
+                parts.append(f"    {tc['category'][:45]:45s} {tc['c']} queries")
+            parts.append("")
+
+        if brain["recent_runs"]:
+            parts.append(sub)
+            parts.append("  RECENT RUNS (last 7)")
+            parts.append(sub)
+            parts.append(f"  {'Date':20s} {'Topics':>6s} {'New':>5s} {'Rem':>5s} {'Dur':>8s}")
+            parts.append(f"  {'-'*20} {'-'*6} {'-'*5} {'-'*5} {'-'*8}")
+            for r in brain["recent_runs"]:
+                dur = f"{r['duration_seconds']:.0f}s"
+                parts.append(f"  {str(r['run_date'])[:20]:20s} {r['topics_attempted']:>6d} {r['new_results']:>5d} {r['remembered_results']:>5d} {dur:>8s}")
+            parts.append("")
+
+        if brain["top_high_relevance"]:
+            parts.append(sub)
+            parts.append("  TOP HIGH-RELEVANCE DISCOVERIES")
+            parts.append(sub)
+            for r in brain["top_high_relevance"]:
+                parts.append(f"  - {r['title'][:100]}")
+                parts.append(f"    URL: {r['url'][:120]}")
+                parts.append(f"    Discovered: {str(r['first_seen'])[:10]}")
+                parts.append("")
+
+        parts.append(sub)
+        parts.append("  BRAIN KNOWLEDGE READY FOR RESEARCH HUNTER PIPELINE")
+        parts.append(sub)
+        parts.append(f"  The brain has {brain['total_results']} rated academic sources across")
+        parts.append(f"  {brain['categories_covered']} categories. Query the brain first:")
+        parts.append("")
+        parts.append("    python scripts/daily_learner.py --brain-query \"your topic\"")
+        parts.append("")
+
+        return "\n".join(parts)
+
+
+def brain_query(search: str, limit: int = 15):
+    import sqlite3
+    conn = sqlite3.connect(str(PROOF_DB))
+    conn.row_factory = sqlite3.Row
+    rows = conn.execute(
+        "SELECT title, url, snippet, relevance_score, ollama_assessment, first_seen FROM daily_learn_results WHERE title LIKE ? OR snippet LIKE ? OR ollama_assessment LIKE ? ORDER BY first_seen DESC LIMIT ?",
+        (f"%{search}%", f"%{search}%", f"%{search}%", limit)
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
 def cli():
     global MODEL_NAME
     import argparse
@@ -401,23 +558,45 @@ def cli():
                         help="Ollama model name")
     parser.add_argument("--stats", action="store_true",
                         help="Print brain stats and exit")
+    parser.add_argument("--report", action="store_true",
+                        help="Generate brain report file")
+    parser.add_argument("--report-path", default="brain_report.md",
+                        help="Path for brain report (default: brain_report.md)")
+    parser.add_argument("--brain-query", type=str, default=None,
+                        help="Search past discoveries in the brain")
     args = parser.parse_args()
     MODEL_NAME = args.model
 
+    if args.brain_query:
+        results = brain_query(args.brain_query)
+        print(json.dumps({"query": args.brain_query, "results": results}, indent=2))
+        print(f"\nFound {len(results)} matching sources in brain.")
+        return
+
+    if args.report:
+        learner = DailyLearner(new_only=False, topics_per_run=0)
+        report_text = learner.generate_report()
+        Path(args.report_path).write_text(report_text, encoding="utf-8")
+        learner.close()
+        print(f"Brain report written to: {args.report_path}")
+        print(report_text)
+        return
+
     if args.stats:
         conn = sqlite3.connect(str(PROOF_DB))
+        conn.row_factory = sqlite3.Row
         cur = conn.execute("SELECT COUNT(*) as c FROM daily_learn_results")
-        total = cur.fetchone()[0]
+        total = cur.fetchone()["c"]
         cur = conn.execute("SELECT COUNT(*) as c FROM daily_learn_topics")
-        topics = cur.fetchone()[0]
+        tcount = cur.fetchone()["c"]
         cur = conn.execute("SELECT COUNT(*) as c FROM daily_learn_runs")
-        runs = cur.fetchone()[0]
+        runs = cur.fetchone()["c"]
         cur = conn.execute("SELECT run_date, topics_attempted, new_results FROM daily_learn_runs ORDER BY id DESC LIMIT 5")
         recent = [dict(r) for r in cur.fetchall()]
         conn.close()
         print(json.dumps({
             "total_results_in_brain": total,
-            "total_topics_searched": topics,
+            "total_topics_searched": tcount,
             "total_runs": runs,
             "recent_runs": recent,
         }, indent=2))
@@ -425,7 +604,11 @@ def cli():
 
     learner = DailyLearner(new_only=args.new_only, topics_per_run=args.topics)
     report = learner.run()
-    print(json.dumps(report, indent=2))
+    report_text = learner.generate_report()
+    learner.close()
+
+    print(json.dumps(report, indent=2) + "\n")
+    print(report_text)
 
     if report.get("new_results_stored", 0) > 0:
         print(f"\n  Learned {report['new_results_stored']} new academic sources today.")

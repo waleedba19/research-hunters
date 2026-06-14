@@ -1392,6 +1392,86 @@ def section_advanced_generation():
 
 
 # ═══════════════════════════════════════════════════════════════════════
+# SECTION 12 — Brain Health Check
+# ═══════════════════════════════════════════════════════════════════════
+
+def section_brain_health():
+    print("\n" + "=" * 60)
+    print("SECTION 12: Brain Health Check (proof_memory.db)")
+    print("=" * 60)
+
+    brain_db = Path(__file__).parent / "proof_memory.db"
+    if not brain_db.exists():
+        check("proof_memory.db exists", False, "not found - run daily_learn first")
+        return
+
+    try:
+        conn = sqlite3.connect(str(brain_db))
+        conn.row_factory = sqlite3.Row
+
+        # Check learn runs table exists
+        cur = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='daily_learn_runs'")
+        if not cur.fetchone():
+            check("Brain has daily_learn tables", False, "no daily_learn tables - run daily_learn first")
+            conn.close()
+            return
+        check("Brain has daily_learn tables", True)
+
+        # Total sources
+        cur = conn.execute("SELECT COUNT(*) as c FROM daily_learn_results")
+        total_results = cur.fetchone()["c"]
+        check("Total academic sources in brain", total_results > 0, f"{total_results} sources" if total_results > 0 else "empty brain")
+
+        # Total topics
+        cur = conn.execute("SELECT COUNT(*) as c FROM daily_learn_topics")
+        total_topics = cur.fetchone()["c"]
+        check("Total topics searched", total_topics > 0, f"{total_topics} topics")
+
+        # Categories covered
+        cur = conn.execute("SELECT DISTINCT category FROM daily_learn_topics ORDER BY category")
+        categories = [r["category"] for r in cur.fetchall()]
+        check("Categories covered", len(categories) > 0, f"{len(categories)} categories: {', '.join(categories[:5])}{'...' if len(categories)>5 else ''}")
+
+        # High relevance sources
+        cur = conn.execute("SELECT COUNT(*) as c FROM daily_learn_results WHERE relevance_score = 'high'")
+        high_count = cur.fetchone()["c"]
+        check("High-relevance sources", True, f"{high_count} sources rated HIGH")
+
+        # Medium relevance
+        cur = conn.execute("SELECT COUNT(*) as c FROM daily_learn_results WHERE relevance_score = 'medium'")
+        med_count = cur.fetchone()["c"]
+        check("Medium-relevance sources", True, f"{med_count} sources rated MEDIUM")
+
+        # Total runs
+        cur = conn.execute("SELECT COUNT(*) as c FROM daily_learn_runs")
+        runs = cur.fetchone()["c"]
+        check("Total learning runs", runs > 0, f"{runs} runs")
+
+        # Most recent run
+        cur = conn.execute("SELECT run_date, topics_attempted, new_results, remembered_results, duration_seconds FROM daily_learn_runs ORDER BY id DESC LIMIT 1")
+        last = cur.fetchone()
+        if last:
+            check("Most recent run", True,
+                  f"{str(last['run_date'])[:19]}: {last['new_results']} new, {last['remembered_results']} remembered, {last['duration_seconds']:.0f}s")
+
+        # Top 5 high-relevance sources
+        cur = conn.execute(
+            "SELECT title, url, first_seen FROM daily_learn_results WHERE relevance_score = 'high' ORDER BY first_seen DESC LIMIT 5"
+        )
+        tops = cur.fetchall()
+        if tops:
+            print(f"\n  -- Top 5 High-Relevance Discoveries --")
+            for r in tops:
+                print(f"    {r['title'][:80]}")
+                print(f"    URL: {r['url'][:100]}")
+
+        conn.close()
+
+    except Exception as e:
+        check("Brain health check", False, str(e)[:100])
+
+
+# ═══════════════════════════════════════════════════════════════════════
 # MAIN
 # ═══════════════════════════════════════════════════════════════════════
 
@@ -1426,6 +1506,7 @@ def main():
     section_plagiarism_protection()
     section_web_learner()
     section_advanced_generation()
+    section_brain_health()
 
     # ── Summary ──
     print("\n" + "=" * 60)
