@@ -36,6 +36,9 @@ pdf_files/
 # smoke_reports/ regenerated each CI run; sample_reports/ IS committed
 smoke_reports/
 
+# Database files (regenerated each run)
+*.db
+
 # Editor / OS
 .vscode/
 .idea/

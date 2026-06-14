@@ -7,7 +7,7 @@ on:
   push:
     branches: [main]
   schedule:
-    - cron: "0 0 * * 0"
+    - cron: "0 0 * * *"
   workflow_dispatch:
     inputs:
 
@@ -1265,11 +1265,57 @@ jobs:
         uses: actions/cache@v4
         with:
           path: scripts/proof_memory.db
-          key: proof-memory-v1
+          key: proof-memory-${{ github.run_id }}
+          restore-keys: proof-memory-
       - name: Install Python dependencies
         run: pip install -q requests rich openpyxl python-docx python-pptx pdfplumber pymupdf pytesseract reportlab playwright pillow ollama
       - name: Run full stack verification
         run: python scripts/verify.py --model qwen2.5vl:3b --ci
+
+  daily_learn:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Ollama AI
+        id: setup
+        uses: ./.github/actions/ollama-ai
+        with:
+          model: "qwen2.5vl:3b"
+          ollama-version: "0.30.4"
+      - name: Check model health
+        run: |
+          echo "Model status: ${{ steps.setup.outputs.model-ready }}"
+          if [[ "${{ steps.setup.outputs.model-ready }}" == "true" ]]; then
+            echo "Model health: READY"
+          else
+            echo "Model health: FAILED"
+            exit 1
+          fi
+      - name: Restore learning brain (cross-run persistence)
+        uses: actions/cache@v4
+        with:
+          path: scripts/proof_memory.db
+          key: proof-memory-${{ github.run_id }}
+          restore-keys: proof-memory-
+      - name: Install dependencies
+        run: |
+          pip install -q requests rich ollama
+      - name: Show current brain stats
+        run: |
+          python scripts/daily_learner.py --model qwen2.5vl:3b --stats || echo "No brain data yet"
+      - name: Run daily autonomous learning (1 hour deep search + read)
+        run: |
+          echo " Starting daily learning cycle..."
+          echo " Date: $(date -u)"
+          echo " Topics: ~5 academic fields (rotating daily)"
+          echo " Brain: proof_memory.db (accumulates across runs)"
+          echo ""
+          python scripts/daily_learner.py --model qwen2.5vl:3b --new-only --topics 5
+      - name: Show updated brain stats
+        run: |
+          python scripts/daily_learner.py --model qwen2.5vl:3b --stats
 
   research:
     if: github.event_name == 'workflow_dispatch'
