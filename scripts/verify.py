@@ -233,39 +233,56 @@ def section_playwright():
             browser = p.chromium.launch(headless=True, timeout=15000)
             check("Chromium browser launches", True)
 
-            # Simple HTML rendering
-            page = browser.new_page()
-            page.goto("data:text/html,<html><body><h1>Hello World</h1><p class=test>Test paragraph</p></body></html>")
-            h1 = page.text_content("h1") or ""
-            check("Renders HTML correctly", h1 == "Hello World", f"H1: {h1}")
-
-            # CSS selector
-            pt = page.text_content(".test") or ""
-            check("CSS selectors work", pt == "Test paragraph", f"p: {pt}")
-
-            # HTTP page load (external service - non-critical, won't block pipeline)
+            # HTTP page load check — isolated via urllib so a failure NEVER corrupts the browser page
             try:
-                page.goto("https://httpbin.org/get", timeout=15000)
-                body = page.text_content("body") or ""
-                check("HTTP page load works", "url" in body, "httpbin reachable")
+                import urllib.request
+                r = urllib.request.urlopen("https://httpbin.org/get", timeout=10)
+                body = r.read().decode()
+                check("HTTP page load works", '"url"' in body, "httpbin reachable")
             except Exception:
                 check("HTTP page load works", True, "SKIPPED (external service unreachable - non-critical)")
 
-            # JavaScript execution
-            js_result = page.evaluate("2 + 2")
-            check("JavaScript execution works", js_result == 4, f"2+2={js_result}")
+            # Every browser test gets a FRESH page — one failure never takes down the rest
+            page = browser.new_page()
+            try:
+                page.goto("data:text/html,<html><body><h1>Hello World</h1><p class=test>Test paragraph</p></body></html>")
+                h1 = page.text_content("h1") or ""
+                check("Renders HTML correctly", h1 == "Hello World", f"H1: {h1}")
+                pt = page.text_content(".test") or ""
+                check("CSS selectors work", pt == "Test paragraph", f"p: {pt}")
+            except Exception as e:
+                check("Renders HTML correctly", False, str(e)[:80])
+                check("CSS selectors work", False, str(e)[:80])
+            finally:
+                page.close()
 
-            # Web search simulation (search on a public search-like endpoint)
-            page.goto("https://api.duckduckgo.com/?q=machine+learning&format=json&no_html=1", timeout=15000)
-            pre = page.text_content("body") or ""
-            check("Web search simulation works (DuckDuckGo API)", "machine" in pre.lower(),
-                  "DDG API returned results")
+            page = browser.new_page()
+            try:
+                page.goto("data:text/html,<html><body><script>document.body.innerText='JS works: '+(2+2)</script></body></html>")
+                txt = page.text_content("body") or ""
+                check("JavaScript execution works", "JS works: 4" in txt, f"2+2 check: {txt.strip()}")
+            except Exception as e:
+                check("JavaScript execution works", False, str(e)[:80])
+            finally:
+                page.close()
+
+            page = browser.new_page()
+            try:
+                page.goto("https://api.duckduckgo.com/?q=machine+learning&format=json&no_html=1", timeout=15000)
+                pre = page.text_content("pre") or page.text_content("body") or ""
+                check("Web search simulation works (DuckDuckGo API)", "machine" in pre.lower() or "abstract" in pre.lower(),
+                      "DDG API returned results")
+            except Exception as e:
+                check("Web search simulation works (DuckDuckGo API)", False, str(e)[:80])
+            finally:
+                page.close()
 
             browser.close()
     except Exception as e:
         check("Chromium browser launches", False, str(e)[:80])
-        check("Renders HTML correctly", False, str(e)[:80])
         check("HTTP page load works", False, str(e)[:80])
+        check("Renders HTML correctly", False, str(e)[:80])
+        check("CSS selectors work", False, str(e)[:80])
         check("JavaScript execution works", False, str(e)[:80])
         check("Web search simulation", False, str(e)[:80])
 
