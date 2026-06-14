@@ -331,10 +331,16 @@ def section_web_search_memory():
         conn.close()
         return
 
-    # ── 3. Authentic academic queries ──
+    # ── 3. Date-aware queries — each run discovers NEW information ──
+    today = datetime.now()
+    yr = today.year
+    mon = today.month
+    day = today.day
+    run_seed = f"{yr}-{mon:02d}-{day:02d}"
     queries = [
-        "systematic review machine learning education 2025",
-        "deep learning medical imaging survey 2024",
+        f"latest research {today.strftime('%B %Y')} machine learning",
+        f"new academic publications {yr} {['artificial intelligence','neuroscience','climate change','education technology','cancer research','quantum computing'][mon % 6]}",
+        f"breakthrough studies published {run_seed} science",
     ]
 
     for qidx, query in enumerate(queries):

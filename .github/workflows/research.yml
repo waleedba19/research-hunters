@@ -1253,13 +1253,19 @@ jobs:
           model: "qwen2.5vl:3b"
           ollama-version: "0.30.4"
       - name: Check model health
-        if: steps.setup.outputs.model-ready != 'true'
         run: |
-          echo "❌ Model failed all auto-repair attempts."
-          echo "Last known health: ${{ steps.setup.outputs.model-ready }}"
-          echo "See diagnostics above for root cause."
-          echo "Common fixes: clear ~/.ollama cache, or try a different model."
-          exit 1
+          echo "Model status: ${{ steps.setup.outputs.model-ready }}"
+          if [[ "${{ steps.setup.outputs.model-ready }}" == "true" ]]; then
+            echo "✅ Model health: READY"
+          else
+            echo "❌ Model health: FAILED — see setup logs for diagnostics"
+            exit 1
+          fi
+      - name: Restore proof memory (cross-run learning persistence)
+        uses: actions/cache@v4
+        with:
+          path: scripts/proof_memory.db
+          key: proof-memory-v1
       - name: Install Python dependencies
         run: pip install -q requests rich openpyxl python-docx python-pptx pdfplumber pymupdf pytesseract reportlab playwright pillow ollama
       - name: Run full stack verification
@@ -1279,12 +1285,14 @@ jobs:
           model: "qwen2.5vl:3b"
           ollama-version: "0.30.4"
       - name: Check model health
-        if: steps.setup.outputs.model-ready != 'true'
         run: |
-          echo "❌ Model failed all auto-repair attempts."
-          echo "Health: ${{ steps.setup.outputs.model-ready }}"
-          echo "Research pipeline aborted — cannot proceed without working model."
-          exit 1
+          echo "Model status: ${{ steps.setup.outputs.model-ready }}"
+          if [[ "${{ steps.setup.outputs.model-ready }}" == "true" ]]; then
+            echo "✅ Model health: READY — proceeding with research pipeline"
+          else
+            echo "❌ Model health: FAILED — cannot proceed without working model"
+            exit 1
+          fi
       - name: Install dependencies
         run: |
           pip install -q requests rich openpyxl python-docx python-pptx pdfplumber pymupdf playwright pillow pytesseract reportlab ollama
