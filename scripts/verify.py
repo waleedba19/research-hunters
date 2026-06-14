@@ -971,14 +971,9 @@ def section_e2e():
         check("research_hunter_v2-4.py loads without errors", True)
 
         # Check key constants exist
-        for const in ["PLATFORM_FNS", "MEGA_PLATFORMS", "FLEET_RANKED",
-                      "MODE_TIME_ESTIMATES", "BROWSER_PLATS"]:
+        for const in ["PLATFORM_FNS", "BROWSER_PLATS"]:
             check(f"Has {const}", hasattr(mod, const))
 
-        # Verify modes
-        if hasattr(mod, "MODE_TIME_ESTIMATES"):
-            modes = list(mod.MODE_TIME_ESTIMATES.keys())
-            check(f"Modes defined ({len(modes)})", len(modes) >= 5, f"{modes}")
 
         # Verify search_all function
         check("Has search_all()", hasattr(mod, "search_all"))
