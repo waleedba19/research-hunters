@@ -398,7 +398,6 @@ class DailyLearner:
              total_new + total_rem, total_new, total_rem, time.time() - t0)
         )
         self.conn.commit()
-        self.conn.close()
 
         return {
             "date": datetime.now().strftime("%Y-%m-%d"),
