@@ -6409,7 +6409,7 @@ def main():
 
     # Generate queries — title-driven, uses study_keywords for richer AI prompt
     info("Generating search queries…")
-    used_q  = cache.queries_used()
+    used_q  = list(cache.queries_used())
     queries = generate_queries(title, field, study_types, rqs, year_from,
                                used_q, country_context)
     # Inject study keywords as extra queries (each keyword phrase = one query)
