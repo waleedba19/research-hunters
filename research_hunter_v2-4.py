@@ -4449,6 +4449,19 @@ def enhanced_quartile_check(paper: dict) -> str:
         return "Q3"
     if match_journal_to_known(journal, KNOWN_Q4_JOURNALS):
         return "Q4"
+    # Citation-based fallback: infer quartile from Google Scholar citations
+    try:
+        cits = int(paper.get("gs_citations") or paper.get("citations") or 0)
+        if cits >= 500:
+            return "Q1"
+        if cits >= 100:
+            return "Q2"
+        if cits >= 20:
+            return "Q3"
+        if cits >= 5:
+            return "Q4"
+    except (ValueError, TypeError):
+        pass
     return existing_q or "Not Found"
 
 
@@ -7130,7 +7143,7 @@ def main():
             field = auto_detect_field(title, [])
         mode_str = os.environ.get("CI_MODE_VAL", "deep")
         mode = mode_str.split(" -", 1)[0].strip() or "deep"
-        skip_downloads = mode in ("sample", "simple")
+        skip_downloads = os.environ.get("CI_DOWNLOAD_PDFS", "").lower() not in ("true", "1", "yes")
         use_scihub = os.environ.get("CI_SCI_HUB", "").lower() in ("true", "1", "yes")
         sf_val = os.environ.get("CI_SINGLE_FOLDER", "").lower()
         single_folder = sf_val.startswith("single") or sf_val in ("1", "yes")

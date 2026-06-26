@@ -1010,19 +1010,19 @@ on:
           - '1505'
           - '1500 - Ancient/Historical Sources'
       mode:
-        description: '⚡ SEARCH MODE — All modes search all 128+ platforms. Mode controls paper count, download depth, and Q-fill strategy. Every mode guarantees Excel (40+ sheets) + DOCX output.'
+        description: '⚡ SEARCH MODE — All modes search all 128+ platforms. Mode controls search depth only. Paper limit is set separately below. Every mode guarantees Excel (40+ sheets) + DOCX report. Toggle "Download PDFs" below to also get PDF files.'
         required: true
-        default: 'deep - DEEP (~3-6 hrs) - Max 2000 papers, full DL, all quartiles [RECOMMENDED]'
+        default: 'deep - DEEP — Searches all 128 platforms with full depth [RECOMMENDED]'
         type: choice
         options:
-          - 'sample - SAMPLE (~5-10 min) - Max 50 papers, NO downloads, Excel+DOCX guaranteed'
-          - 'simple - SIMPLE (~10-20 min) - Max 150 papers, metadata only, Excel+DOCX'
-          - 'quick - QUICK (~20-40 min) - Max 300 papers, 20% selective DL'
-          - 'field - FIELD (~45-90 min) - Max 500 papers, 50% DL [Student RECOMMENDED]'
-          - 'extended - EXTENDED (~1.5-3 hrs) - Max 1000 papers, full DL [RECOMMENDED]'
-          - 'deep - DEEP (~3-6 hrs) - Max 2000 papers, full DL, all quartiles [RECOMMENDED]'
-          - 'ultra - ULTRA (~8-16 hrs) - Max 5000 papers, full DL + Q1-Q4 stratified fill'
-          - 'maximum - MAXIMUM (~16-32 hrs) - Unlimited papers, exhaustive DL + Q1-Q4 fill'
+          - 'sample - SAMPLE — Light search, quick turnaround, limited platforms'
+          - 'simple - SIMPLE — Moderate search, good coverage'
+          - 'quick - QUICK — Fast search across all platforms'
+          - 'field - FIELD — Balanced search for field-level coverage'
+          - 'extended - EXTENDED — Extended search, thorough coverage [RECOMMENDED]'
+          - 'deep - DEEP — Full-depth search across all 128+ platforms [RECOMMENDED]'
+          - 'ultra - ULTRA — Ultra-deep search with multiple query rounds'
+          - 'maximum - MAXIMUM — Exhaustive search, every possible query'
       research_depth:
         description: '🎯 RESEARCH DEPTH — Auto-splits work into 3h chunks. Each chunk resumes where the last stopped.'
         required: true
@@ -1050,10 +1050,15 @@ on:
           - '10 - Tera — 20,000 papers — Near exhaustive'
           - '11 - Infinite — 40,000+ papers — ALL available'
           - '12 - Unlimited — 100,000+ papers — Complete exhaustive'
-      scihub:
-        description: '🔓 ENABLE OPEN ACCESS FALLBACK (finds free versions of paywalled papers)'
+      download_pdfs:
+        description: '📥 DOWNLOAD PDFs — OFF: reports only (DOCX + XLSX 40-sheet with all links). ON: reports + PDF downloads (slower)'
         required: true
-        default: true
+        default: false
+        type: boolean
+      scihub:
+        description: '🔓 SCI-HUB FALLBACK — tries Sci-Hub when direct download fails (only relevant if PDF download is ON)'
+        required: true
+        default: false
         type: boolean
       learn:
         description: '🧠 ENABLE LEARNING SYSTEM (updates JSON memory with findings)'
@@ -1112,26 +1117,23 @@ on:
           - proposal - 📝 Research Proposal
 
       output_format:
-        description: '📋 OUTPUT FORMATS — Mode default is used unless overridden. "both_docx_xlsx" always produces Excel (40+ sheets) + DOCX + clickable links.'
+        description: '📋 OUTPUT FORMATS — Controls report formats. PDF download is a SEPARATE toggle above. "both_docx_xlsx" always produces Excel (40+ sheets) + DOCX + clickable links — guaranteed every run.'
         required: true
         default: 'both_docx_xlsx - 📊 DOCX + XLSX 40-sheet + clickable links [RECOMMENDED]'
         type: choice
         options:
-          - all - 📦 ALL FORMATS (DOCX+PDF+Excel-MD+TXT+JSON+CSV+HTML)
+          - all - 📦 ALL FORMATS (DOCX+XLSX+MD+TXT+JSON+CSV+HTML)
           - both_docx_xlsx - 📊 DOCX + XLSX 40-sheet + clickable links [RECOMMENDED]
-          - metadata_only - 📋 Metadata only — Excel + DOCX with links, NO PDF download
-          - search_only - 🔍 Search only — alias for metadata_only
-          - excel_40_sheets - 📊 Excel 40-sheet Ultimate Dashboard (with charts + world map)
-          - excel_ultimate - 🏆 Excel Ultimate (40+ sheets, charts, world map image)
+          - excel_40_sheets - 📊 Excel 40-sheet Ultimate Dashboard (charts + world map)
+          - excel_ultimate - 🏆 Excel Ultimate (40+ sheets, charts, world map)
           - docx_scopus - 📝 DOCX Scopus-Quality (Publication Ready)
           - docx_standard - 📄 DOCX Standard Academic Format
           - docx_both - 📑 DOCX Both (Scopus + Standard)
-          - pdf - 📕 PDF (Print-Ready Document)
           - excel_master - 📊 Excel Master Sheet (All Papers)
           - excel_filtered - 📉 Excel Filtered by Type/Year
           - excel_analysis - 📈 Excel with Analysis Charts
           - markdown - 📋 Markdown (MD) - Readable Format
-          - txt - 📃 Plain Text (TXT) - Simple Format
+          - txt - 📃 Plain Text (TXT)
           - json - 📦 JSON - Structured Data Export
           - csv - 📊 CSV - Spreadsheet Compatible
           - html - 🌐 HTML - Web Report
@@ -1522,6 +1524,7 @@ jobs:
           CI_RESEARCH_DEPTH: "${{ github.event.inputs.research_depth }}"
           CI_PAPER_LIMIT: "${{ github.event.inputs.paper_limit }}"
           CI_LANGUAGE: "${{ github.event.inputs.language }}"
+          CI_DOWNLOAD_PDFS: "${{ github.event.inputs.download_pdfs }}"
           CI_SCI_HUB: "${{ github.event.inputs.scihub }}"
           CI_SINGLE_FOLDER: "${{ github.event.inputs.folder_mode }}"
           CI_YEAR_FROM: "${{ github.event.inputs.year_from }}"
@@ -1624,6 +1627,7 @@ jobs:
           TRIGGER_MODE: ${{ github.event.inputs.mode }}
           TRIGGER_PAPER_LIMIT: ${{ github.event.inputs.paper_limit }}
           TRIGGER_FOLDER_MODE: ${{ github.event.inputs.folder_mode }}
+          TRIGGER_DOWNLOAD_PDFS: ${{ github.event.inputs.download_pdfs }}
           TRIGGER_SCI_HUB: ${{ github.event.inputs.scihub }}
           TRIGGER_PROXY: ${{ github.event.inputs.proxy }}
           TRIGGER_LEARN: ${{ github.event.inputs.learn }}
