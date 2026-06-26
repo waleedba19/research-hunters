@@ -7432,13 +7432,36 @@ def main():
     if not _gen_only:
         print()
         if skip_downloads:
-            info(f"Mode '{mode}': metadata-only — skipping PDF downloads")
+            info(f"Download PDFs OFF — metadata-only, reports generated with all links")
         else:
             dl_mode_str = "single folder" if single_folder else "smart folders"
-            info(f"Interleaved quartile verification + download (14-layer chain) into {dl_mode_str}…")
+            info(f"Interleaved quartile verification + parallel download ({10} workers) into {dl_mode_str}…")
 
             BATCH_SIZE = 50
             total_batches = (len(new_papers) + BATCH_SIZE - 1) // BATCH_SIZE
+
+            # Thread safety: wrappers that lock around cache/red_list mutations
+            _dl_lock = threading.Lock()
+            class _TSRedList:
+                def __init__(s, rl): s._rl = rl; s._lock = _dl_lock
+                def add(s, *a, **kw):
+                    with s._lock: s._rl.add(*a, **kw)
+                def save(s):
+                    with s._lock: s._rl.save()
+                @property
+                def entries(s):
+                    with s._lock: return s._rl.entries
+            class _TSCache:
+                def __init__(s, c): s._c = c; s._lock = _dl_lock
+                def mark_downloaded(s, *a, **kw):
+                    with s._lock: s._c.mark_downloaded(*a, **kw)
+                def mark_found(s, *a, **kw):
+                    with s._lock: s._c.mark_found(*a, **kw)
+                def save(s):
+                    with s._lock: s._c.save()
+            ts_red_list = _TSRedList(red_list)
+            ts_cache = _TSCache(cache)
+
             for batch_idx in range(total_batches):
                 start = batch_idx * BATCH_SIZE
                 end   = min(start + BATCH_SIZE, len(new_papers))
@@ -7479,25 +7502,31 @@ def main():
 
                 ok(f"  Batch {batch_num}: Q1={q_cnt['Q1']} Q2={q_cnt['Q2']} Q3={q_cnt['Q3']} Q4={q_cnt['Q4']} N/A={q_cnt['Not Found']}")
 
-                info(f"  Batch {batch_num}: downloading {len(batch)} papers…")
-                for i, paper in enumerate(batch, 1):
-                    global_idx = start + i
-                    q_badge = (paper.get("scopus_quartile") or {})
-                    q_badge = q_badge.get("quartile","?") if isinstance(q_badge, dict) else str(q_badge)
-                    success, folder_used = smart_file_paper(paper, out_folder, use_scihub, red_list, cache, single_folder)
-                    paper["downloaded"] = success
-                    if success:
-                        dl_count += 1
-                        folder_dl[folder_used] = folder_dl.get(folder_used, 0) + 1
-                    dt = detect_doc_type(paper)
-                    if dt in type_cnt:
-                        type_cnt[dt] += 1
-                    gt = detect_geo_tier(paper)
-                    if gt in geo_cnt:
-                        geo_cnt[gt] += 1
-                    if i % 10 == 0:
-                        info(f"    [{global_idx}/{len(new_papers)}] {dl_count} downloaded so far…")
-                    time.sleep(0.15)
+                info(f"  Batch {batch_num}: downloading {len(batch)} papers (10 parallel workers)…")
+                with ThreadPoolExecutor(max_workers=10) as ex:
+                    futs = {ex.submit(smart_file_paper, p, out_folder, use_scihub, ts_red_list, ts_cache, single_folder): p for p in batch}
+                    dl_this_batch = 0
+                    for i, fut in enumerate(as_completed(futs), 1):
+                        p = futs[fut]
+                        try:
+                            success, folder_used = fut.result()
+                        except Exception as exc:
+                            warn(f"  Worker failed: {exc}")
+                            success = False
+                            folder_used = "Not_Indexed"
+                        p["downloaded"] = success
+                        if success:
+                            dl_count += 1
+                            dl_this_batch += 1
+                            folder_dl[folder_used] = folder_dl.get(folder_used, 0) + 1
+                        dt = detect_doc_type(p)
+                        if dt in type_cnt:
+                            type_cnt[dt] += 1
+                        gt = detect_geo_tier(p)
+                        if gt in geo_cnt:
+                            geo_cnt[gt] += 1
+                        if i % 10 == 0 or i == len(batch):
+                            info(f"    [{start + i}/{len(new_papers)}] {dl_count} downloaded ({dl_this_batch} this batch)…")
 
             ok(f"Scopus Summary (this run):")
             for q, c in q_cnt.items():
