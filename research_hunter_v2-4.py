@@ -6303,72 +6303,246 @@ def wizard() -> dict:
 def _write_master_xlsx(all_papers: list, out_folder: Path) -> Path | None:
     """
     MD §8.1 — Generate master_database.xlsx with all paper metadata.
+    Multi-sheet workbook with subsheets, colors, and explanations.
     Uses openpyxl if available; falls back to CSV.
     """
     xlsx_path = out_folder / "master_database.xlsx"
     csv_path  = out_folder / "master_database.csv"
     try:
         import openpyxl
-        from openpyxl.styles import Font, PatternFill, Alignment
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side, numbers
+        from openpyxl.utils import get_column_letter
         wb = openpyxl.Workbook()
-        ws = wb.active
-        ws.title = "All Papers"
-        headers = [
-            "#","Title","Authors","Year","Journal","Scopus Q","Citations",
-            "DOI","PDF Downloaded","File Path","Source Platform",
-            "Document Type","Geo Tier","Abstract (300 chars)",
-        ]
-        # Header row styling
-        hdr_fill = PatternFill("solid", fgColor="1F3864")
-        hdr_font = Font(bold=True, color="FFFFFF", size=10)
-        for col, h in enumerate(headers, 1):
-            cell = ws.cell(row=1, column=col, value=h)
-            cell.fill = hdr_fill
-            cell.font = hdr_font
-            cell.alignment = Alignment(horizontal="center")
 
-        # Q-colour map
-        q_colours = {"Q1":"C6EFCE","Q2":"BDD7EE","Q3":"FFEB9C","Q4":"FFC7CE","":"F2F2F2"}
+        # ── Colour palette ──────────────────────────────────────────────
+        HDR_FILL  = PatternFill("solid", fgColor="1F3864")
+        HDR_FONT  = Font(bold=True, color="FFFFFF", size=10, name="Calibri")
+        SUB_FILL  = PatternFill("solid", fgColor="D6E4F0")
+        SUB_FONT  = Font(bold=True, color="1F3864", size=10, name="Calibri")
+        Q_COLOURS = {"Q1":"C6EFCE","Q2":"BDD7EE","Q3":"FFEB9C","Q4":"FFC7CE","Not Found":"F2F2F2","":"F2F2F2"}
+        Q_FILLS   = {k: PatternFill("solid", fgColor=v) for k, v in Q_COLOURS.items()}
+        Q_NAMES   = {"Q1":"Q1 — Top Journals","Q2":"Q2 — Good Journals","Q3":"Q3 — Acceptable","Q4":"Q4 — Lower Tier","Not Found":"Not Indexed"}
+        GEO_COLOURS = {"Libya":"FFF2CC","Neighbor":"E2EFDA","MENA":"D9E2F3","Global":"F2F2F2"}
+        DOC_COLOURS = {"PhD":"E2EFDA","MA":"D9E2F3","Book":"FFF2CC","Conference":"FCE4D6"}
+        thin = Side(style="thin", color="B0B0B0")
+        border = Border(bottom=thin)
 
+        # ── Helper: write a data sheet ──────────────────────────────────
+        def _write_sheet(ws, headers, rows, q_col_idx=None, color_map=None, col_widths=None):
+            for col, h in enumerate(headers, 1):
+                cell = ws.cell(row=1, column=col, value=h)
+                cell.fill = HDR_FILL
+                cell.font = HDR_FONT
+                cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+                cell.border = border
+            for r_idx, row in enumerate(rows, 2):
+                for c_idx, val in enumerate(row, 1):
+                    cell = ws.cell(row=r_idx, column=c_idx, value=val)
+                    cell.alignment = Alignment(vertical="top", wrap_text=(isinstance(val, str) and len(val) > 60))
+                    cell.border = border
+                    if q_col_idx and c_idx == q_col_idx and color_map:
+                        qval = str(val) if val else ""
+                        fill = color_map.get(qval) or color_map.get("", PatternFill("solid", fgColor="F2F2F2"))
+                        cell.fill = fill
+            ws.auto_filter.ref = ws.dimensions
+            ws.freeze_panes = "A2"
+            if col_widths:
+                for c, w in enumerate(col_widths, 1):
+                    ws.column_dimensions[get_column_letter(c)].width = w
+
+        # ── Sheet 1: Overview Dashboard ──────────────────────────────────
+        ws0 = wb.active
+        ws0.title = "Overview"
+        ws0.sheet_properties.tabColor = "1F3864"
+
+        q_cnt = {"Q1":0,"Q2":0,"Q3":0,"Q4":0,"Not Found":0}
+        geo_cnt = {}
+        doc_cnt = {}
+        total_citations = 0
+        for p in all_papers:
+            q = (p.get("scopus_quartile") or {}); q = q.get("quartile","") if isinstance(q, dict) else str(q)
+            if q in q_cnt: q_cnt[q] += 1
+            else: q_cnt.setdefault("Not Found", 0); q_cnt["Not Found"] += 1
+            gt = detect_geo_tier(p) or "Global"
+            geo_cnt[gt] = geo_cnt.get(gt, 0) + 1
+            dt = detect_doc_type(p) or "Article"
+            doc_cnt[dt] = doc_cnt.get(dt, 0) + 1
+            total_citations += int(p.get("gs_citations") or 0)
+
+        r = 1
+        ws0.cell(r,1,"MASTER DATABASE — OVERVIEW DASHBOARD").font = Font(bold=True, size=14, color="1F3864")
+        r += 1
+        ws0.cell(r,1,f"Generated: {datetime.now():%B %d, %Y at %H:%M}").font = Font(italic=True, color="666666")
+        r += 2
+        ws0.cell(r,1,"📊 KEY METRICS").font = SUB_FONT; ws0.cell(r,1).fill = SUB_FILL; ws0.merge_cells(start_row=r,start_column=1,end_row=r,end_column=4)
+        r += 1
+        for label, val in [("Total Papers Found", len(all_papers)),("Total PDFs Downloaded", sum(1 for p in all_papers if p.get("downloaded"))),("Total Citations", total_citations),("Average Citations/Paper", round(total_citations/max(len(all_papers),1),1))]:
+            ws0.cell(r,1,label).font = Font(bold=True, size=10)
+            ws0.cell(r,2,val).font = Font(size=10)
+            ws0.cell(r,2).alignment = Alignment(horizontal="center")
+            r += 1
+        r += 1
+
+        ws0.cell(r,1,"📈 QUARTILE DISTRIBUTION").font = SUB_FONT; ws0.cell(r,1).fill = SUB_FILL; ws0.merge_cells(start_row=r,start_column=1,end_row=r,end_column=4)
+        r += 1
+        for q in ("Q1","Q2","Q3","Q4","Not Found"):
+            ws0.cell(r,1,Q_NAMES.get(q,q)).font = Font(bold=True)
+            ws0.cell(r,1).fill = Q_FILLS.get(q, Q_FILLS[""])
+            ws0.cell(r,2,q_cnt[q]).alignment = Alignment(horizontal="center")
+            ws0.cell(r,3,f"{q_cnt[q]/max(len(all_papers),1)*100:.1f}%").alignment = Alignment(horizontal="center")
+            r += 1
+        r += 1
+
+        ws0.cell(r,1,"🌍 GEOGRAPHIC DISTRIBUTION").font = SUB_FONT; ws0.cell(r,1).fill = SUB_FILL; ws0.merge_cells(start_row=r,start_column=1,end_row=r,end_column=4)
+        r += 1
+        for gt, cnt in sorted(geo_cnt.items(), key=lambda x:-x[1]):
+            ws0.cell(r,1,gt).font = Font(bold=True)
+            ws0.cell(r,1).fill = PatternFill("solid", fgColor=GEO_COLOURS.get(gt,"F2F2F2"))
+            ws0.cell(r,2,cnt).alignment = Alignment(horizontal="center")
+            ws0.cell(r,3,f"{cnt/max(len(all_papers),1)*100:.1f}%").alignment = Alignment(horizontal="center")
+            r += 1
+        r += 1
+
+        ws0.cell(r,1,"📄 DOCUMENT TYPE BREAKDOWN").font = SUB_FONT; ws0.cell(r,1).fill = SUB_FILL; ws0.merge_cells(start_row=r,start_column=1,end_row=r,end_column=4)
+        r += 1
+        for dt, cnt in sorted(doc_cnt.items(), key=lambda x:-x[1]):
+            ws0.cell(r,1,dt).font = Font(bold=True)
+            ws0.cell(r,1).fill = PatternFill("solid", fgColor=DOC_COLOURS.get(dt,"F2F2F2"))
+            ws0.cell(r,2,cnt).alignment = Alignment(horizontal="center")
+            ws0.cell(r,3,f"{cnt/max(len(all_papers),1)*100:.1f}%").alignment = Alignment(horizontal="center")
+            r += 1
+        r += 2
+
+        ws0.cell(r,1,"📘 LEGEND — Colour Key").font = Font(bold=True, size=11, color="1F3864")
+        r += 1
+        for label, key, clr in [("Q1 — Top Tier Journals","Q1","C6EFCE"),("Q2 — Good Journals","Q2","BDD7EE"),("Q3 — Acceptable Journals","Q3","FFEB9C"),("Q4 — Lower Tier","Q4","FFC7CE"),("Not Indexed","","F2F2F2")]:
+            ws0.cell(r,1,label).font = Font(size=9)
+            ws0.cell(r,1).fill = PatternFill("solid", fgColor=clr)
+            r += 1
+        ws0.column_dimensions["A"].width = 30
+        ws0.column_dimensions["B"].width = 15
+        ws0.column_dimensions["C"].width = 12
+
+        # ── Sheet 2: All Papers (full metadata) ────────────────────────
+        ws1 = wb.create_sheet("All Papers")
+        ws1.sheet_properties.tabColor = "2E75B6"
+        h1 = ["#","Title","Authors","Year","Journal","Scopus Q","Citations","DOI","PDF","Source","Doc Type","Geo Tier","Methodology","Thesis Part","Keywords","Abstract"]
+        rows1 = []
         for i, p in enumerate(all_papers, 1):
-            q      = (p.get("scopus_quartile") or {})
-            q      = q.get("quartile","") if isinstance(q, dict) else str(q)
-            auth   = " | ".join(str(a) for a in (p.get("authors") or [])[:3])
-            dt     = detect_doc_type(p)
-            gt     = detect_geo_tier(p)
-            row    = [
+            q = (p.get("scopus_quartile") or {}); q = q.get("quartile","") if isinstance(q, dict) else str(q)
+            rows1.append([
                 i,
-                str(p.get("title",""))[:120],
-                auth[:80],
+                str(p.get("title",""))[:150],
+                " | ".join(str(a) for a in (p.get("authors") or [])[:4])[:100],
                 str(p.get("year","")),
-                str(p.get("journal",""))[:60],
+                str(p.get("journal",""))[:80],
                 q or "Not Indexed",
                 int(p.get("gs_citations") or 0),
                 str(p.get("doi") or ""),
-                "✅" if p.get("downloaded") else "—",
-                str(p.get("file_path") or ""),
+                "Downloaded" if p.get("downloaded") else "",
                 str(p.get("source","")),
-                dt or "Article",
-                gt or "Global",
-                str(p.get("abstract",""))[:300],
-            ]
-            fill_col = q_colours.get(q, "F2F2F2")
-            for col, val in enumerate(row, 1):
-                cell = ws.cell(row=i+1, column=col, value=val)
-                if col in (5, 6):   # journal + quartile get colour
-                    cell.fill = PatternFill("solid", fgColor=fill_col)
-                cell.alignment = Alignment(wrap_text=(col == len(headers)))
+                detect_doc_type(p) or "Article",
+                detect_geo_tier(p) or "Global",
+                str(p.get("methodology",""))[:40],
+                str(p.get("thesis_part",""))[:40],
+                " | ".join(str(k) for k in (p.get("keywords") or [])[:6])[:120],
+                str(p.get("abstract",""))[:500],
+            ])
+        _write_sheet(ws1, h1, rows1, q_col_idx=6, color_map=Q_FILLS,
+                     col_widths=[4,50,30,6,30,10,8,25,10,16,12,12,16,16,30,60])
 
-        # Column widths
-        widths = [4,55,35,6,35,10,8,30,10,40,18,14,12,60]
-        for col, w in enumerate(widths, 1):
-            ws.column_dimensions[
-                openpyxl.utils.get_column_letter(col)].width = w
+        # ── Sheet 3: Q1 — Top Journals ────────────────────────────────
+        ws2 = wb.create_sheet("Q1 — Top Journals")
+        ws2.sheet_properties.tabColor = "00B050"
+        q1 = [p for p in all_papers if ((p.get("scopus_quartile") or {}).get("quartile","") if isinstance(p.get("scopus_quartile"), dict) else str(p.get("scopus_quartile",""))) == "Q1"]
+        if q1:
+            r2 = []
+            for i, p in enumerate(q1, 1):
+                r2.append([i, str(p.get("title",""))[:150], " | ".join(str(a) for a in (p.get("authors") or [])[:4])[:80], str(p.get("year","")), str(p.get("journal",""))[:80], int(p.get("gs_citations") or 0), str(p.get("doi","")), str(p.get("abstract",""))[:400]])
+            _write_sheet(ws2, ["#","Title","Authors","Year","Journal","Citations","DOI","Abstract"], r2,
+                         col_widths=[4,55,32,6,35,8,30,60])
+            ws2.cell(1,1,"Q1 PAPERS — TOP TIER JOURNALS").font = Font(bold=True, size=11, color="006100")
+        else:
+            ws2.cell(1,1,"No Q1 papers found in this search.").font = Font(italic=True, color="999999")
 
-        # Freeze header
-        ws.freeze_panes = "A2"
+        # ── Sheet 4: Q2 — Good Journals ────────────────────────────────
+        ws3 = wb.create_sheet("Q2 — Good Journals")
+        ws3.sheet_properties.tabColor = "4472C4"
+        q2p = [p for p in all_papers if ((p.get("scopus_quartile") or {}).get("quartile","") if isinstance(p.get("scopus_quartile"), dict) else str(p.get("scopus_quartile",""))) == "Q2"]
+        if q2p:
+            r3 = []
+            for i, p in enumerate(q2p, 1):
+                r3.append([i, str(p.get("title",""))[:150], " | ".join(str(a) for a in (p.get("authors") or [])[:4])[:80], str(p.get("year","")), str(p.get("journal",""))[:80], int(p.get("gs_citations") or 0), str(p.get("doi",""))])
+            _write_sheet(ws3, ["#","Title","Authors","Year","Journal","Citations","DOI"], r3,
+                         col_widths=[4,55,32,6,35,8,30])
+            ws3.cell(1,1,"Q2 PAPERS — GOOD JOURNALS").font = Font(bold=True, size=11, color="002060")
+        else:
+            ws3.cell(1,1,"No Q2 papers found in this search.").font = Font(italic=True, color="999999")
+
+        # ── Sheet 5: Q3+Q4 papers ──────────────────────────────────────
+        ws4 = wb.create_sheet("Q3+Q4 — Lower Tier")
+        ws4.sheet_properties.tabColor = "FFC000"
+        q34 = [p for p in all_papers if ((p.get("scopus_quartile") or {}).get("quartile","") if isinstance(p.get("scopus_quartile"), dict) else str(p.get("scopus_quartile",""))) in ("Q3","Q4")]
+        if q34:
+            r4 = []
+            for i, p in enumerate(q34, 1):
+                q = (p.get("scopus_quartile") or {}); q = q.get("quartile","") if isinstance(q, dict) else str(q)
+                r4.append([i, str(p.get("title",""))[:150], " | ".join(str(a) for a in (p.get("authors") or [])[:4])[:80], str(p.get("year","")), str(p.get("journal",""))[:80], q, int(p.get("gs_citations") or 0)])
+            _write_sheet(ws4, ["#","Title","Authors","Year","Journal","Quartile","Citations"], r4,
+                         col_widths=[4,55,32,6,35,10,8])
+        else:
+            ws4.cell(1,1,"No Q3/Q4 papers found.").font = Font(italic=True, color="999999")
+
+        # ── Sheet 6: By Document Type ──────────────────────────────────
+        ws5 = wb.create_sheet("By Document Type")
+        ws5.sheet_properties.tabColor = "70AD47"
+        for dt in ("PhD","MA","Book","Conference","Article"):
+            subset = [p for p in all_papers if detect_doc_type(p) == dt]
+            if subset:
+                r5 = []
+                for i, p in enumerate(subset, 1):
+                    q = (p.get("scopus_quartile") or {}); q = q.get("quartile","") if isinstance(q, dict) else str(q)
+                    r5.append([i, str(p.get("title",""))[:150], " | ".join(str(a) for a in (p.get("authors") or [])[:4])[:80], str(p.get("year","")), q, int(p.get("gs_citations") or 0), str(p.get("doi",""))])
+                _write_sheet(ws5, [f"# — {dt}","Title","Authors","Year","Q","Citations","DOI"], r5,
+                             col_widths=[4,55,32,6,10,8,30])
+
+        # ── Sheet 7: Most Cited ────────────────────────────────────────
+        ws6 = wb.create_sheet("Most Cited")
+        ws6.sheet_properties.tabColor = "C00000"
+        sorted_papers = sorted(all_papers, key=lambda p: int(p.get("gs_citations") or 0), reverse=True)[:100]
+        r6 = []
+        for i, p in enumerate(sorted_papers, 1):
+            q = (p.get("scopus_quartile") or {}); q = q.get("quartile","") if isinstance(q, dict) else str(q)
+            r6.append([i, str(p.get("title",""))[:150], " | ".join(str(a) for a in (p.get("authors") or [])[:4])[:80], str(p.get("year","")), str(p.get("journal",""))[:60], q, int(p.get("gs_citations") or 0), str(p.get("doi",""))])
+        _write_sheet(ws6, ["#","Title","Authors","Year","Journal","Q","Citations","DOI"], r6,
+                     col_widths=[4,55,32,6,30,10,8,30])
+        ws6.cell(1,1,"MOST CITED PAPERS (Top 100)").font = Font(bold=True, size=11, color="C00000")
+
+        # ── Sheet 8: APA References ────────────────────────────────────
+        ws7 = wb.create_sheet("APA References")
+        ws7.sheet_properties.tabColor = "7030A0"
+        r7 = []
+        for i, p in enumerate(all_papers[:500], 1):
+            r7.append([i, build_apa(p)])
+        ws7.cell(1,1,"#").font = HDR_FONT; ws7.cell(1,1).fill = HDR_FILL
+        ws7.cell(1,2,"APA 7th Edition Reference").font = HDR_FONT; ws7.cell(1,2).fill = HDR_FILL
+        ws7.column_dimensions["A"].width = 4
+        ws7.column_dimensions["B"].width = 120
+        for i, row in enumerate(r7, 2):
+            ws7.cell(i,1,row[0]).border = border
+            ws7.cell(i,2,row[1]).border = border
+            ws7.cell(i,2).alignment = Alignment(wrap_text=True)
+
+        # ── Final adjustments & save ────────────────────────────────────
+        for ws in wb.worksheets:
+            if ws.title not in ("Overview","APA References"):
+                try:
+                    ws.auto_filter.ref = ws.dimensions
+                except Exception:
+                    pass
+
         wb.save(xlsx_path)
-        ok(f"master_database.xlsx: {xlsx_path}")
+        ok(f"master_database.xlsx: {xlsx_path} ({len(wb.sheets)} sheets, {len(all_papers)} papers)")
         return xlsx_path
     except ImportError:
         pass
@@ -6400,8 +6574,8 @@ def _write_master_xlsx(all_papers: list, out_folder: Path) -> Path | None:
         ok(f"master_database.csv (openpyxl not found): {csv_path}")
         return csv_path
     except Exception as ex2:
-        warn(f"CSV fallback also failed: {ex2}")
-    return None
+        err(f"CSV fallback failed too: {ex2}")
+        return None
 
 
 # ── v6: Self-aware duplicate scanning ──────────────────────────────────────────
