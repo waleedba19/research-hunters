@@ -6289,6 +6289,13 @@ def is_duplicate_paper(paper: dict, existing_titles: set) -> bool:
     return False
 
 
+def _extract_year(raw: str) -> str | None:
+    if not raw:
+        return None
+    m = re.search(r"\b(\d{4})\b", raw)
+    return m.group(1) if m else None
+
+
 def main():
     # CI mode: skip interactive wizard, read from env vars
     if os.environ.get("CI_MODE", "").lower() in ("true", "1", "yes"):
@@ -6302,13 +6309,13 @@ def main():
             field = FIELDS.get(fkey, raw_field)
         else:
             field = auto_detect_field(title, [])
-        mode  = os.environ.get("CI_MODE_VAL", "deep")
-        raw_mode = mode.split(" -", 1)[0].strip()
-        mode = raw_mode if raw_mode else "deep"
+        mode_str = os.environ.get("CI_MODE_VAL", "deep")
+        mode = mode_str.split(" -", 1)[0].strip() or "deep"
         use_scihub = os.environ.get("CI_SCI_HUB", "").lower() in ("true", "1", "yes")
-        single_folder = os.environ.get("CI_SINGLE_FOLDER", "").lower() in ("single", "1", "yes")
-        year_from = os.environ.get("CI_YEAR_FROM", "") or None
-        year_to = os.environ.get("CI_YEAR_TO", "") or None
+        sf_val = os.environ.get("CI_SINGLE_FOLDER", "").lower()
+        single_folder = sf_val.startswith("single") or sf_val in ("1", "yes")
+        year_from = _extract_year(os.environ.get("CI_YEAR_FROM", ""))
+        year_to = _extract_year(os.environ.get("CI_YEAR_TO", ""))
         raw_lang = os.environ.get("CI_LANGUAGE", "1")
         lang_num = raw_lang.split(" -", 1)[0].strip()
         lang_map = {"1": ("English", ["en"]), "2": ("Arabic", ["ar"]), "3": ("French", ["fr"]),
