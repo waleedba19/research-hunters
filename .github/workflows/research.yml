@@ -1292,8 +1292,8 @@ jobs:
         run: python scripts/verify.py --model qwen2.5vl:3b --ci || echo "Verify had some failures (non-critical)"
 
   daily_learn:
-    needs: [research]
-    if: github.event_name == 'workflow_dispatch'
+    needs: [verify]
+    if: github.event_name == 'workflow_dispatch' && contains(fromJson('["learn-only","full-research"]'), github.event.inputs.operation_mode)
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
@@ -1387,7 +1387,7 @@ jobs:
 
   research:
     needs: [verify]
-    if: github.event_name == 'workflow_dispatch' && contains(fromJson('["research-only","full-research"]'), github.event.inputs.operation_mode)
+    if: github.event_name == 'workflow_dispatch' && contains(fromJson('["research-only","full-research","generate-only"]'), github.event.inputs.operation_mode)
     runs-on: ubuntu-latest
     timeout-minutes: 180
     env:
@@ -1563,6 +1563,7 @@ jobs:
           fi
 
       - name: Zip cumulative results
+        id: zip_results
         if: always()
         shell: bash
         run: |
@@ -1630,7 +1631,14 @@ jobs:
         shell: bash
         run: |
           echo "Checking if more work remains..."
-          CACHE_FILE="pdf_files/${{ steps.folder.outputs.folder_name }}/search_cache.json"
+          OUT_DIR="pdf_files/${{ steps.folder.outputs.folder_name }}"
+          if [ -f "$OUT_DIR/.search_complete" ]; then
+            echo "============================================"
+            echo "  SEARCH COMPLETE FLAG FOUND — stopping chain"
+            echo "============================================"
+            exit 0
+          fi
+          CACHE_FILE="$OUT_DIR/search_cache.json"
           if [ ! -f "$CACHE_FILE" ]; then
             echo "No cache file found - cannot determine remaining work"
             exit 0
@@ -1703,7 +1711,7 @@ PYEOF
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.folder.outputs.folder_name }}_ZIP
-          path: ${{ steps.check_results.outputs.zip_name || '*.zip' }}
+          path: ${{ steps.zip_results.outputs.zip_name || '*.zip' }}
           retention-days: 90
           compression-level: 9
 

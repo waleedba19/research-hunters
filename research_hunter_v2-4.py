@@ -6652,6 +6652,10 @@ def main():
     if paper_limit_override:
         info(f"Paper limit override: {paper_limit_override}")
 
+    # Operation mode for runtime branching
+    _operation_mode = params.get("operation_mode", "full-research")
+    _gen_only = _operation_mode and "generate" in _operation_mode
+
     # Output folder & cache
     folder_name = _safe_name(title, 80)
     out_folder  = Path("pdf_files") / folder_name
@@ -6691,152 +6695,151 @@ def main():
     # Red List manager (MD §7)
     red_list = RedListManager(out_folder)
 
-    # Generate queries — title-driven, uses study_keywords for richer AI prompt
-    info("Generating search queries…")
-    used_q  = list(cache.queries_used())
-    queries = generate_queries(title, field, study_types, rqs, year_from,
-                               used_q, country_context)
-    # Inject study keywords as extra queries (each keyword phrase = one query)
-    extra_kw_queries = [kw for kw in study_keywords
-                        if len(kw.split()) >= 2 and kw.lower() not in
-                        {q.lower() for q in queries + used_q}]
-    queries = (queries + extra_kw_queries[:8])[:25]
+    queries = []
 
-    cache.add_queries(queries)
-    cache.save()
-    ok(f"Generated {len(queries)} queries:")
-    for i, q in enumerate(queries, 1):
-        log(f"  {i:2}. {q}")
+    # ── Search phase ──────────────────────────────────────────────────
+    if not _gen_only:
+        info("Generating search queries…")
+        used_q  = list(cache.queries_used())
+        queries = generate_queries(title, field, study_types, rqs, year_from,
+                                   used_q, country_context)
+        extra_kw_queries = [kw for kw in study_keywords
+                            if len(kw.split()) >= 2 and kw.lower() not in
+                            {q.lower() for q in queries + used_q}]
+        queries = (queries + extra_kw_queries[:8])[:25]
 
-    # Search all platforms
-    print()
-    info(f"Searching {len(platforms)} platforms ({mode} mode)…")
-    raw = search_all(queries, platforms, year_from=year_from, year_to=year_to,
-                     field=field, country_context=country_context)
+        cache.add_queries(queries)
+        cache.save()
+        ok(f"Generated {len(queries)} queries:")
+        for i, q in enumerate(queries, 1):
+            log(f"  {i:2}. {q}")
 
-    # Deduplicate
-    deduped = cache.deduplicate(raw)
-    info(f"Raw: {len(raw)} → deduplicated: {len(deduped)}")
+        print()
+        info(f"Searching {len(platforms)} platforms ({mode} mode)…")
+        raw = search_all(queries, platforms, year_from=year_from, year_to=year_to,
+                         field=field, country_context=country_context)
 
-    # Relevance filter (v6: tighter threshold)
-    relevant, removed = filter_by_relevance(deduped, title, field, threshold=0.15)
-    if removed:
-        warn(f"Relevance filter removed {removed} unrelated papers")
+        deduped = cache.deduplicate(raw)
+        info(f"Raw: {len(raw)} → deduplicated: {len(deduped)}")
 
-    # Filter already-known papers (from cache)
-    new_papers, skipped = cache.filter_new(relevant)
-    if skipped:
-        info(f"Skipped {skipped} already-found papers from previous runs")
+        relevant, removed = filter_by_relevance(deduped, title, field, threshold=0.15)
+        if removed:
+            warn(f"Relevance filter removed {removed} unrelated papers")
 
-    # ── v6: Filter existing PDFs (self-aware duplicate avoidance) ───────────────
-    if existing_titles:
-        truly_new = []
-        dup_count = 0
+        new_papers, skipped = cache.filter_new(relevant)
+        if skipped:
+            info(f"Skipped {skipped} already-found papers from previous runs")
+
+        if existing_titles:
+            truly_new = []
+            dup_count = 0
+            for p in new_papers:
+                if is_duplicate_paper(p, existing_titles):
+                    dup_count += 1
+                else:
+                    truly_new.append(p)
+            if dup_count > 0:
+                warn(f"Duplicate scan: skipped {dup_count} papers already downloaded as PDFs")
+            new_papers = truly_new
+
+        ok(f"New papers this run: {len(new_papers)}")
+
+        if not new_papers:
+            warn("No new papers found. Try Deep search mode, more RQs, or broader topic.")
+            (out_folder / ".search_complete").write_text("no_papers", encoding="utf-8")
+            if not _gen_only:
+                return
+
         for p in new_papers:
-            if is_duplicate_paper(p, existing_titles):
-                dup_count += 1
-            else:
-                truly_new.append(p)
-        if dup_count > 0:
-            warn(f"Duplicate scan: skipped {dup_count} papers already downloaded as PDFs")
-        new_papers = truly_new
-
-    ok(f"New papers this run: {len(new_papers)}")
-
-    if not new_papers:
-        warn("No new papers found. Try Deep search mode, more RQs, or broader topic.")
-        return
-
-    for p in new_papers:
-        cache.mark_found(p)
+            cache.mark_found(p)
 
     # ═══════ v6: INTERLEAVED QUARTILE + DOWNLOAD PIPELINE ═══════
     # Check quartiles for batch, download that batch while checking next batch
-    print()
-    dl_mode_str = "single folder" if single_folder else "smart folders"
-    info(f"Interleaved quartile verification + download (14-layer chain) into {dl_mode_str}…")
-
-    BATCH_SIZE = 50  # Papers per batch
-    dl_count  = 0
+    # ── Download phase ────────────────────────────────────────────────
+    dl_count = 0
     type_cnt  = {"PhD":0,"MA":0,"Book":0,"BookChapter":0,"Conference":0}
     geo_cnt   = {"Libya":0,"Neighbor":0,"MENA":0}
     folder_dl: dict[str, int] = {}
     q_cnt     = {"Q1":0,"Q2":0,"Q3":0,"Q4":0,"Not Found":0}
 
-    total_batches = (len(new_papers) + BATCH_SIZE - 1) // BATCH_SIZE
-    for batch_idx in range(total_batches):
-        start = batch_idx * BATCH_SIZE
-        end   = min(start + BATCH_SIZE, len(new_papers))
-        batch = new_papers[start:end]
-        batch_num = batch_idx + 1
+    if not _gen_only:
+        print()
+        dl_mode_str = "single folder" if single_folder else "smart folders"
+        info(f"Interleaved quartile verification + download (14-layer chain) into {dl_mode_str}…")
 
-        info(f"  Batch {batch_num}/{total_batches}: quartile checking {len(batch)} papers…")
+        BATCH_SIZE = 50
+        total_batches = (len(new_papers) + BATCH_SIZE - 1) // BATCH_SIZE
+        for batch_idx in range(total_batches):
+            start = batch_idx * BATCH_SIZE
+            end   = min(start + BATCH_SIZE, len(new_papers))
+            batch = new_papers[start:end]
+            batch_num = batch_idx + 1
 
-        # ── Step A: Check quartiles for this batch ──────────────────────────────
-        seen: dict = {}
-        for p in batch:
-            journal = (p.get("journal") or p.get("venue") or "") or ""
-            if not journal.strip():
-                p["scopus_quartile"] = {"quartile": "Not Found"}
-                continue
-            jkey = journal.lower().strip()
-            if jkey in seen:
-                p["scopus_quartile"] = seen[jkey]
-            else:
-                try:
-                    r = check_quartile(journal)
-                except Exception:
-                    r = {"quartile": "Not Found", "verified": False}
-                # Enhanced fuzzy upgrade
-                qval = r.get("quartile","") if isinstance(r, dict) else str(r)
-                if not qval or qval in ("Not Found","Not Ranked",""):
-                    upgraded = enhanced_quartile_check(p)
-                    if upgraded and upgraded not in ("Not Found",""):
-                        if isinstance(r, dict):
-                            r["quartile"] = upgraded
-                        else:
-                            r = {"quartile": upgraded}
-                seen[jkey] = r
-                p["scopus_quartile"] = r
+            info(f"  Batch {batch_num}/{total_batches}: quartile checking {len(batch)} papers…")
 
-        # ── Step B: Count quartiles for this batch ─────────────────────────────
-        for p in batch:
-            q = (p.get("scopus_quartile") or {})
-            q = q.get("quartile","Not Found") if isinstance(q, dict) else str(q)
-            q_cnt[q if q in q_cnt else "Not Found"] += 1
+            seen: dict = {}
+            for p in batch:
+                journal = (p.get("journal") or p.get("venue") or "") or ""
+                if not journal.strip():
+                    p["scopus_quartile"] = {"quartile": "Not Found"}
+                    continue
+                jkey = journal.lower().strip()
+                if jkey in seen:
+                    p["scopus_quartile"] = seen[jkey]
+                else:
+                    try:
+                        r = check_quartile(journal)
+                    except Exception:
+                        r = {"quartile": "Not Found", "verified": False}
+                    qval = r.get("quartile","") if isinstance(r, dict) else str(r)
+                    if not qval or qval in ("Not Found","Not Ranked",""):
+                        upgraded = enhanced_quartile_check(p)
+                        if upgraded and upgraded not in ("Not Found",""):
+                            if isinstance(r, dict):
+                                r["quartile"] = upgraded
+                            else:
+                                r = {"quartile": upgraded}
+                    seen[jkey] = r
+                    p["scopus_quartile"] = r
 
-        ok(f"  Batch {batch_num}: Q1={q_cnt['Q1']} Q2={q_cnt['Q2']} Q3={q_cnt['Q3']} Q4={q_cnt['Q4']} N/A={q_cnt['Not Found']}")
+            for p in batch:
+                q = (p.get("scopus_quartile") or {})
+                q = q.get("quartile","Not Found") if isinstance(q, dict) else str(q)
+                q_cnt[q if q in q_cnt else "Not Found"] += 1
 
-        # ── Step C: Download this batch immediately ─────────────────────────────
-        info(f"  Batch {batch_num}: downloading {len(batch)} papers…")
-        for i, paper in enumerate(batch, 1):
-            global_idx = start + i
-            q_badge = (paper.get("scopus_quartile") or {})
-            q_badge = q_badge.get("quartile","?") if isinstance(q_badge, dict) else str(q_badge)
-            success, folder_used = smart_file_paper(paper, out_folder, use_scihub, red_list, cache, single_folder)
-            paper["downloaded"] = success
-            if success:
-                dl_count += 1
-                folder_dl[folder_used] = folder_dl.get(folder_used, 0) + 1
-            dt = detect_doc_type(paper)
-            if dt in type_cnt:
-                type_cnt[dt] += 1
-            gt = detect_geo_tier(paper)
-            if gt in geo_cnt:
-                geo_cnt[gt] += 1
-            # Brief pause to avoid rate limiting
-            if i % 10 == 0:
-                info(f"    [{global_idx}/{len(new_papers)}] {dl_count} downloaded so far…")
-            time.sleep(0.15)
+            ok(f"  Batch {batch_num}: Q1={q_cnt['Q1']} Q2={q_cnt['Q2']} Q3={q_cnt['Q3']} Q4={q_cnt['Q4']} N/A={q_cnt['Not Found']}")
 
-    ok(f"Scopus Summary (this run):")
-    for q, c in q_cnt.items():
-        log(f"  {quartile_badge(q)}: {c}")
+            info(f"  Batch {batch_num}: downloading {len(batch)} papers…")
+            for i, paper in enumerate(batch, 1):
+                global_idx = start + i
+                q_badge = (paper.get("scopus_quartile") or {})
+                q_badge = q_badge.get("quartile","?") if isinstance(q_badge, dict) else str(q_badge)
+                success, folder_used = smart_file_paper(paper, out_folder, use_scihub, red_list, cache, single_folder)
+                paper["downloaded"] = success
+                if success:
+                    dl_count += 1
+                    folder_dl[folder_used] = folder_dl.get(folder_used, 0) + 1
+                dt = detect_doc_type(paper)
+                if dt in type_cnt:
+                    type_cnt[dt] += 1
+                gt = detect_geo_tier(paper)
+                if gt in geo_cnt:
+                    geo_cnt[gt] += 1
+                if i % 10 == 0:
+                    info(f"    [{global_idx}/{len(new_papers)}] {dl_count} downloaded so far…")
+                time.sleep(0.15)
 
-    cache.save()
-    ok(f"Downloaded {dl_count} / {len(new_papers)} PDFs")
-    if red_list.entries:
-        warn(red_list.summary())
+        ok(f"Scopus Summary (this run):")
+        for q, c in q_cnt.items():
+            log(f"  {quartile_badge(q)}: {c}")
+
+        cache.save()
+        ok(f"Downloaded {dl_count} / {len(new_papers)} PDFs")
+        if red_list.entries:
+            warn(red_list.summary())
+        # Mark completion so auto-trigger can break the chain
+        if cache.stats().get("queries_exhausted"):
+            (out_folder / ".search_complete").write_text("done", encoding="utf-8")
 
     # Load & merge previous results
     existing: list = []
