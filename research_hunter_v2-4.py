@@ -7231,8 +7231,7 @@ def main():
                      "7": ("Japanese", ["ja"]), "8": ("Russian", ["ru"]), "9": ("Portuguese", ["pt"]),
                      "10": ("English", ["en", "ar"]), "15": ("All", ["en", "ar", "fr", "es", "de", "zh", "ja", "ru", "pt"])}
         lang_label, lang_codes = lang_map.get(lang_num, ("English", ["en"]))
-        rqs = [v for v in [os.environ.get("CI_RQ1", ""), os.environ.get("CI_RQ2", ""),
-                           os.environ.get("CI_RQ3", "")] if v.strip()]
+        rqs = [v for v in [os.environ.get("CI_RQ1", ""), os.environ.get("CI_RQ2", "")] if v.strip()]
         raw_st = os.environ.get("CI_STUDY_TYPES", "")
         if raw_st and not raw_st.startswith("auto"):
             st_keys = [s.split(" -", 1)[0].strip() for s in raw_st.split(",")]

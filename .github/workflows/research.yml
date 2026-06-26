@@ -44,12 +44,6 @@ on:
         required: false
         default: ''
         type: string
-      rq3:
-        description: '❓ Research Question 3 (optional)'
-        required: false
-        default: ''
-        type: string
-
       # ═══════════════════════════════════════════════════════════════════════════
       # 🎓 STEP 3: ACADEMIC CLASSIFICATION
       # ═══════════════════════════════════════════════════════════════════════════
@@ -1513,7 +1507,6 @@ jobs:
           CI_TITLE: "${{ github.event.inputs.title }}"
           CI_RQ1: "${{ github.event.inputs.rq1 }}"
           CI_RQ2: "${{ github.event.inputs.rq2 }}"
-          CI_RQ3: "${{ github.event.inputs.rq3 }}"
           CI_FIELD: "${{ github.event.inputs.field }}"
           CI_STUDY_TYPES: "${{ github.event.inputs.study_type }}"
           CI_STUDY_LEVEL: "${{ github.event.inputs.study_level }}"
@@ -1614,7 +1607,6 @@ jobs:
           TRIGGER_TITLE: ${{ github.event.inputs.title }}
           TRIGGER_RQ1: ${{ github.event.inputs.rq1 }}
           TRIGGER_RQ2: ${{ github.event.inputs.rq2 }}
-          TRIGGER_RQ3: ${{ github.event.inputs.rq3 }}
           TRIGGER_FIELD: ${{ github.event.inputs.field }}
           TRIGGER_STUDY_TYPE: ${{ github.event.inputs.study_type }}
           TRIGGER_STUDY_LEVEL: ${{ github.event.inputs.study_level }}
