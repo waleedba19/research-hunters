@@ -6349,6 +6349,51 @@ def main():
             study_types = [STUDY_TYPES.get(k, "") for k in st_keys if k.isdigit() and k in STUDY_TYPES]
         else:
             study_types = auto_detect_study_type(title, rqs)
+        # Study level filter
+        raw_sl = os.environ.get("CI_STUDY_LEVEL", "")
+        sl_key = raw_sl.split(" -", 1)[0].strip()
+        study_level_filter = ""
+        STUDY_LEVEL_MAP = {"1":"PhD","2":"PhD","3":"PhD","4":"PhD","5":"PhD",
+                           "6":"MA","7":"MA","8":"MA","9":"MA","10":"MA","11":"","12":""}
+        if sl_key.isdigit() and sl_key in STUDY_LEVEL_MAP:
+            study_level_filter = STUDY_LEVEL_MAP[sl_key]
+        # Methodology filter (stored as keywords for relevance)
+        raw_meth = os.environ.get("CI_METHODOLOGY", "")
+        meth_key = raw_meth.split(" -", 1)[0].strip()
+        methodology_filter = "" if meth_key in ("51", "auto", "") else raw_meth.split(" -", 1)[-1] if " - " in raw_meth else ""
+        # Thesis part filter
+        raw_tp = os.environ.get("CI_THESIS_PART", "")
+        tp_key = raw_tp.split(" -", 1)[0].strip()
+        thesis_part_filter = "" if tp_key in ("28", "auto", "") else raw_tp.split(" -", 1)[-1] if " - " in raw_tp else ""
+        # Quartile filter
+        raw_q = os.environ.get("CI_QUARTILE", "")
+        q_key = raw_q.split(" -", 1)[0].strip()
+        quartile_filter = ""
+        QUARTILE_FILTER_MAP = {"1":"Q1","2":"Q2","3":"Q3","4":"Q4",
+                               "5":"Q1+Q2","6":"Q1+Q2+Q3","7":"","8":"Not Indexed",
+                               "9":"","10":"","11":"","12":""}
+        if q_key in QUARTILE_FILTER_MAP:
+            quartile_filter = QUARTILE_FILTER_MAP[q_key]
+        # Paper limit
+        raw_pl = os.environ.get("CI_PAPER_LIMIT", "")
+        pl_key = raw_pl.split(" -", 1)[0].strip()
+        PAPER_LIMIT_VALUES = {"1":50,"2":150,"3":300,"4":500,"5":800,"6":1200,
+                              "7":2000,"8":5000,"9":10000,"10":20000,"11":40000,"12":100000}
+        paper_limit_override = int(PAPER_LIMIT_VALUES.get(pl_key, 0))
+        # Geographic area filter
+        raw_geo = os.environ.get("CI_GEOGRAPHIC_AREA", "")
+        geo_key = raw_geo.split(" -", 1)[0].strip()
+        geographic_filter = "" if geo_key in ("worldwide", "", "auto") else geo_key
+        # Proxy setting
+        raw_proxy = os.environ.get("CI_PROXY", "n")
+        proxy_mode = raw_proxy.split(" -", 1)[0].strip()
+        # Generate paper settings
+        generate_paper = os.environ.get("CI_GENERATE_PAPER", "").lower() in ("true", "1", "yes")
+        paper_type = os.environ.get("CI_PAPER_TYPE", "empirical")
+        output_format = os.environ.get("CI_OUTPUT_FORMAT", "both_docx_xlsx")
+        learn_enabled = os.environ.get("CI_LEARN", "").lower() in ("true", "1", "yes")
+        research_depth_ci = os.environ.get("CI_RESEARCH_DEPTH", "medium")
+        operation_mode_ci = os.environ.get("CI_OPERATION_MODE", "full-research")
         suggested_kws = extract_study_keywords(title, rqs, field, count=30)
         country_context = detect_country_context(title, rqs)
         platforms = DEEP_PLATS
@@ -6360,9 +6405,28 @@ def main():
             "single_folder": single_folder, "keywords": suggested_kws,
             "search_languages": lang_codes, "lang_label": lang_label,
             "country_context": country_context,
+            "study_level_filter": study_level_filter,
+            "methodology_filter": methodology_filter,
+            "thesis_part_filter": thesis_part_filter,
+            "quartile_filter": quartile_filter,
+            "paper_limit_override": paper_limit_override,
+            "geographic_filter": geographic_filter,
+            "proxy_mode": proxy_mode,
+            "generate_paper": generate_paper,
+            "paper_type": paper_type,
+            "output_format": output_format,
+            "learn_enabled": learn_enabled,
+            "research_depth": research_depth_ci,
+            "operation_mode": operation_mode_ci,
         }
         print(f"[CI] Mode: {mode} | Title: {title[:60]}... | Field: {field}")
         print(f"[CI] Platforms: {len(platforms)} | Study types: {', '.join(study_types[:3])}...")
+        if study_level_filter:
+            print(f"[CI] Study level filter: {study_level_filter}")
+        if quartile_filter:
+            print(f"[CI] Quartile filter: {quartile_filter}")
+        if paper_limit_override:
+            print(f"[CI] Paper limit: {paper_limit_override}")
     else:
         params = wizard()
     title            = params["title"]
@@ -6381,10 +6445,36 @@ def main():
     # Country context already computed in wizard; re-use it
     country_context  = params.get("country_context") or detect_country_context(title, rqs)
 
+    # Extract all new CI filters
+    study_level_filter  = params.get("study_level_filter", "")
+    methodology_filter  = params.get("methodology_filter", "")
+    thesis_part_filter  = params.get("thesis_part_filter", "")
+    quartile_filter     = params.get("quartile_filter", "")
+    paper_limit_override = params.get("paper_limit_override", 0)
+    geographic_filter   = params.get("geographic_filter", "")
+    proxy_mode          = params.get("proxy_mode", "n")
+    generate_paper      = params.get("generate_paper", False)
+    paper_type          = params.get("paper_type", "empirical")
+    output_format       = params.get("output_format", "both_docx_xlsx")
+    learn_enabled       = params.get("learn_enabled", False)
+
+    # Apply proxy setting
+    if proxy_mode in ("y", "p"):
+        os.environ["G4F_PROXY"] = "auto"
+        info(f"Proxy mode: {proxy_mode}")
+
     if country_context:
         info(f"Geographic context: {' → '.join(country_context)}")
     if study_keywords:
         info(f"Study keywords extracted: {len(study_keywords)} terms")
+    if study_level_filter:
+        info(f"Study level filter active: {study_level_filter}")
+    if quartile_filter:
+        info(f"Quartile filter active: {quartile_filter}")
+    if geographic_filter:
+        info(f"Geographic area filter active: {geographic_filter}")
+    if paper_limit_override:
+        info(f"Paper limit override: {paper_limit_override}")
 
     # Output folder & cache
     folder_name = _safe_name(title, 80)
@@ -6584,6 +6674,47 @@ def main():
 
     all_papers = cache.deduplicate(new_papers + existing)
 
+    # ── Apply user-selected filters ─────────────────────────────────
+    before = len(all_papers)
+
+    # Filter by study level
+    if study_level_filter:
+        filtered = []
+        for p in all_papers:
+            doc_type = detect_doc_type(p)
+            if doc_type == study_level_filter:
+                filtered.append(p)
+        all_papers = filtered
+
+    # Filter by quartile
+    if quartile_filter:
+        filtered = []
+        allowed = quartile_filter.split("+")
+        for p in all_papers:
+            q = (p.get("scopus_quartile") or {})
+            q = q.get("quartile","") if isinstance(q, dict) else str(q)
+            if q in allowed or (not q and "Not Indexed" in allowed):
+                filtered.append(p)
+        all_papers = filtered
+
+    # Filter by geographic area
+    if geographic_filter and geographic_filter != "worldwide":
+        filtered = []
+        for p in all_papers:
+            gt = detect_geo_tier(p).lower()
+            gf = geographic_filter.lower()
+            if gt == gf or gf in gt or gt in gf:
+                filtered.append(p)
+        all_papers = filtered
+
+    # Apply paper limit
+    if paper_limit_override and len(all_papers) > paper_limit_override:
+        all_papers = all_papers[:paper_limit_override]
+
+    after = len(all_papers)
+    if before != after:
+        info(f"User filters applied: {before} → {after} papers kept")
+
     # Overall stats
     all_q = {"Q1":0,"Q2":0,"Q3":0,"Q4":0,"Not Found":0}
     for p in all_papers:
@@ -6607,6 +6738,15 @@ def main():
         "papers":             all_papers,
         "executive_summary":  "",
         "generated_at":       datetime.now().isoformat(),
+        "user_filters": {
+            "study_level":    study_level_filter,
+            "methodology":    methodology_filter,
+            "thesis_part":    thesis_part_filter,
+            "quartile":       quartile_filter,
+            "geographic":     geographic_filter,
+            "paper_limit":    paper_limit_override,
+            "proxy":          proxy_mode,
+        },
         "run_stats": {
             "new_this_run":        len(new_papers),
             "downloaded_this_run": dl_count,
