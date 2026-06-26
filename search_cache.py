@@ -96,8 +96,9 @@ class SearchCache:
             "cache_file": str(self._cache_path),
             "seen_unique": len(self._seen_keys),
             "queries_logged": len(self._queries),
-            "found_total": self._found_count,
-            "downloaded_total": self._downloaded_count,
+            "total_found": self._found_count,
+            "total_downloaded": self._downloaded_count,
+            "queries_used": len(self._queries),
             "runs_total": self._run_count,
         }
 
