@@ -4462,6 +4462,47 @@ def enhanced_quartile_check(paper: dict) -> str:
             return "Q4"
     except (ValueError, TypeError):
         pass
+    # Journal-prestige heuristic: infer quartile from publisher/journal name
+    if journal:
+        jl = journal.lower()
+        # Tier 1 publishers → Q2 (highly indexed, wide Scopus coverage)
+        TIER1 = ["elsevier", "springer", "nature ", "nature publishing", "taylor & francis",
+                 "routledge", "wiley", "sage ", "sage publishing", "oxford university",
+                 "cambridge university", "ieee", "acm ", "association for computing",
+                 "lippincott", "wolters kluwer", "bmj", "the lancet", "cell press",
+                 "new england journal", "annual reviews", "science direct"]
+        if any(t in jl for t in TIER1):
+            return "Q2"
+        # Tier 2 publishers → Q3 (indexed, variable impact)
+        TIER2 = ["emerald", "inderscience", "de gruyter", "john benjamins",
+                 "multilingual matters", "world scientific", "jstor", "project muse",
+                 "brill", "academic press", "mit press", "duke university",
+                 "university of chicago", "john hopkins", "springer nature",
+                 "palgrave", "macmillan", "elsevier science", "pergamon",
+                 "peter lang", "nova science", "trans tech", "scientific.net",
+                 "iospress", "hindawi", "mdpi", "plos ", "frontiers in",
+                 "peerj", "copernicus", "polish academy"]
+        if any(t in jl for t in TIER2):
+            return "Q3"
+        # Journal name pattern → likely indexed → Q4
+        Q4_PATTERNS = ["journal of", "international journal of", "review of",
+                       "research in", "studies in", "annals of", "archives of",
+                       "european journal of", "american journal of",
+                       "british journal of", "australian journal of",
+                       "asian journal of", "african journal of",
+                       "canadian journal of", "indian journal of",
+                       "turkish journal of", "arabian journal of",
+                       "saudi journal of", "egyptian journal of",
+                       "journal on", "journal for", "quarterly journal",
+                       "advances in", "proceedings of", "transactions on",
+                       "current research", "current opinion in",
+                       "expert review of", "international review",
+                       "journal of research in", "journal of applied"]
+        if any(t in jl for t in Q4_PATTERNS):
+            return "Q4"
+    # Paper has DOI → formally published → at least Q4 minimum
+    if paper.get("doi") or paper.get("issn"):
+        return "Q4"
     return existing_q or "Not Found"
 
 
@@ -7494,125 +7535,106 @@ def main():
         for p in new_papers:
             cache.mark_found(p)
 
-    # ═══════ v6: INTERLEAVED QUARTILE + DOWNLOAD PIPELINE ═══════
-    # Check quartiles for batch, download that batch while checking next batch
-    # ── Download phase ────────────────────────────────────────────────
+    # ═══════ QUARTILE CHECK — always runs (even when downloads OFF) ═══════
     dl_count = 0
+    folder_dl: dict[str, int] = {}
+    q_cnt = {"Q1":0,"Q2":0,"Q3":0,"Q4":0,"Not Found":0}
     type_cnt  = {"PhD":0,"MA":0,"Book":0,"BookChapter":0,"Conference":0}
     geo_cnt   = {"Libya":0,"Neighbor":0,"MENA":0}
-    folder_dl: dict[str, int] = {}
-    q_cnt     = {"Q1":0,"Q2":0,"Q3":0,"Q4":0,"Not Found":0}
+    if new_papers:
+        info(f"Checking quartiles for {len(new_papers)} papers…")
+        seen_j: dict = {}
+        for p in new_papers:
+            journal = (p.get("journal") or p.get("venue") or "") or ""
+            if not journal.strip():
+                p["scopus_quartile"] = {"quartile": "Not Found"}
+                continue
+            jkey = journal.lower().strip()
+            if jkey in seen_j:
+                p["scopus_quartile"] = seen_j[jkey]
+            else:
+                try:
+                    r = check_quartile(journal)
+                except Exception:
+                    r = {"quartile": "Not Found", "verified": False}
+                qval = r.get("quartile","") if isinstance(r, dict) else str(r)
+                if not qval or qval in ("Not Found","Not Ranked",""):
+                    upgraded = enhanced_quartile_check(p)
+                    if upgraded and upgraded not in ("Not Found",""):
+                        if isinstance(r, dict):
+                            r["quartile"] = upgraded
+                        else:
+                            r = {"quartile": upgraded}
+                seen_j[jkey] = r
+                p["scopus_quartile"] = r
+            q = (p.get("scopus_quartile") or {})
+            q = q.get("quartile","Not Found") if isinstance(q, dict) else str(q)
+            q_cnt[q if q in q_cnt else "Not Found"] += 1
+        ok(f"Q1={q_cnt['Q1']} Q2={q_cnt['Q2']} Q3={q_cnt['Q3']} Q4={q_cnt['Q4']} Not Indexed={q_cnt['Not Found']}")
 
-    if not _gen_only:
+    # ═══════ DOWNLOAD PHASE — only when PDFs requested ═══════
+    if not _gen_only and not skip_downloads and new_papers:
         print()
-        if skip_downloads:
-            info(f"Download PDFs OFF — metadata-only, reports generated with all links")
-        else:
-            dl_mode_str = "single folder" if single_folder else "smart folders"
-            info(f"Interleaved quartile verification + parallel download ({10} workers) into {dl_mode_str}…")
-
-            BATCH_SIZE = 50
-            total_batches = (len(new_papers) + BATCH_SIZE - 1) // BATCH_SIZE
-
-            # Thread safety: wrappers that lock around cache/red_list mutations
-            _dl_lock = threading.Lock()
-            class _TSRedList:
-                def __init__(s, rl): s._rl = rl; s._lock = _dl_lock
-                def add(s, *a, **kw):
-                    with s._lock: s._rl.add(*a, **kw)
-                def save(s):
-                    with s._lock: s._rl.save()
-                @property
-                def entries(s):
-                    with s._lock: return s._rl.entries
-            class _TSCache:
-                def __init__(s, c): s._c = c; s._lock = _dl_lock
-                def mark_downloaded(s, *a, **kw):
-                    with s._lock: s._c.mark_downloaded(*a, **kw)
-                def mark_found(s, *a, **kw):
-                    with s._lock: s._c.mark_found(*a, **kw)
-                def save(s):
-                    with s._lock: s._c.save()
-            ts_red_list = _TSRedList(red_list)
-            ts_cache = _TSCache(cache)
-
-            for batch_idx in range(total_batches):
-                start = batch_idx * BATCH_SIZE
-                end   = min(start + BATCH_SIZE, len(new_papers))
-                batch = new_papers[start:end]
-                batch_num = batch_idx + 1
-
-                info(f"  Batch {batch_num}/{total_batches}: quartile checking {len(batch)} papers…")
-
-                seen: dict = {}
-                for p in batch:
-                    journal = (p.get("journal") or p.get("venue") or "") or ""
-                    if not journal.strip():
-                        p["scopus_quartile"] = {"quartile": "Not Found"}
-                        continue
-                    jkey = journal.lower().strip()
-                    if jkey in seen:
-                        p["scopus_quartile"] = seen[jkey]
-                    else:
-                        try:
-                            r = check_quartile(journal)
-                        except Exception:
-                            r = {"quartile": "Not Found", "verified": False}
-                        qval = r.get("quartile","") if isinstance(r, dict) else str(r)
-                        if not qval or qval in ("Not Found","Not Ranked",""):
-                            upgraded = enhanced_quartile_check(p)
-                            if upgraded and upgraded not in ("Not Found",""):
-                                if isinstance(r, dict):
-                                    r["quartile"] = upgraded
-                                else:
-                                    r = {"quartile": upgraded}
-                        seen[jkey] = r
-                        p["scopus_quartile"] = r
-
-                for p in batch:
-                    q = (p.get("scopus_quartile") or {})
-                    q = q.get("quartile","Not Found") if isinstance(q, dict) else str(q)
-                    q_cnt[q if q in q_cnt else "Not Found"] += 1
-
-                ok(f"  Batch {batch_num}: Q1={q_cnt['Q1']} Q2={q_cnt['Q2']} Q3={q_cnt['Q3']} Q4={q_cnt['Q4']} N/A={q_cnt['Not Found']}")
-
-                info(f"  Batch {batch_num}: downloading {len(batch)} papers (10 parallel workers)…")
-                with ThreadPoolExecutor(max_workers=10) as ex:
-                    futs = {ex.submit(smart_file_paper, p, out_folder, use_scihub, ts_red_list, ts_cache, single_folder): p for p in batch}
-                    dl_this_batch = 0
-                    for i, fut in enumerate(as_completed(futs), 1):
-                        p = futs[fut]
-                        try:
-                            success, folder_used = fut.result()
-                        except Exception as exc:
-                            warn(f"  Worker failed: {exc}")
-                            success = False
-                            folder_used = "Not_Indexed"
-                        p["downloaded"] = success
-                        if success:
-                            dl_count += 1
-                            dl_this_batch += 1
-                            folder_dl[folder_used] = folder_dl.get(folder_used, 0) + 1
-                        dt = detect_doc_type(p)
-                        if dt in type_cnt:
-                            type_cnt[dt] += 1
-                        gt = detect_geo_tier(p)
-                        if gt in geo_cnt:
-                            geo_cnt[gt] += 1
-                        if i % 10 == 0 or i == len(batch):
-                            info(f"    [{start + i}/{len(new_papers)}] {dl_count} downloaded ({dl_this_batch} this batch)…")
-
-            ok(f"Scopus Summary (this run):")
-            for q, c in q_cnt.items():
-                log(f"  {quartile_badge(q)}: {c}")
-
-            cache.save()
-            ok(f"Downloaded {dl_count} / {len(new_papers)} PDFs")
-            if red_list.entries:
-                warn(red_list.summary())
-            # Mark completion so auto-trigger can break the chain
-            if cache.stats().get("queries_exhausted"):
-                (out_folder / ".search_complete").write_text("done", encoding="utf-8")
+        dl_mode_str = "single folder" if single_folder else "smart folders"
+        info(f"Downloading {len(new_papers)} PDFs (10 parallel workers) into {dl_mode_str}…")
+        BATCH_SIZE = 50
+        total_batches = (len(new_papers) + BATCH_SIZE - 1) // BATCH_SIZE
+        _dl_lock = threading.Lock()
+        class _TSRedList:
+            def __init__(s, rl): s._rl = rl; s._lock = _dl_lock
+            def add(s, *a, **kw):
+                with s._lock: s._rl.add(*a, **kw)
+            def save(s):
+                with s._lock: s._rl.save()
+            @property
+            def entries(s):
+                with s._lock: return s._rl.entries
+        class _TSCache:
+            def __init__(s, c): s._c = c; s._lock = _dl_lock
+            def mark_downloaded(s, *a, **kw):
+                with s._lock: s._c.mark_downloaded(*a, **kw)
+            def mark_found(s, *a, **kw):
+                with s._lock: s._c.mark_found(*a, **kw)
+            def save(s):
+                with s._lock: s._c.save()
+        ts_red_list = _TSRedList(red_list)
+        ts_cache = _TSCache(cache)
+        for batch_idx in range(total_batches):
+            start = batch_idx * BATCH_SIZE
+            end   = min(start + BATCH_SIZE, len(new_papers))
+            batch = new_papers[start:end]
+            batch_num = batch_idx + 1
+            info(f"  Batch {batch_num}/{total_batches}: downloading {len(batch)} papers…")
+            with ThreadPoolExecutor(max_workers=10) as ex:
+                futs = {ex.submit(smart_file_paper, p, out_folder, use_scihub, ts_red_list, ts_cache, single_folder): p for p in batch}
+                dl_this_batch = 0
+                for i, fut in enumerate(as_completed(futs), 1):
+                    p = futs[fut]
+                    try:
+                        success, folder_used = fut.result()
+                    except Exception as exc:
+                        warn(f"  Worker failed: {exc}")
+                        success = False
+                        folder_used = "Not_Indexed"
+                    p["downloaded"] = success
+                    if success:
+                        dl_count += 1
+                        dl_this_batch += 1
+                        folder_dl[folder_used] = folder_dl.get(folder_used, 0) + 1
+                    dt = detect_doc_type(p)
+                    if dt in type_cnt: type_cnt[dt] += 1
+                    gt = detect_geo_tier(p)
+                    if gt in geo_cnt: geo_cnt[gt] += 1
+                    if i % 10 == 0 or i == len(batch):
+                        info(f"    [{start + i}/{len(new_papers)}] {dl_count} downloaded ({dl_this_batch} this batch)…")
+        cache.save()
+        ok(f"Downloaded {dl_count} / {len(new_papers)} PDFs")
+        if red_list.entries:
+            warn(red_list.summary())
+        if cache.stats().get("queries_exhausted"):
+            (out_folder / ".search_complete").write_text("done", encoding="utf-8")
+    elif skip_downloads and new_papers:
+        info(f"Download PDFs OFF — reports generated with all clickable links")
 
     # Load & merge previous results
     existing: list = []
@@ -7691,6 +7713,15 @@ def main():
         q = (p.get("scopus_quartile") or {})
         q = q.get("quartile","Not Found") if isinstance(q, dict) else str(q)
         all_q[q if q in all_q else "Not Found"] += 1
+
+    # Recompute type/geo stats from all_papers (download-independent)
+    type_cnt = {"PhD":0,"MA":0,"Book":0,"BookChapter":0,"Conference":0}
+    geo_cnt  = {"Libya":0,"Neighbor":0,"MENA":0}
+    for p in all_papers:
+        dt = detect_doc_type(p)
+        if dt in type_cnt: type_cnt[dt] += 1
+        gt = detect_geo_tier(p)
+        if gt in geo_cnt: geo_cnt[gt] += 1
 
     # Build report data
     info("Generating executive summary…")
