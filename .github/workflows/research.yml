@@ -1247,6 +1247,12 @@ jobs:
       GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
     steps:
       - uses: actions/checkout@v4
+      - name: Cache Ollama models (shared between jobs)
+        id: cache-ollama
+        uses: actions/cache@v4
+        with:
+          path: ~/.ollama
+          key: ollama-qwen2.5vl-3b
       - name: Setup Ollama
         run: |
           set -e
@@ -1256,10 +1262,13 @@ jobs:
             if curl -s http://127.0.0.1:11434/api/tags > /dev/null 2>&1; then break; fi
             sleep 1
           done
-          ollama pull qwen2.5vl:3b
+          if [ "${{ steps.cache-ollama.outputs.cache-hit }}" != "true" ]; then
+            ollama pull qwen2.5vl:3b
+          else
+            echo "Model restored from cache"
+          fi
       - name: Test model inference
         run: |
-          echo "Testing Ollama inference..."
           ollama run qwen2.5vl:3b "hello" 2>&1 | head -5
           echo "Ollama READY"
       - name: Restore proof memory (cross-run learning persistence)
@@ -1285,6 +1294,12 @@ jobs:
       GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
     steps:
       - uses: actions/checkout@v4
+      - name: Cache Ollama models (shared between jobs)
+        id: cache-ollama
+        uses: actions/cache@v4
+        with:
+          path: ~/.ollama
+          key: ollama-qwen2.5vl-3b
       - name: Setup Ollama
         run: |
           set -e
@@ -1294,7 +1309,11 @@ jobs:
             if curl -s http://127.0.0.1:11434/api/tags > /dev/null 2>&1; then break; fi
             sleep 1
           done
-          ollama pull qwen2.5vl:3b
+          if [ "${{ steps.cache-ollama.outputs.cache-hit }}" != "true" ]; then
+            ollama pull qwen2.5vl:3b
+          else
+            echo "Model restored from cache"
+          fi
       - name: Test model inference
         run: |
           ollama run qwen2.5vl:3b "hello" 2>&1 | head -5
@@ -1371,6 +1390,12 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+      - name: Cache Ollama models (shared between jobs)
+        id: cache-ollama
+        uses: actions/cache@v4
+        with:
+          path: ~/.ollama
+          key: ollama-qwen2.5vl-3b
       - name: Setup Ollama
         run: |
           set -e
@@ -1380,7 +1405,11 @@ jobs:
             if curl -s http://127.0.0.1:11434/api/tags > /dev/null 2>&1; then break; fi
             sleep 1
           done
-          ollama pull qwen2.5vl:3b
+          if [ "${{ steps.cache-ollama.outputs.cache-hit }}" != "true" ]; then
+            ollama pull qwen2.5vl:3b
+          else
+            echo "Model restored from cache"
+          fi
       - name: Test model inference
         run: |
           ollama run qwen2.5vl:3b "hello" 2>&1 | head -5
@@ -1501,7 +1530,7 @@ jobs:
           echo ""
           echo "Search Parameters:"
           echo ""
-          python research_hunter_v2-4.py ${{ steps.args.outputs.args }}
+          python research_hunter_v2-4.py ${{ steps.args.outputs.args }}; echo "EXIT CODE: $?"
 
       - name: Check results
         id: check_results
