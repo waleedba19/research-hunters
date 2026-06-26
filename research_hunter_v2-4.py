@@ -6791,88 +6791,163 @@ def _write_master_xlsx(all_papers: list, out_folder: Path, queries_used: list = 
                     topic_words[w] += 1
 
         # ═══════════════════════════════════════════════════════════════
-        # SHEET 1: GLOBAL DASHBOARD
+        # SHEET 0: MASTER DASHBOARD (command center with ALL charts)
         # ═══════════════════════════════════════════════════════════════
-        ws = wb.active; ws.title = "\U0001F4CA Dashboard"; ws.sheet_properties.tabColor = "1F3864"
+        ws = wb.active; ws.title = "0 - Master Dashboard"; ws.sheet_properties.tabColor = "1F3864"
+        ws.sheet_view.showGridLines = False
+
+        def _section(ws, r, title_text):
+            ws.cell(r,1,title_text).font = SUB_FONT; ws.cell(r,1).fill = SUB_FILL
+            ws.merge_cells(start_row=r,start_column=1,end_row=r,end_column=10)
+            return r + 1
+
+        def _hdr(ws, r, labels):
+            for c, h in enumerate(labels, 1):
+                cl = ws.cell(r,c,h); cl.font = HDR_FONT; cl.fill = HDR_FILL
+                cl.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+            return r + 1
+
+        def _cell(ws, r, c, val, bold=False, fill=None, fmt=None):
+            cl = ws.cell(r,c,val); cl.border = BORD
+            if bold: cl.font = Font(bold=True, size=10)
+            if fill: cl.fill = fill
+            if fmt: cl.number_format = fmt
+            return cl
 
         r = 1
-        ws.cell(r,1,"\U0001F30D RESEARCH MASTER DASHBOARD").font = TITLE_F
-        ws.merge_cells(start_row=r,start_column=1,end_row=r,end_column=6)
+        ws.cell(r,1,"\U0001F30D RESEARCH COMMAND CENTER — MASTER DASHBOARD").font = Font(bold=True, size=16, color="1F3864", name="Calibri")
+        ws.merge_cells(start_row=r,start_column=1,end_row=r,end_column=10)
         r = 2
-        ws.cell(r,1,f"Generated: {datetime.now():%B %d, %Y at %H:%M}  |  Total Papers: {len(all_papers)}  |  Total Citations: {total_cited:,}").font = Font(italic=True, color="666666", size=10)
-        ws.merge_cells(start_row=r,start_column=1,end_row=r,end_column=6)
+        ws.cell(r,1,f"Generated: {datetime.now():%B %d, %Y at %H:%M}  |  Total Papers: {len(all_papers):,}  |  Total Citations: {total_cited:,}  |  Languages: {max(1,len(lang_cnt))}").font = Font(italic=True, color="666666", size=9)
+        ws.merge_cells(start_row=r,start_column=1,end_row=r,end_column=10)
 
-        r = 4
-        ws.cell(r,1,"\U0001F4CA KEY METRICS").font = SUB_FONT; ws.cell(r,1).fill = SUB_FILL; ws.merge_cells(start_row=r,start_column=1,end_row=r,end_column=6)
-        r += 1
-        metrics = [("Total Papers",len(all_papers)),("PDFs Downloaded",sum(1 for p in all_papers if p.get("downloaded"))),("Total Citations",total_cited),("Avg Citations",round(total_cited/max(len(all_papers),1),1)),("Highly Cited (100+)",filler_cited),("Languages",max(1,len(lang_cnt)))]
-        for i, (lab, val) in enumerate(metrics, r):
-            ws.cell(i,1,lab).font = Font(bold=True, size=10)
-            ws.cell(i,2,val).font = Font(size=12, color="1F3864")
-            ws.cell(i,2).alignment = Alignment(horizontal="center")
+        # ── Key Metrics in 2×5 grid ──────────────────────────────────────
+        r = 4; r = _section(ws, r, "\U0001F4CA KEY METRICS")
+        METRIC_FILL = PatternFill("solid", fgColor="E8F0FE")
+        metrics = [
+            ("Total Papers", f"{len(all_papers):,}", "\U0001F4D6"),
+            ("Q1+Q2 Papers", f"{q_cnt.get('Q1',0)+q_cnt.get('Q2',0):,}", "\U0001F7E2"),
+            ("PDFs Downloaded", f"{sum(1 for p in all_papers if p.get('downloaded')):,}", "\U0001F4E5"),
+            ("Total Citations", f"{total_cited:,}", "\U0001F4CA"),
+            ("Avg Citations", f"{round(total_cited/max(len(all_papers),1),1):,}", "\U0001F522"),
+            ("Highest Quartile", next((q for q in ("Q1","Q2","Q3","Q4") if q_cnt.get(q,0) > 0), "N/A"), "\U0001F3C6"),
+            ("Highly Cited (100+)", f"{filler_cited:,}", "\U0001F525"),
+            ("Document Types", f"{len(doc_cnt)}", "\U0001F4CB"),
+            ("Geographic Regions", f"{len(geo_cnt)}", "\U0001F30D"),
+            ("Countries", f"{len(country_data)}", "\U0001F5FA"),
+        ]
+        for i, (lab, val, icon) in enumerate(metrics):
+            col = (i % 5) * 2 + 1
+            row = r + (i // 5) * 2
+            c1 = _cell(ws, row, col, f"{icon}  {lab}", bold=True, fill=METRIC_FILL)
+            _cell(ws, row, col+1, val, fill=METRIC_FILL)
+        r += 5
 
-        r += len(metrics)
-        ws.cell(r,1,"\U0001F4CA QUARTILE DISTRIBUTION").font = SUB_FONT; ws.cell(r,1).fill = SUB_FILL; ws.merge_cells(start_row=r,start_column=1,end_row=r,end_column=6)
-        r += 1
-        ws.cell(r,1,"Quartile"); ws.cell(r,2,"Count"); ws.cell(r,3,"Percentage")
-        for c in 1,2,3: ws.cell(r,c).font = HDR_FONT; ws.cell(r,c).fill = HDR_FILL
-        r += 1
+        # ── Quartile Distribution (table + pie chart) ───────────────────
+        r = _section(ws, r, "\U0001F7E2 QUARTILE DISTRIBUTION")
+        r = _hdr(ws, r, ["Quartile", "Count", "Percentage", "Visual Bar"])
+        max_q = max(q_cnt.values()) or 1
+        q_start = r
         for q in ("Q1","Q2","Q3","Q4","Not Found"):
-            ws.cell(r,1,q).fill = Q_FILLS[q]; ws.cell(r,1).font = Font(bold=True)
-            ws.cell(r,2,q_cnt[q]); ws.cell(r,3,f"{q_cnt[q]/max(len(all_papers),1)*100:.1f}%")
-            ws.cell(r,2).alignment = ws.cell(r,3).alignment = Alignment(horizontal="center")
+            cnt = q_cnt[q]
+            bar = "\u2588" * max(1, int(cnt / max_q * 25))
+            _cell(ws, r, 1, q, fill=Q_FILLS[q])
+            _cell(ws, r, 2, cnt, fmt="#,##0")
+            _cell(ws, r, 3, f"{cnt/max(len(all_papers),1)*100:.1f}%")
+            _cell(ws, r, 4, bar)
             r += 1
+        q_end = r - 1
+        pie = PieChart(); pie.title = "Scopus Quartile Split"; pie.style = 10
+        pie.width = 14; pie.height = 9
+        pie.add_data(Reference(ws, min_col=2, min_row=q_start-1, max_row=q_end), titles_from_data=True)
+        pie.set_categories(Reference(ws, min_col=1, min_row=q_start, max_row=q_end))
+        ws.add_chart(pie, f"F{q_start-1}")
 
-        # Quartile pie chart
-        pie = PieChart(); pie.title = "Quartile Distribution"; pie.style = 10
-        pie.width = 16; pie.height = 10
-        q_start = r - 5
-        data_ref = Reference(ws, min_col=2, min_row=q_start, max_row=r-2)
-        cat_ref = Reference(ws, min_col=1, min_row=q_start, max_row=r-2)
-        pie.add_data(data_ref, titles_from_data=False)
-        pie.set_categories(cat_ref)
-        ws.add_chart(pie, f"D4")
+        # ── Document Type Breakdown (table + pie chart) ──────────────────
+        r = max(r, q_start + 13)
+        r = _section(ws, r, "\U0001F4CB DOCUMENT TYPE BREAKDOWN")
+        r = _hdr(ws, r, ["Type", "Count", "Percentage"])
+        dt_start = r
+        for dt, cnt in doc_cnt.most_common(8):
+            _cell(ws, r, 1, dt, fill=PatternFill("solid", fgColor=DOC_COLS.get(dt,"F2F2F2")))
+            _cell(ws, r, 2, cnt, fmt="#,##0")
+            _cell(ws, r, 3, f"{cnt/max(len(all_papers),1)*100:.1f}%")
+            r += 1
+        dt_end = r - 1
+        if dt_end > dt_start:
+            pie2 = PieChart(); pie2.title = "Document Types"; pie2.style = 10
+            pie2.width = 14; pie2.height = 9
+            pie2.add_data(Reference(ws, min_col=2, min_row=dt_start-1, max_row=dt_end), titles_from_data=True)
+            pie2.set_categories(Reference(ws, min_col=1, min_row=dt_start, max_row=dt_end))
+            ws.add_chart(pie2, f"F{dt_start-1}")
 
-        # ── Geographic split ──────────────────────────────────────────────
-        ws.cell(r,1,"\U0001F30D GEOGRAPHIC DISTRIBUTION").font = SUB_FONT; ws.cell(r,1).fill = SUB_FILL; ws.merge_cells(start_row=r,start_column=1,end_row=r,end_column=6)
-        r += 1
-        ws.cell(r,1,"Region"); ws.cell(r,2,"Count"); ws.cell(r,3,"Percentage")
-        for c in 1,2,3: ws.cell(r,c).font = HDR_FONT; ws.cell(r,c).fill = HDR_FILL
-        r += 1
+        # ── Yearly Trend (bar chart) ─────────────────────────────────────
+        r = max(r, dt_start + 12)
+        r = _section(ws, r, "\U0001F4C5 YEARLY RESEARCH TREND")
+        r = _hdr(ws, r, ["Year", "Papers"])
+        yr_start = r
+        for yr in sorted(y for y in year_cnt if y.isdigit() and len(y) == 4):
+            _cell(ws, r, 1, int(yr))
+            _cell(ws, r, 2, year_cnt[yr], fmt="#,##0")
+            r += 1
+        yr_end = r - 1
+        if yr_end > yr_start:
+            bar_chart = BarChart(); bar_chart.title = "Papers by Year"; bar_chart.style = 10
+            bar_chart.width = 20; bar_chart.height = 10
+            bar_chart.add_data(Reference(ws, min_col=2, min_row=yr_start-1, max_row=yr_end), titles_from_data=True)
+            bar_chart.set_categories(Reference(ws, min_col=1, min_row=yr_start, max_row=yr_end))
+            bar_chart.y_axis.title = "Papers"
+            ws.add_chart(bar_chart, f"F{yr_start-1}")
+
+        # ── Geographic Distribution ──────────────────────────────────────
+        r = max(r, yr_start + 14)
+        r = _section(ws, r, "\U0001F30D GEOGRAPHIC DISTRIBUTION")
+        r = _hdr(ws, r, ["Region", "Count", "Percentage"])
         for gt, cnt in geo_cnt.most_common():
-            ws.cell(r,1,gt).fill = PatternFill("solid", fgColor=GEO_COLS.get(gt,"F2F2F2"))
-            ws.cell(r,2,cnt); ws.cell(r,3,f"{cnt/max(len(all_papers),1)*100:.1f}%")
-            ws.cell(r,2).alignment = ws.cell(r,3).alignment = Alignment(horizontal="center")
+            _cell(ws, r, 1, gt, fill=PatternFill("solid", fgColor=GEO_COLS.get(gt,"F2F2F2")))
+            _cell(ws, r, 2, cnt, fmt="#,##0")
+            _cell(ws, r, 3, f"{cnt/max(len(all_papers),1)*100:.1f}%")
             r += 1
 
-        ws.cell(r,1,"\U0001F4CB DOCUMENT TYPE BREAKDOWN").font = SUB_FONT; ws.cell(r,1).fill = SUB_FILL; ws.merge_cells(start_row=r,start_column=1,end_row=r,end_column=6)
+        # ── Country Density ─────────────────────────────────────────────
         r += 1
-        ws.cell(r,1,"Type"); ws.cell(r,2,"Count"); ws.cell(r,3,"Percentage")
-        for c in 1,2,3: ws.cell(r,c).font = HDR_FONT; ws.cell(r,c).fill = HDR_FILL
-        r += 1
-        for dt, cnt in doc_cnt.most_common():
-            ws.cell(r,1,dt).fill = PatternFill("solid", fgColor=DOC_COLS.get(dt,"F2F2F2"))
-            ws.cell(r,2,cnt); ws.cell(r,3,f"{cnt/max(len(all_papers),1)*100:.1f}%")
-            ws.cell(r,2).alignment = ws.cell(r,3).alignment = Alignment(horizontal="center")
-            r += 1
-
-        r += 1
-        ws.cell(r,1,"\U0001F30D COUNTRY DENSITY MAP (Research by Country)").font = SUB_FONT; ws.cell(r,1).fill = SUB_FILL
-        ws.merge_cells(start_row=r,start_column=1,end_row=r,end_column=6)
-        r += 1
-        ws.cell(r,1,"Country"); ws.cell(r,2,"Papers"); ws.cell(r,3,"Visual")
-        for c in 1,2,3: ws.cell(r,c).font = HDR_FONT; ws.cell(r,c).fill = HDR_FILL
-        r += 1
+        r = _section(ws, r, "\U0001F5FA COUNTRY DENSITY (Top 30)")
+        r = _hdr(ws, r, ["Country", "Papers", "Visual Bar"])
         max_c = max(country_data.values()) if country_data else 1
         for ctry, cnt in country_data.most_common(30):
-            ws.cell(r,1,ctry)
-            ws.cell(r,2,cnt); ws.cell(r,2).alignment = Alignment(horizontal="center")
+            _cell(ws, r, 1, ctry)
+            _cell(ws, r, 2, cnt, fmt="#,##0")
             bar = "\u2588" * max(1, int(cnt / max_c * 30))
-            ws.cell(r,3,bar).font = Font(color="1F3864", size=8)
+            _cell(ws, r, 3, bar)
             r += 1
 
-        ws.column_dimensions["A"].width = 30; ws.column_dimensions["B"].width = 12
-        ws.column_dimensions["C"].width = 35; ws.column_dimensions["D"].width = 20
+        # ── Top Platforms ───────────────────────────────────────────────
+        r += 1
+        r = _section(ws, r, "\U0001F4E1 TOP SOURCE PLATFORMS")
+        r = _hdr(ws, r, ["Platform", "Papers"])
+        for src, cnt in src_cnt.most_common(15):
+            _cell(ws, r, 1, src)
+            _cell(ws, r, 2, cnt, fmt="#,##0")
+            r += 1
+
+        # ── Trending Topics (top 15) ──────────────────────────────────────
+        r += 1
+        r = _section(ws, r, "\U0001F525 TRENDING TOPICS")
+        r = _hdr(ws, r, ["Rank", "Topic", "Mentions", "Category", "Score"])
+        for i, (word, cnt) in enumerate(topic_words.most_common(15), 1):
+            cat = next((c for kw, c in {"methodology":"Methodology","quantitative":"Methodology","qualitative":"Methodology","mobile":"Technology","digital":"Technology","ai":"Technology","efl":"Language","esl":"Language","arabic":"Language","teacher":"Education","student":"Education","learning":"Education"}.items() if kw in word.lower()), "General")
+            _cell(ws, r, 1, i)
+            _cell(ws, r, 2, word)
+            _cell(ws, r, 3, cnt, fmt="#,##0")
+            _cell(ws, r, 4, cat)
+            _cell(ws, r, 5, round(cnt / max(topic_words.most_common(1)[0][1],1) * 100, 1))
+            r += 1
+
+        ws.column_dimensions["A"].width = 28; ws.column_dimensions["B"].width = 14
+        ws.column_dimensions["C"].width = 14; ws.column_dimensions["D"].width = 14
+        ws.column_dimensions["E"].width = 35; ws.column_dimensions["F"].width = 12
+        ws.column_dimensions["G"].width = 12; ws.column_dimensions["H"].width = 12
+        ws.column_dimensions["I"].width = 12; ws.column_dimensions["J"].width = 12
 
         # ═══════════════════════════════════════════════════════════════
         # SHEET 2: MASTER METADATA
