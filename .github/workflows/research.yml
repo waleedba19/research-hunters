@@ -1523,6 +1523,9 @@ jobs:
         run: |
           echo "========================================================"
           echo "  Research Hunter - CUMULATIVE MODE (CI)"
+          echo "  Title: ${{ github.event.inputs.title }}"
+          echo "  Mode:  ${{ github.event.inputs.mode }}"
+          echo "  Depth: ${{ github.event.inputs.research_depth }}"
           echo "========================================================"
           echo ""
           python research_hunter_v2-4.py; echo "EXIT CODE: $?"
@@ -1584,16 +1587,22 @@ jobs:
         if: always() && steps.check_results.outputs.status == 'success'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
           TRIGGER_TITLE: ${{ github.event.inputs.title }}
           TRIGGER_RQ1: ${{ github.event.inputs.rq1 }}
           TRIGGER_RQ2: ${{ github.event.inputs.rq2 }}
           TRIGGER_RQ3: ${{ github.event.inputs.rq3 }}
           TRIGGER_FIELD: ${{ github.event.inputs.field }}
           TRIGGER_STUDY_TYPE: ${{ github.event.inputs.study_type }}
+          TRIGGER_STUDY_LEVEL: ${{ github.event.inputs.study_level }}
+          TRIGGER_METHODOLOGY: ${{ github.event.inputs.methodology }}
+          TRIGGER_THESIS_PART: ${{ github.event.inputs.thesis_part }}
+          TRIGGER_QUARTILE: ${{ github.event.inputs.quartile }}
           TRIGGER_LANGUAGE: ${{ github.event.inputs.language }}
           TRIGGER_YEAR_FROM: ${{ github.event.inputs.year_from }}
           TRIGGER_YEAR_TO: ${{ github.event.inputs.year_to }}
           TRIGGER_MODE: ${{ github.event.inputs.mode }}
+          TRIGGER_PAPER_LIMIT: ${{ github.event.inputs.paper_limit }}
           TRIGGER_FOLDER_MODE: ${{ github.event.inputs.folder_mode }}
           TRIGGER_SCI_HUB: ${{ github.event.inputs.scihub }}
           TRIGGER_PROXY: ${{ github.event.inputs.proxy }}
@@ -1601,6 +1610,7 @@ jobs:
           TRIGGER_GENERATE_PAPER: ${{ github.event.inputs.generate_paper }}
           TRIGGER_PAPER_TYPE: ${{ github.event.inputs.paper_type }}
           TRIGGER_OUTPUT_FORMAT: ${{ github.event.inputs.output_format }}
+          TRIGGER_GEOGRAPHIC_AREA: ${{ github.event.inputs.geographic_area }}
           TRIGGER_RESEARCH_DEPTH: ${{ github.event.inputs.research_depth }}
         shell: bash
         run: |
@@ -1633,38 +1643,32 @@ jobs:
             exit 0
           fi
           echo "Triggering next run via GitHub API..."
-          PAYLOAD=$(printf '{"ref":"%s","inputs":{"title":"%s","rq1":"%s","rq2":"%s","rq3":"%s","field":"%s","study_type":"%s","study_level":"%s","methodology":"%s","thesis_part":"%s","quartile":"%s","language":"%s","year_from":"%s","year_to":"%s","mode":"%s","paper_limit":"%s","folder_mode":"%s","scihub":"%s","proxy":"%s","learn":"%s","generate_paper":"%s","paper_type":"%s","output_format":"%s","geographic_area":"%s","research_depth":"%s"}}' \
-            '${{ github.ref_name }}' \
-            '${{ github.event.inputs.title }}' \
-            '${{ github.event.inputs.rq1 }}' \
-            '${{ github.event.inputs.rq2 }}' \
-            '${{ github.event.inputs.rq3 }}' \
-            '${{ github.event.inputs.field }}' \
-            '${{ github.event.inputs.study_type }}' \
-            '${{ github.event.inputs.study_level }}' \
-            '${{ github.event.inputs.methodology }}' \
-            '${{ github.event.inputs.thesis_part }}' \
-            '${{ github.event.inputs.quartile }}' \
-            '${{ github.event.inputs.language }}' \
-            '${{ github.event.inputs.year_from }}' \
-            '${{ github.event.inputs.year_to }}' \
-            '${{ github.event.inputs.mode }}' \
-            '${{ github.event.inputs.paper_limit }}' \
-            '${{ github.event.inputs.folder_mode }}' \
-            '${{ github.event.inputs.scihub }}' \
-            '${{ github.event.inputs.proxy }}' \
-            '${{ github.event.inputs.learn }}' \
-            '${{ github.event.inputs.generate_paper }}' \
-            '${{ github.event.inputs.paper_type }}' \
-            '${{ github.event.inputs.output_format }}' \
-            '${{ github.event.inputs.geographic_area }}' \
-            '${{ github.event.inputs.research_depth }}')
+          python3 << 'PYEOF'
+import json, os
+
+payload = {
+    "ref": os.environ.get("GITHUB_REF_NAME", "main"),
+    "inputs": {}
+}
+
+for k, v in sorted(os.environ.items()):
+    if k.startswith("TRIGGER_"):
+        input_name = k.replace("TRIGGER_", "").lower()
+        payload["inputs"][input_name] = v
+
+with open("/tmp/payload.json", "w") as f:
+    json.dump(payload, f)
+
+print("=== PAYLOAD (all inputs preserved) ===")
+print(json.dumps(payload, indent=2))
+print("======================================")
+PYEOF
           curl -s -X POST \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer $GITHUB_TOKEN" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             "https://api.github.com/repos/${{ github.repository }}/actions/workflows/research.yml/dispatches" \
-            -d "$PAYLOAD" \
+            -d @/tmp/payload.json \
             -w "\nHTTP Status: %{http_code}"
           echo ""
           echo "Next run triggered!"
