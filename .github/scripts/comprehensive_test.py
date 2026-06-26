@@ -14,7 +14,7 @@ def run_cmd(cmd):
 
 def test_ollama():
     print("\n[1] Testing Ollama LLM...")
-    resp = run_cmd('curl -s http://127.0.0.1:11434/api/generate -d \'{"model":"qwen2.5vl-3b-16k","prompt":"What is 2+2?","stream":false}\'')
+    resp = run_cmd('curl -s http://127.0.0.1:11434/api/generate -d \'{"model":"qwen2.5vl:3b","prompt":"What is 2+2?","stream":false}\'')
     print(f"    Math result: {resp[:80]}")
     print("    [OK] Ollama tested")
     return True

@@ -1,19 +1,16 @@
 name: State Backup
 
 on:
-  schedule:
-    - cron: "0 3 * * 0"  # weekly on Sunday 03:00 UTC
   workflow_dispatch:
 
 jobs:
   backup:
     runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/wo312092-creator/runner-base:latest
     steps:
       - uses: actions/checkout@v4
       - name: Tar state + logs
         run: |
+          mkdir -p data/state data/logs
           tar czf /tmp/lit_state_backup_$(date +%Y%m%d).tar.gz data/state/ data/logs/ 2>/dev/null || echo "nothing to backup"
       - name: Upload as artifact
         uses: actions/upload-artifact@v4

@@ -29,7 +29,7 @@ from pathlib import Path
 # LLM CONFIGURATION - 4k Model as Brain
 # ─────────────────────────────────────────────────────────────────────────────
 LLM_4K_MODEL = "qwen2.5vl:3b"  # Fast model for quick analysis
-LLM_16K_MODEL = "qwen2.5vl-3b-16k"  # Long context for deep research
+LLM_16K_MODEL = "qwen2.5vl:3b"  # Ollama model
 
 @dataclass
 class UserInputAnalysis:

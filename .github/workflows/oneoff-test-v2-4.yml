@@ -5,21 +5,21 @@ on: workflow_dispatch
 jobs:
   test-v2-4:
     runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/wo312092-creator/runner-base:latest
     timeout-minutes: 15
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Start ollama
+      - name: Setup system deps + Ollama
         run: |
           set -e
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq curl
+          curl -fsSL https://ollama.com/install.sh | sh
           ollama serve > /tmp/ollama.log 2>&1 &
           OLLAMA_PID=$!
           echo "ollama PID=$OLLAMA_PID"
-          
           for i in $(seq 1 60); do
             if curl -s http://127.0.0.1:11434/api/tags > /dev/null 2>&1; then
               echo "ollama ready after ${i}s"
@@ -27,10 +27,8 @@ jobs:
             fi
             sleep 1
           done
-          
+          ollama pull qwen2.5vl:3b
           echo "=== ollama list ==="
-          ollama list
-          echo "=== ollama models ==="
           ollama list | head -20
 
       - name: Install Python deps
@@ -109,7 +107,7 @@ jobs:
               req = urllib.request.Request(
                   'http://127.0.0.1:11434/api/generate',
                   data=json.dumps({
-                      'model': 'qwen2.5vl-3b-16k',
+                      'model': 'qwen2.5vl:3b',
                       'prompt': 'Say hello in 3 words',
                       'stream': False,
                       'options': {'num_predict': 10}
@@ -187,7 +185,7 @@ jobs:
           echo "=========================================="
           echo "✅ Test Summary"
           echo "=========================================="
-          echo "Container: ghcr.io/wo312092-creator/runner-base:latest"
+          echo "Environment: ubuntu-latest"
           echo "Python: $(python3 --version)"
           echo "Ollama: $(ollama list | head -5)"
           echo "Script: research_hunter_v2-4.py"

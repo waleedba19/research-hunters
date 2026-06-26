@@ -21,7 +21,7 @@ from platform_registry import search_all_platforms
 
 log = get_logger("precision_engine")
 
-OLLAMA_MODEL = "qwen2.5vl-3b-16k"  # the ollama tag in runner-base:latest (16k ctx variant)
+OLLAMA_MODEL = "qwen2.5vl:3b"  # Ollama model tag
 OLLAMA_BIN = os.environ.get("OLLAMA_BIN", "/usr/local/bin/ollama")
 OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434")
 

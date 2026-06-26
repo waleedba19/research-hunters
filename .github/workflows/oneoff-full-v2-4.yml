@@ -15,21 +15,21 @@ on:
 jobs:
   full-research-hunt:
     runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/wo312092-creator/runner-base:latest
     timeout-minutes: 30
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Start ollama
+      - name: Setup system deps + Ollama
         run: |
           set -e
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq curl
+          curl -fsSL https://ollama.com/install.sh | sh
           ollama serve > /tmp/ollama.log 2>&1 &
           OLLAMA_PID=$!
           echo "ollama PID=$OLLAMA_PID"
-          
           for i in $(seq 1 60); do
             if curl -s http://127.0.0.1:11434/api/tags > /dev/null 2>&1; then
               echo "ollama ready after ${i}s"
@@ -37,7 +37,7 @@ jobs:
             fi
             sleep 1
           done
-          
+          ollama pull qwen2.5vl:3b
           echo "=== Ollama models ==="
           ollama list
 
@@ -391,7 +391,7 @@ jobs:
           echo "║           FULL RESEARCH HUNT TEST COMPLETE               ║"
           echo "╚══════════════════════════════════════════════════════════╝"
           echo ""
-          echo "Container: ghcr.io/wo312092-creator/runner-base:latest"
+          echo "Environment: ubuntu-latest"
           echo "Python: $(python3 --version)"
           echo "Ollama Models:"
           ollama list | grep -E "qwen|nllm" || echo "  (see logs above)"
@@ -408,7 +408,7 @@ jobs:
           echo "🎉 The system is ready for full research hunts!"
           echo ""
           echo "To run a full research hunt:"
-          echo "  1. Go to: https://github.com/wo312092-creator/literature-review-verifier/actions"
+          echo "  1. Go to: https://github.com/waleedba19/research-hunters/actions"
           echo "  2. Select 'OneOff - Full v2-4 Research Hunt'"
           echo "  3. Click 'Run workflow' to start"
           echo ""

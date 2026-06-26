@@ -1,58 +1,68 @@
-"""search_cache.py — STUB for v2-4 import.
+"""search_cache.py — Persistent search cache using JSON on disk.
 
-The real search_cache.py is a private module of the user's
-"v6 SUPER LOADED GOD MODE" research hunter. It persists search
-state to disk so the same paper is never downloaded twice across runs.
-
-This stub provides an in-memory no-op cache with the SAME public
-interface as the real one, so v2-4's main loop never crashes on
-cache.mark_downloaded(), cache.deduplicate(), etc.
-
-Methods implemented (all no-op safe):
-    SearchCache(out_folder)              — constructor
-    cache.mark_downloaded(paper, name)   — record a downloaded paper
-    cache.mark_found(paper)              — record a found paper
-    cache.stats()                        — returns summary dict
-    cache.queries_used()                 — returns set of queries done
-    cache.add_queries(queries)           — add queries to history
-    cache.deduplicate(papers)            — drop exact-duplicate dicts
-    cache.filter_new(papers)             — drop papers already in cache
-    cache.record_run(n, dl, skp)         — log this run's stats
-    cache.save()                         — flush to disk (no-op in stub)
+Persists dedup state to a JSON file so the same paper is never
+downloaded twice across runs.
 """
-import logging
-import os
+import os, json, logging
 from pathlib import Path
+from typing import Dict, List, Optional, Set, Any
 
-log = logging.getLogger("search_cache_stub")
+log = logging.getLogger("search_cache")
 
 __all__ = ["SearchCache"]
 
 
 class SearchCache:
-    """In-memory no-op cache. Drop-in replacement for the real one.
+    """Persistent JSON-based cache. Drop-in replacement for the original stub.
 
-    The real SearchCache uses an SQLite DB at out_folder/.search_cache.sqlite
-    plus a JSON manifest. This stub keeps everything in two sets in RAM.
+    Stores seen papers and queries in a JSON file at out_folder/.search_cache.json.
     """
 
-    def __init__(self, out_folder):
-        self.out_folder = Path(out_folder) if out_folder else Path(".")
-        self._seen_titles: set[str] = set()
-        self._seen_dois:    set[str] = set()
-        self._seen_urls:    set[str] = set()
-        self._queries:      set[str] = set()
-        self._found_count:  int = 0
-        self._downloaded_count: int = 0
-        self._run_count:    int = 0
-        log.warning(
-            "search_cache.SearchCache: STUB mode — cache is in-memory only. "
-            "Restarting the bot will lose dedup history. Replace with the "
-            "real search_cache.py for persistent caching."
-        )
+    CACHE_FILE = ".search_cache.json"
 
-    def _key(self, paper):
-        """Return a dedup key for a paper dict."""
+    def __init__(self, out_folder: Optional[str] = None):
+        self.out_folder = Path(out_folder) if out_folder else Path(".")
+        self.out_folder.mkdir(parents=True, exist_ok=True)
+        self._cache_path = self.out_folder / self.CACHE_FILE
+
+        self._seen_keys: Set[str] = set()
+        self._queries: Set[str] = set()
+        self._found_count: int = 0
+        self._downloaded_count: int = 0
+        self._run_count: int = 0
+
+        self._load()
+
+    def _load(self):
+        if self._cache_path.exists():
+            try:
+                data = json.loads(self._cache_path.read_text(encoding="utf-8"))
+                self._seen_keys = set(data.get("seen_keys", []))
+                self._queries = set(data.get("queries", []))
+                self._found_count = data.get("found_count", 0)
+                self._downloaded_count = data.get("downloaded_count", 0)
+                self._run_count = data.get("run_count", 0)
+                log.info("cache loaded from %s (%d keys)", self._cache_path, len(self._seen_keys))
+            except Exception as e:
+                log.warning("cache load failed: %s", e)
+
+    def save(self):
+        try:
+            data = {
+                "seen_keys": list(self._seen_keys),
+                "queries": list(self._queries),
+                "found_count": self._found_count,
+                "downloaded_count": self._downloaded_count,
+                "run_count": self._run_count,
+            }
+            self._cache_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+            log.debug("cache saved to %s (%d keys)", self._cache_path, len(self._seen_keys))
+            return True
+        except Exception as e:
+            log.warning("cache save failed: %s", e)
+            return False
+
+    def _key(self, paper: dict) -> Optional[str]:
         if not isinstance(paper, dict):
             return None
         doi = (paper.get("doi") or paper.get("DOI") or "").strip().lower()
@@ -66,43 +76,50 @@ class SearchCache:
             return f"title:{title}"
         return None
 
-    def mark_downloaded(self, paper, filename=""):
+    def mark_downloaded(self, paper: dict, filename: str = ""):
         k = self._key(paper)
         if k:
-            self._seen_titles.add(k)
+            self._seen_keys.add(k)
             self._downloaded_count += 1
+            self.save()
 
-    def mark_found(self, paper):
+    def mark_found(self, paper: dict):
         k = self._key(paper)
         if k:
-            self._seen_titles.add(k)
+            self._seen_keys.add(k)
             self._found_count += 1
+            self.save()
 
-    def stats(self):
+    def stats(self) -> dict:
         return {
-            "mode": "stub",
-            "out_folder": str(self.out_folder),
-            "seen_unique": len(self._seen_titles),
+            "mode": "persistent",
+            "cache_file": str(self._cache_path),
+            "seen_unique": len(self._seen_keys),
             "queries_logged": len(self._queries),
             "found_total": self._found_count,
             "downloaded_total": self._downloaded_count,
             "runs_total": self._run_count,
         }
 
-    def queries_used(self):
+    def queries_used(self) -> Set[str]:
         return set(self._queries)
 
     def add_queries(self, queries):
         if not queries:
             return
+        changed = False
         for q in queries:
             if isinstance(q, str) and q.strip():
-                self._queries.add(q.strip())
+                if q.strip() not in self._queries:
+                    self._queries.add(q.strip())
+                    changed = True
+        if changed:
+            self.save()
 
-    def deduplicate(self, papers):
+    def deduplicate(self, papers: List[dict]) -> List[dict]:
         if not papers:
             return []
-        seen = set()
+        seen: Set[str] = set()
         out = []
         for p in papers:
             k = self._key(p)
@@ -115,28 +132,25 @@ class SearchCache:
             out.append(p)
         return out
 
-    def filter_new(self, papers):
+    def filter_new(self, papers: List[dict]):
         if not papers:
             return [], 0
         new = []
         skipped = 0
         for p in papers:
             k = self._key(p)
-            if k and k in self._seen_titles:
+            if k and k in self._seen_keys:
                 skipped += 1
                 continue
             if k:
-                self._seen_titles.add(k)
+                self._seen_keys.add(k)
             new.append(p)
+        if new:
+            self.save()
         return new, skipped
 
-    def record_run(self, n_found=0, n_downloaded=0, n_skipped=0):
+    def record_run(self, n_found: int = 0, n_downloaded: int = 0, n_skipped: int = 0):
         self._run_count += 1
-        log.info(
-            "cache.record_run #%d: found=%d downloaded=%d skipped=%d",
-            self._run_count, n_found, n_downloaded, n_skipped,
-        )
-
-    def save(self):
-        log.debug("cache.save (no-op in stub): %d entries", len(self._seen_titles))
-        return True
+        self.save()
+        log.info("cache.record_run #%d: found=%d downloaded=%d skipped=%d",
+                 self._run_count, n_found, n_downloaded, n_skipped)

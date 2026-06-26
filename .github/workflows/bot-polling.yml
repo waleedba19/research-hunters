@@ -2,12 +2,8 @@ name: Bot Polling
 
 # Long-poll Telegram @Search_Sleeping_bot every 5 minutes.
 # GHA free tier = 2000 min/month, this uses ~288 × 30s = 144 min/day of compute.
-# In v0.2 we switch to one long job that loops internally with shorter polls.
 
 on:
-  schedule:
-    # 1-min cron during live testing phase; switch to */5 in v0.2 when stable.
-    - cron: "*/1 * * * *"
   workflow_dispatch:
 
 permissions:
@@ -21,23 +17,19 @@ concurrency:
 jobs:
   poll:
     runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/wo312092-creator/runner-base:latest
     timeout-minutes: 30
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Start ollama
+      - name: Setup system deps + Ollama
         run: |
-          # The bundled /usr/local/bin/ollama-start.sh has a `wait $OLLAMA_PID` at the
-          # end that keeps the container alive — when called as a GHA step it hangs
-          # forever. Inline the startup commands here so the step exits cleanly.
           set -e
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq curl
+          curl -fsSL https://ollama.com/install.sh | sh
           ollama serve > /tmp/ollama.log 2>&1 &
-          OLLAMA_PID=$!
-          echo "ollama started PID=$OLLAMA_PID"
           for i in $(seq 1 60); do
             if curl -s http://127.0.0.1:11434/api/tags > /dev/null 2>&1; then
               echo "ollama ready after ${i}s"
@@ -45,10 +37,8 @@ jobs:
             fi
             sleep 1
           done
-          echo "Pre-warming qwen2.5vl-3b-16k..."
-          curl -s http://127.0.0.1:11434/api/generate \
-            -d '{"model":"qwen2.5vl-3b-16k","prompt":"hi","stream":false,"options":{"num_predict":1}}' \
-            > /dev/null || echo "pre-warm failed (model will be loaded on first request)"
+          echo "Pulling qwen2.5vl:3b..."
+          ollama pull qwen2.5vl:3b
           echo "=== ollama list ==="
           ollama list
           echo "ollama ready"

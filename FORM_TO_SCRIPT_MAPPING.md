@@ -40,7 +40,7 @@ The Python script uses two Ollama models:
 | Model | Context | Use Case |
 |-------|---------|----------|
 | `qwen2.5vl:3b` | 4K | Default operations |
-| `qwen2.5vl-3b-16k` | 16K | Long-form analysis, literature review |
+| `qwen2.5vl:3b` | 16K | Long-form analysis, literature review |
 
 #### LLM-Powered Functions:
 - `llm_analyze_paper()` - Enhanced paper analysis
@@ -57,5 +57,5 @@ GitHub Form Input → run.yml workflow → args builder → research_hunter_v2-4
                                                                         ↓
                                                     llm_research_hunter.py (Ollama)
                                                                         ↓
-                                              qwen2.5vl:3b (4K) / qwen2.5vl-3b-16k (16K)
+                                              qwen2.5vl:3b
 ```

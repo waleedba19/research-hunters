@@ -2,9 +2,9 @@
 
 This file is loaded by AI coding assistants (like opencode) when working on this repo.
 
-## Do NOT touch
+## No longer using container images
 
-- `ghcr.io/wo312092-creator/runner-base:latest` — the image is the brain of a human being, 7.11 GB, 9/9 tests passing. Adding project-specific deps to it would break unrelated repos. All Python deps go in `requirements.txt`, all Node deps in `package.json`.
+The system previously used `ghcr.io/wo312092-creator/runner-base:latest` but now runs directly on `ubuntu-latest` GitHub runners. All dependencies are installed fresh each run via pip and shell commands.
 
 ## Module overview
 

@@ -6,25 +6,27 @@ on:
 jobs:
   diagnose:
     runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/wo312092-creator/runner-base:latest
     timeout-minutes: 20
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Start ollama
+      - name: Setup system deps + Ollama
         run: |
           set -e
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq curl
+          curl -fsSL https://ollama.com/install.sh | sh
           ollama serve > /tmp/ollama.log 2>&1 &
-          for i in $(seq 1 30); do
+          for i in $(seq 1 60); do
             if curl -s http://127.0.0.1:11434/api/tags > /dev/null 2>&1; then
               echo "✅ Ollama ready after ${i}s"
               break
             fi
             sleep 1
           done
+          ollama pull qwen2.5vl:3b
           ollama list
 
       - name: Install deps
@@ -93,7 +95,7 @@ jobs:
               print("❌ FAILED: No Telegram token found!")
               print()
               print("SOLUTION:")
-              print("  1. Go to: https://github.com/wo312092-creator/literature-review-verifier/settings/secrets")
+              print("  1. Go to: https://github.com/waleedba19/research-hunters/settings/secrets")
               print("  2. Click 'New repository secret'")
               print("  3. Name: TELEGRAM_BOT_TOKEN")
               print("  4. Value: Your Telegram bot token from @BotFather")
@@ -264,7 +266,7 @@ jobs:
           echo "   - Copy the token (looks like: 123456789:ABCdef...)"
           echo
           echo "2. Add the secret to GitHub:"
-          echo "   - Go to: https://github.com/wo312092-creator/literature-review-verifier/settings/secrets"
+          echo "   - Go to: https://github.com/waleedba19/research-hunters/settings/secrets"
           echo "   - Click 'New repository secret'"
           echo "   - Name: TELEGRAM_BOT_TOKEN"
           echo "   - Value: <paste your token>"

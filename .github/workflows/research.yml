@@ -4,10 +4,6 @@ permissions:
   actions: write
 
 on:
-  push:
-    branches: [main]
-  schedule:
-    - cron: "0 0 * * *"
   workflow_dispatch:
     inputs:
 
@@ -1244,6 +1240,11 @@ jobs:
     if: github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      GOOGLE_OAUTH_REFRESH: ${{ secrets.GOOGLE_OAUTH_REFRESH }}
+      GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+      GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
     steps:
       - uses: actions/checkout@v4
       - name: Setup Ollama AI + OCR
@@ -1279,6 +1280,9 @@ jobs:
     timeout-minutes: 120
     env:
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      GOOGLE_OAUTH_REFRESH: ${{ secrets.GOOGLE_OAUTH_REFRESH }}
+      GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+      GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
     steps:
       - uses: actions/checkout@v4
       - name: Setup Ollama AI
@@ -1355,9 +1359,15 @@ jobs:
           retention-days: 90
 
   research:
-    if: false
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 360
+    env:
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      GOOGLE_OAUTH_REFRESH: ${{ secrets.GOOGLE_OAUTH_REFRESH }}
+      GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+      GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

@@ -19,17 +19,18 @@ concurrency:
 jobs:
   hunt:
     runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/wo312092-creator/runner-base:latest
     timeout-minutes: 360
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Start ollama
+      - name: Setup system deps + Ollama
         run: |
           set -e
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq curl
+          curl -fsSL https://ollama.com/install.sh | sh
           ollama serve > /tmp/ollama.log 2>&1 &
           for i in $(seq 1 60); do
             if curl -s http://127.0.0.1:11434/api/tags > /dev/null 2>&1; then
@@ -38,6 +39,7 @@ jobs:
             fi
             sleep 1
           done
+          ollama pull qwen2.5vl:3b
           ollama list
 
       - name: Install deps

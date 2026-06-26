@@ -98,7 +98,7 @@ User sees: ✅ papers, scores, sources, Sheet link, Drive link
 
 `ghcr.io/wo312092-creator/runner-base:latest` is the **brain of a human being**:
 - 7.11 GB carefully built, tested (9/9 tests pass in run 26985703239)
-- ollama + qwen2.5vl-3b-16k + tesseract + playwright all pinned versions
+- ollama + qwen2.5vl:3b + tesseract + playwright all pinned versions
 - Re-building it for this project would burn hours and risk breaking unrelated repos
 - All project-specific dependencies go in `requirements.txt` (pip in workflow)
 - All Node.js dependencies go in `package.json` (npm in workflow step)

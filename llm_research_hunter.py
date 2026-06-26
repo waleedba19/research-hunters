@@ -7,7 +7,7 @@ using Ollama with qwen2.5vl:3b model
 
 Models Available:
 - qwen2.5vl:3b (3.2GB) - Default vision model (4k context)
-- qwen2.5vl-3b-16k - Custom variant with 16k context (for browser automation)
+- qwen2.5vl:3b - Default model for all operations
 
 Author: Research Hunter v2.4 + Ollama LLM Integration
 """
@@ -32,7 +32,7 @@ from datetime import datetime
 class LLMConfig:
     """Configuration for LLM integration"""
     model: str = "qwen2.5vl:3b"
-    model_16k: str = "qwen2.5vl-3b-16k"
+    model_16k: str = "qwen2.5vl:3b"
     host: str = "localhost"
     port: int = 11434
     timeout: int = 120

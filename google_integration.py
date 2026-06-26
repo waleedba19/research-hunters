@@ -38,8 +38,6 @@ ROOT_FOLDER_NAME = "Literature_Review_Verifier"
 _SA_PATH_CANDIDATES = [
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "credentials", "drive-service-account.json"),
     os.environ.get("GOOGLE_SERVICE_ACCOUNT_FILE", ""),
-    r"D:\Downloads\workspace-mcp-497516-c9c8d1419336.json",
-    r"D:\Openwork_Projects\literature-review-verifier\credentials\drive-service-account.json",
 ]
 
 # Scope required for the literature-review-verifier

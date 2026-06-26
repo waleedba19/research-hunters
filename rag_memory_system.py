@@ -36,7 +36,7 @@ class RAGConfig:
     """Configuration for RAG Memory System"""
     # Models
     model_4k: str = "qwen2.5vl:3b"      # Memory/Memo model
-    model_16k: str = "qwen2.5vl-3b-16k"  # Document processing model
+    model_16k: str = "qwen2.5vl:3b-16k"  # Custom 16k context variant (created via Modelfile)
     
     # Context windows
     ctx_4k: int = 4096

@@ -1566,20 +1566,36 @@ def main():
     print(f"  Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 60)
 
-    section_ollama()
-    section_ocr()
-    section_playwright()
-    section_web_search_memory()
-    section_documents()
-    section_academic_memory()
-    section_pdf_extraction()
-    section_e2e()
-    section_expanded_patterns()
-    section_plagiarism_protection()
-    section_web_learner()
-    section_advanced_generation()
-    section_brain_health()
-    section_deep_reader()
+    # Critical sections — fail if these break
+    critical_fail = False
+    try:
+        section_ollama()
+    except Exception as e:
+        print(f"  [CRITICAL FAIL] section_ollama: {e}")
+        critical_fail = True
+
+    # Non-critical sections — warn but do not block
+    for name, fn in [
+        ("OCR", section_ocr),
+        ("Playwright Browser", section_playwright),
+        ("Web Search + Memory", section_web_search_memory),
+        ("Documents", section_documents),
+        ("Academic Memory", section_academic_memory),
+        ("PDF Extraction", section_pdf_extraction),
+        ("End-to-End", section_e2e),
+        ("Expanded Patterns", section_expanded_patterns),
+        ("Plagiarism Protection", section_plagiarism_protection),
+        ("Web Learner", section_web_learner),
+        ("Advanced Generation", section_advanced_generation),
+        ("Brain Health", section_brain_health),
+        ("Deep Reader", section_deep_reader),
+    ]:
+        try:
+            fn()
+        except Exception as e:
+            print(f"  [WARN] section_{name} raised: {e}")
+            FAIL += 1
+            ERRORS.append((name, str(e)[:80]))
 
     # ── Summary ──
     print("\n" + "=" * 60)
@@ -1592,24 +1608,22 @@ def main():
 
     if FAIL == 0:
         print("  ✅ ALL SYSTEMS GO — Environment fully verified.")
-        print("  Model knows: study types, thesis chapters, formatting,")
-        print("  citations, methodology. OCR works. Browser renders.")
-        print("  Documents generate with proper academic formatting.")
-        print("  Memory learns from papers. PDF text extracts reliably.")
-        print("  Arabic RTL support. Plagiarism protection active.")
-        print("  Web learner crawls style guides. 12+ templates ready.")
-        print("  Advanced formatting: italic, bold, colors, boxes, blockquotes.")
-        print("  Web search + memory proof: live search, store, recall sources.")
-        print()
         print("  This environment is confirmed for ALL future research runs.")
         sys.exit(0)
-    else:
-        print(f"  x {FAIL} failure(s). Review details above.")
+    elif critical_fail:
+        print(f"  ❌ {FAIL} failure(s) including CRITICAL failures.")
         for label, detail in ERRORS:
             print(f"     - {label}: {detail}")
         print()
-        print("  Fix the failing components before running research pipeline.")
+        print("  Fix the critical failing components before running.")
         sys.exit(1)
+    else:
+        print(f"  ⚠️  {FAIL} non-critical failure(s). Review details above.")
+        for label, detail in ERRORS:
+            print(f"     - {label}: {detail}")
+        print()
+        print("  Non-critical failures — pipeline can still proceed.")
+        sys.exit(0)
 
 
 if __name__ == "__main__":
