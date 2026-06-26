@@ -294,20 +294,24 @@ def _valid(text: str) -> bool:
 
 
 def _call_kimi(prompt: str) -> str | None:
-    try:
-        r = requests.post(
-            "http://localhost:11434/v1/chat/completions",
-            headers={"Content-Type": "application/json", "Authorization": "Bearer ollama"},
-            json={"model": "kimi-k2.5:cloud",
-                  "messages": [{"role": "user", "content": prompt}],
-                  "max_tokens": 1400, "temperature": 0.2},
-            timeout=40,
-        )
-        if r.status_code == 200:
-            t = r.json()["choices"][0]["message"]["content"].strip()
-            return t if _valid(t) else None
-    except Exception:
-        pass
+    """Call Ollama. Tries 'qwen2.5vl:3b' first (what GHA installs), then any running model."""
+    models_to_try = ["qwen2.5vl:3b", "qwen2.5vl:7b", "llama3.2:3b", "llama3.2:1b", "mistral:7b", "kimi-k2.5:cloud"]
+    for model in models_to_try:
+        try:
+            r = requests.post(
+                "http://localhost:11434/v1/chat/completions",
+                headers={"Content-Type": "application/json", "Authorization": "Bearer ollama"},
+                json={"model": model,
+                      "messages": [{"role": "user", "content": prompt}],
+                      "max_tokens": 1400, "temperature": 0.2},
+                timeout=20,
+            )
+            if r.status_code == 200:
+                t = r.json()["choices"][0]["message"]["content"].strip()
+                if _valid(t):
+                    return t
+        except Exception:
+            pass
     return None
 
 
@@ -677,7 +681,13 @@ def _build_geo_queries(topic_core: str, topic_kw: list,
 _FIELD_SIGNATURES: list[tuple[str, list[str]]] = [
     ("Computer Science / AI",        ["artificial intelligence","machine learning","deep learning",
                                        "neural network","nlp","natural language processing",
-                                       "algorithm","software","programming","computer"]),
+                                       "algorithm","software","programming","computer",
+                                       "large language model","llm","transformer","attention mechanism",
+                                       "foundation model","pretrained","pre-trained",
+                                       "generative ai","gpt","bert","diffusion model",
+                                       "reinforcement learning","computer vision","data science",
+                                       "big data","cloud computing","cybersecurity","blockchain",
+                                       "internet of things","language model"]),
     ("Medicine / Health Sciences",   ["clinical","nursing","medical","health","patient","disease",
                                        "therapy","hospital","pharmacol","diagnosis","surgery"]),
     ("TESOL / EFL / ESL",            ["efl","esol","tesol","esl","english as a foreign",
@@ -728,7 +738,7 @@ def auto_detect_field(title: str, rqs: list) -> str:
     for field, keywords in _FIELD_SIGNATURES:
         if any(kw in text for kw in keywords):
             return field
-    return "Applied Linguistics"   # safe default for language studies
+    return "General / Interdisciplinary"   # safe default
 
 
 # Study type keyword signatures
@@ -933,18 +943,18 @@ def _keyword_fallback_queries(title: str, field: str, study_types: list,
         f"{base} {sp_str}",
         f"{base} {ft[0]}",
         f"{base2} {ft[1] if len(ft) > 1 else sp_str}",
-        f"{pair} {ft[2] if len(ft) > 2 else 'university'}",
-        f"{base} teachers beliefs practices",
+        f"{pair} {ft[2] if len(ft) > 2 else 'research'}",
         f"{base} systematic review",
         f"{base} theoretical framework",
         f"{base} empirical investigation",
-        f"{pair} qualitative inquiry",
-        f"{base} instructional strategies",
+        f"{pair} qualitative study",
+        f"{base} methods approaches",
         f"{base2} {sp_str} higher education",
-        f"{base} pedagogical approaches",
-        f"{pair} barriers challenges",
-        f"{base} classroom methodology",
-        f"{base} professional development teachers",
+        f"{base} analysis",
+        f"{pair} challenges opportunities",
+        f"{base} recent advances",
+        f"{base} comprehensive overview",
+        f"{base} survey review",
     ]
 
     # Country-specific queries — fully dynamic from detected context
@@ -4347,6 +4357,14 @@ def _fuzzy_q(journal: str) -> str:
         if difflib.SequenceMatcher(None, jl, known).ratio() > 0.82:
             return "Q2"
     return ""
+
+
+def check_quartile(journal_name: str) -> dict:
+    """Check journal quartile via fuzzy matching. Returns dict with quartile key."""
+    q = _fuzzy_q(journal_name)
+    if q:
+        return {"quartile": q, "verified": True, "source": "fuzzy"}
+    return {"quartile": "Not Found", "verified": False, "source": "fuzzy"}
 
 
 # MD §9.3 — Fuzzy journal matching (exact function signature from MD)
