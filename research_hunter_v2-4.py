@@ -6290,7 +6290,56 @@ def is_duplicate_paper(paper: dict, existing_titles: set) -> bool:
 
 
 def main():
-    params           = wizard()
+    # CI mode: skip interactive wizard, read from env vars
+    if os.environ.get("CI_MODE", "").lower() in ("true", "1", "yes"):
+        title = os.environ.get("CI_TITLE", "").strip()
+        if not title:
+            print("[CI] CI_TITLE env var required", file=sys.stderr)
+            sys.exit(2)
+        raw_field = os.environ.get("CI_FIELD", "")
+        if raw_field and not raw_field.startswith("auto"):
+            fkey = raw_field.split(" -", 1)[0].strip()
+            field = FIELDS.get(fkey, raw_field)
+        else:
+            field = auto_detect_field(title, [])
+        mode  = os.environ.get("CI_MODE_VAL", "deep")
+        raw_mode = mode.split(" -", 1)[0].strip()
+        mode = raw_mode if raw_mode else "deep"
+        use_scihub = os.environ.get("CI_SCI_HUB", "").lower() in ("true", "1", "yes")
+        single_folder = os.environ.get("CI_SINGLE_FOLDER", "").lower() in ("single", "1", "yes")
+        year_from = os.environ.get("CI_YEAR_FROM", "") or None
+        year_to = os.environ.get("CI_YEAR_TO", "") or None
+        raw_lang = os.environ.get("CI_LANGUAGE", "1")
+        lang_num = raw_lang.split(" -", 1)[0].strip()
+        lang_map = {"1": ("English", ["en"]), "2": ("Arabic", ["ar"]), "3": ("French", ["fr"]),
+                     "4": ("Spanish", ["es"]), "5": ("German", ["de"]), "6": ("Chinese", ["zh"]),
+                     "7": ("Japanese", ["ja"]), "8": ("Russian", ["ru"]), "9": ("Portuguese", ["pt"]),
+                     "10": ("English", ["en", "ar"]), "15": ("All", ["en", "ar", "fr", "es", "de", "zh", "ja", "ru", "pt"])}
+        lang_label, lang_codes = lang_map.get(lang_num, ("English", ["en"]))
+        rqs = [v for v in [os.environ.get("CI_RQ1", ""), os.environ.get("CI_RQ2", ""),
+                           os.environ.get("CI_RQ3", "")] if v.strip()]
+        raw_st = os.environ.get("CI_STUDY_TYPES", "")
+        if raw_st and not raw_st.startswith("auto"):
+            st_keys = [s.split(" -", 1)[0].strip() for s in raw_st.split(",")]
+            study_types = [STUDY_TYPES.get(k, "") for k in st_keys if k.isdigit() and k in STUDY_TYPES]
+        else:
+            study_types = auto_detect_study_type(title, rqs)
+        suggested_kws = extract_study_keywords(title, rqs, field, count=30)
+        country_context = detect_country_context(title, rqs)
+        platforms = DEEP_PLATS
+        params = {
+            "title": title, "research_questions": rqs, "field": field,
+            "study_types": study_types, "year_from": year_from, "year_to": year_to,
+            "year_range": f"{year_from or 'All'} – {year_to or 'Present'}",
+            "platforms": platforms, "search_mode": mode, "use_scihub": use_scihub,
+            "single_folder": single_folder, "keywords": suggested_kws,
+            "search_languages": lang_codes, "lang_label": lang_label,
+            "country_context": country_context,
+        }
+        print(f"[CI] Mode: {mode} | Title: {title[:60]}... | Field: {field}")
+        print(f"[CI] Platforms: {len(platforms)} | Study types: {', '.join(study_types[:3])}...")
+    else:
+        params = wizard()
     title            = params["title"]
     field            = params["field"]
     study_types      = params["study_types"]

@@ -1463,74 +1463,29 @@ jobs:
           fi
           echo "All data restored"
           ls -la pdf_files/ 2>/dev/null | head -20
-      - name: Build command arguments
-        id: args
-        shell: bash
-        run: |
-          BASE_DIR="pdf_files/${{ steps.folder.outputs.folder_name }}"
-          mkdir -p "$BASE_DIR"
-          if [ "${{ github.event.inputs.folder_mode }}" == "single" ]; then
-            ARGS="--title \"${{ github.event.inputs.title }}\" --single-folder"
-          else
-            ARGS="--title \"${{ github.event.inputs.title }}\""
-          fi
-          if [ -n "${{ github.event.inputs.rq1 }}" ]; then ARGS="$ARGS --rq1 \"${{ github.event.inputs.rq1 }}\""; fi
-          if [ -n "${{ github.event.inputs.rq2 }}" ]; then ARGS="$ARGS --rq2 \"${{ github.event.inputs.rq2 }}\""; fi
-          if [ -n "${{ github.event.inputs.rq3 }}" ]; then ARGS="$ARGS --rq3 \"${{ github.event.inputs.rq3 }}\""; fi
-          FIELD_VAL="${{ github.event.inputs.field }}"
-          FIELD_NUM=$(echo "$FIELD_VAL" | cut -d' ' -f1)
-          if [ "$FIELD_NUM" != "auto" ] && [ -n "$FIELD_NUM" ]; then ARGS="$ARGS --field \"$FIELD_NUM\""; fi
-          ST_VAL="${{ github.event.inputs.study_type }}"
-          ST_NUM=$(echo "$ST_VAL" | cut -d' ' -f1)
-          if [ "$ST_NUM" != "auto" ] && [ -n "$ST_NUM" ]; then ARGS="$ARGS --study-type \"$ST_NUM\""; fi
-          SL_VAL="${{ github.event.inputs.study_level }}"
-          SL_NUM=$(echo "$SL_VAL" | cut -d' ' -f1)
-          if [ -n "$SL_NUM" ] && [ "$SL_NUM" != "12" ]; then ARGS="$ARGS --study-level $SL_NUM"; fi
-          METH_VAL="${{ github.event.inputs.methodology }}"
-          METH_NUM=$(echo "$METH_VAL" | cut -d' ' -f1)
-          if [ -n "$METH_NUM" ] && [ "$METH_NUM" != "51" ]; then ARGS="$ARGS --methodology $METH_NUM"; fi
-          TP_VAL="${{ github.event.inputs.thesis_part }}"
-          TP_NUM=$(echo "$TP_VAL" | cut -d' ' -f1)
-          if [ -n "$TP_NUM" ] && [ "$TP_NUM" != "28" ]; then ARGS="$ARGS --dissertation-part $TP_NUM"; fi
-          Q_VAL="${{ github.event.inputs.quartile }}"
-          Q_NUM=$(echo "$Q_VAL" | cut -d' ' -f1)
-          if [ -n "$Q_NUM" ]; then ARGS="$ARGS --quartile-filter $Q_NUM"; fi
-          LANG_VAL="${{ github.event.inputs.language }}"
-          LANG_NUM=$(echo "$LANG_VAL" | cut -d' ' -f1)
-          ARGS="$ARGS --language $LANG_NUM"
-          if [ -n "${{ github.event.inputs.year_from }}" ]; then ARGS="$ARGS --year-from ${{ github.event.inputs.year_from }}"; fi
-          if [ -n "${{ github.event.inputs.year_to }}" ]; then ARGS="$ARGS --year-to ${{ github.event.inputs.year_to }}"; fi
-          MODE="${{ github.event.inputs.mode }}"
-          MODE="${MODE%% *}"
-          ARGS="$ARGS --mode $MODE"
-          PLIMIT="${{ github.event.inputs.paper_limit }}"
-          PLIMIT_NUM=$(echo "$PLIMIT" | cut -d' ' -f1)
-          if [ -n "$PLIMIT_NUM" ]; then ARGS="$ARGS --max-batches $PLIMIT_NUM"; fi
-          if [ "${{ github.event.inputs.scihub }}" == "true" ]; then ARGS="$ARGS --scihub"; fi
-          if [ "${{ github.event.inputs.learn }}" == "true" ]; then ARGS="$ARGS --learn"; fi
-          if [ "${{ github.event.inputs.generate_paper }}" == "true" ]; then ARGS="$ARGS --generate-paper"; fi
-          PT_VAL="${{ github.event.inputs.paper_type }}"
-          PT_KEY=$(echo "$PT_VAL" | cut -d' ' -f1)
-          if [ -n "$PT_KEY" ]; then ARGS="$ARGS --paper-type $PT_KEY"; fi
-          OF_VAL="${{ github.event.inputs.output_format }}"
-          OF_KEY=$(echo "$OF_VAL" | cut -d' ' -f1)
-          if [ -n "$OF_KEY" ]; then ARGS="$ARGS --output-format $OF_KEY"; fi
-          if [ "${{ github.event.inputs.proxy }}" == "y" ] || [ "${{ github.event.inputs.proxy }}" == "p" ]; then ARGS="$ARGS --proxy ${{ github.event.inputs.proxy }}"; fi
-          echo "args=$ARGS" >> $GITHUB_OUTPUT
-
       - name: Run Research Hunter (cumulative mode)
         env:
+          CI_MODE: "true"
+          CI_TITLE: "${{ github.event.inputs.title }}"
+          CI_RQ1: "${{ github.event.inputs.rq1 }}"
+          CI_RQ2: "${{ github.event.inputs.rq2 }}"
+          CI_RQ3: "${{ github.event.inputs.rq3 }}"
+          CI_FIELD: "${{ github.event.inputs.field }}"
+          CI_STUDY_TYPES: "${{ github.event.inputs.study_type }}"
+          CI_MODE_VAL: "${{ github.event.inputs.mode }}"
+          CI_LANGUAGE: "${{ github.event.inputs.language }}"
+          CI_SCI_HUB: "${{ github.event.inputs.scihub }}"
+          CI_SINGLE_FOLDER: "${{ github.event.inputs.folder_mode }}"
+          CI_YEAR_FROM: "${{ github.event.inputs.year_from }}"
+          CI_YEAR_TO: "${{ github.event.inputs.year_to }}"
           FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
           PYTHONIOENCODING: utf-8
         run: |
           echo "========================================================"
-          echo "  Research Hunter - CUMULATIVE MODE"
-          echo "  All runs accumulate into one folder and ZIP"
+          echo "  Research Hunter - CUMULATIVE MODE (CI)"
           echo "========================================================"
           echo ""
-          echo "Search Parameters:"
-          echo ""
-          python research_hunter_v2-4.py ${{ steps.args.outputs.args }}; echo "EXIT CODE: $?"
+          python research_hunter_v2-4.py; echo "EXIT CODE: $?"
 
       - name: Check results
         id: check_results
