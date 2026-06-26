@@ -6658,7 +6658,8 @@ def main():
     _gen_only = _operation_mode and "generate" in _operation_mode
 
     # Output folder & cache
-    folder_name = _safe_name(title, 80)
+    ci_folder = os.environ.get("CI_FOLDER_NAME", "")
+    folder_name = ci_folder if ci_folder else _safe_name(title, 80)
     out_folder  = Path("pdf_files") / folder_name
     out_folder.mkdir(parents=True, exist_ok=True)
 

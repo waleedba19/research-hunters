@@ -1427,6 +1427,7 @@ jobs:
         run: |
           pip install -q requests rich openpyxl python-docx python-pptx pdfplumber pymupdf playwright pillow pytesseract reportlab ollama
           python -m playwright install chromium 2>&1 | tail -5
+          npm install docx 2>&1 | tail -5
       - name: Determine output folder (deterministic name from title)
         id: folder
         shell: bash
@@ -1529,6 +1530,7 @@ jobs:
           CI_GENERATE_PAPER: "${{ github.event.inputs.generate_paper }}"
           CI_PAPER_TYPE: "${{ github.event.inputs.paper_type }}"
           CI_OUTPUT_FORMAT: "${{ github.event.inputs.output_format }}"
+          CI_FOLDER_NAME: "${{ steps.folder.outputs.folder_name }}"
           CI_GEOGRAPHIC_AREA: "${{ github.event.inputs.geographic_area }}"
           CI_PROXY: "${{ github.event.inputs.proxy }}"
           FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
@@ -1588,6 +1590,9 @@ jobs:
         run: |
           STATE_FILE="pdf_files/${{ steps.folder.outputs.folder_name }}/chunk_state.json"
           CACHE_FILE="pdf_files/${{ steps.folder.outputs.folder_name }}/search_cache.json"
+          if [ ! -f "$CACHE_FILE" ]; then
+            CACHE_FILE="pdf_files/${{ steps.folder.outputs.folder_name }}/.search_cache.json"
+          fi
           echo "============================================"
           echo "  CHUNK ${{ steps.chunk.outputs.current_chunk }} OF ~${{ steps.chunk.outputs.total_chunks }}"
           echo "  Depth: ${{ steps.chunk.outputs.depth }}"
@@ -1640,6 +1645,9 @@ jobs:
           fi
           echo "Chunk ${{ steps.chunk.outputs.current_chunk }} of ~${{ steps.chunk.outputs.total_chunks }} — continuing chain"
           CACHE_FILE="$OUT_DIR/search_cache.json"
+          if [ ! -f "$CACHE_FILE" ]; then
+            CACHE_FILE="$OUT_DIR/.search_cache.json"
+          fi
           if [ ! -f "$CACHE_FILE" ]; then
             echo "No cache file found - cannot determine remaining work"
             exit 0
@@ -1704,7 +1712,9 @@ jobs:
         with:
           name: cache-data
           path: |
+            pdf_files/*/.search_cache.json
             pdf_files/*/search_cache.json
+            .search_cache.json
             search_cache.json
             ghost_credentials.json
             g4f_locked_config.json
