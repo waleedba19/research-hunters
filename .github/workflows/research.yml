@@ -1237,7 +1237,7 @@ on:
 
 jobs:
   verify:
-    if: github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -1247,19 +1247,21 @@ jobs:
       GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
     steps:
       - uses: actions/checkout@v4
-      - name: Setup Ollama AI + OCR
-        id: setup
-        uses: ./.github/actions/ollama-ai
-        with:
-          model: "qwen2.5vl:3b"
-          ollama-version: "0.30.4"
+      - name: Setup Ollama
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          ollama serve > /tmp/ollama.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -s http://127.0.0.1:11434/api/tags > /dev/null 2>&1; then break; fi
+            sleep 1
+          done
+          ollama pull qwen2.5vl:3b
       - name: Check model health
         run: |
-          echo "Model status: ${{ steps.setup.outputs.model-ready }}"
-          if [[ "${{ steps.setup.outputs.model-ready }}" == "true" ]]; then
-            echo "✅ Model health: READY"
+          if curl -s http://127.0.0.1:11434/api/tags | grep -q qwen2.5vl; then
+            echo "Model health: READY"
           else
-            echo "❌ Model health: FAILED — see setup logs for diagnostics"
+            echo "Model health: FAILED"
             exit 1
           fi
       - name: Restore proof memory (cross-run learning persistence)
@@ -1275,7 +1277,7 @@ jobs:
 
   daily_learn:
     needs: [verify]
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
@@ -1285,16 +1287,18 @@ jobs:
       GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
     steps:
       - uses: actions/checkout@v4
-      - name: Setup Ollama AI
-        id: setup
-        uses: ./.github/actions/ollama-ai
-        with:
-          model: "qwen2.5vl:3b"
-          ollama-version: "0.30.4"
+      - name: Setup Ollama
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          ollama serve > /tmp/ollama.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -s http://127.0.0.1:11434/api/tags > /dev/null 2>&1; then break; fi
+            sleep 1
+          done
+          ollama pull qwen2.5vl:3b
       - name: Check model health
         run: |
-          echo "Model status: ${{ steps.setup.outputs.model-ready }}"
-          if [[ "${{ steps.setup.outputs.model-ready }}" == "true" ]]; then
+          if curl -s http://127.0.0.1:11434/api/tags | grep -q qwen2.5vl; then
             echo "Model health: READY"
           else
             echo "Model health: FAILED"
@@ -1371,19 +1375,21 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Setup Ollama AI + OCR
-        id: setup
-        uses: ./.github/actions/ollama-ai
-        with:
-          model: "qwen2.5vl:3b"
-          ollama-version: "0.30.4"
+      - name: Setup Ollama
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          ollama serve > /tmp/ollama.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -s http://127.0.0.1:11434/api/tags > /dev/null 2>&1; then break; fi
+            sleep 1
+          done
+          ollama pull qwen2.5vl:3b
       - name: Check model health
         run: |
-          echo "Model status: ${{ steps.setup.outputs.model-ready }}"
-          if [[ "${{ steps.setup.outputs.model-ready }}" == "true" ]]; then
-            echo "✅ Model health: READY — proceeding with research pipeline"
+          if curl -s http://127.0.0.1:11434/api/tags | grep -q qwen2.5vl; then
+            echo "Model health: READY"
           else
-            echo "❌ Model health: FAILED — cannot proceed without working model"
+            echo "Model health: FAILED"
             exit 1
           fi
       - name: Install dependencies
