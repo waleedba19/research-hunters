@@ -1276,7 +1276,7 @@ jobs:
         run: python scripts/verify.py --model qwen2.5vl:3b --ci
 
   daily_learn:
-    needs: [verify]
+    needs: [research]
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 120
@@ -1363,6 +1363,7 @@ jobs:
           retention-days: 90
 
   research:
+    needs: [verify]
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 360
