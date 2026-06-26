@@ -1114,7 +1114,7 @@ on:
       output_format:
         description: '📋 OUTPUT FORMATS — Mode default is used unless overridden. "both_docx_xlsx" always produces Excel (40+ sheets) + DOCX + clickable links.'
         required: true
-        default: 'both_docx_xlsx - 📊 Both DOCX + XLSX (40+ sheets) + clickable PDF links [RECOMMENDED]'
+        default: 'both_docx_xlsx - 📊 DOCX + XLSX 40-sheet + clickable links [RECOMMENDED]'
         type: choice
         options:
           - all - 📦 ALL FORMATS (DOCX+PDF+Excel-MD+TXT+JSON+CSV+HTML)
@@ -1292,8 +1292,8 @@ jobs:
         run: python scripts/verify.py --model qwen2.5vl:3b --ci || echo "Verify had some failures (non-critical)"
 
   daily_learn:
-    needs: [verify]
-    if: github.event_name == 'workflow_dispatch' && contains(fromJson('["learn-only","full-research"]'), github.event.inputs.operation_mode)
+    needs: [verify, research]
+    if: always() && github.event_name == 'workflow_dispatch' && contains(fromJson('["learn-only","full-research"]'), github.event.inputs.operation_mode)
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
@@ -1638,6 +1638,7 @@ jobs:
             echo "============================================"
             exit 0
           fi
+          echo "Chunk ${{ steps.chunk.outputs.current_chunk }} of ~${{ steps.chunk.outputs.total_chunks }} — continuing chain"
           CACHE_FILE="$OUT_DIR/search_cache.json"
           if [ ! -f "$CACHE_FILE" ]; then
             echo "No cache file found - cannot determine remaining work"
