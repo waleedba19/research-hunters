@@ -1626,6 +1626,7 @@ jobs:
           TRIGGER_OUTPUT_FORMAT: ${{ github.event.inputs.output_format }}
           TRIGGER_GEOGRAPHIC_AREA: ${{ github.event.inputs.geographic_area }}
           TRIGGER_RESEARCH_DEPTH: ${{ github.event.inputs.research_depth }}
+          TRIGGER_OPERATION_MODE: ${{ github.event.inputs.operation_mode }}
         shell: bash
         run: |
           echo "Checking if more work remains..."

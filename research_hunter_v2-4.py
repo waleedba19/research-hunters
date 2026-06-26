@@ -134,6 +134,11 @@ except ImportError:
 
 from scopus_checker import bulk_check, quartile_badge
 from search_cache   import SearchCache
+try:
+    from learning_integration import learn_from_search, generate_paper as li_generate_paper
+    HAS_LEARNING = True
+except Exception:
+    HAS_LEARNING = False
 
 console = Console() if HAS_RICH else None
 
@@ -4474,23 +4479,167 @@ def detect_doc_type(paper: dict) -> str:
 
 
 def detect_geo_tier(paper: dict) -> str:
-    """Return 'Libya','Neighbor','MENA', or ''."""
+    """Return hierarchical geo string like 'usa|north_america|americas', 'china|asia_pacific', or ''."""
     text = " ".join(str(v) for v in [
         paper.get("title"), paper.get("abstract"),
         paper.get("journal"), " ".join(paper.get("authors") or []),
-        paper.get("source"),
+        paper.get("source"), paper.get("publisher",""),
     ]).lower()
 
-    libyan = ["libya","libyan","benghazi","tripoli","misrata","al-rojban",
-              "zawia","sebha","omar al-mukhtar","jebel gharbi"]
-    neighbor = ["tunisia","tunisian","algeria","algerian","egypt","egyptian",
-                "morocco","moroccan","sudan","sudanese","maghreb"]
-    mena = ["saudi","jordan","qatar","uae","kuwait","oman","bahrain","iraq",
-             "syria","mena","arab world","middle east","gulf","gcc"]
+    # Country-level keywords → (country, subregion, region)
+    GEO_MAP: dict[str, tuple[str, str, str]] = {
+        # Americas
+        "usa":           ("usa",           "north_america", "americas"),
+        "united states": ("usa",           "north_america", "americas"),
+        "canada":        ("canada",        "north_america", "americas"),
+        "mexico":        ("mexico",        "north_america", "americas"),
+        "brazil":        ("brazil",        "latin_america", "americas"),
+        "argentina":     ("argentina",     "latin_america", "americas"),
+        "chile":         ("chile",         "latin_america", "americas"),
+        "colombia":      ("colombia",      "latin_america", "americas"),
+        "venezuela":     ("venezuela",     "latin_america", "americas"),
+        "peru":          ("peru",          "latin_america", "americas"),
+        # Europe
+        "uk":            ("uk",            "europe",        "europe"),
+        "united kingdom":("uk",            "europe",        "europe"),
+        "england":       ("uk",            "europe",        "europe"),
+        "germany":       ("germany",        "europe",        "europe"),
+        "france":        ("france",         "europe",        "europe"),
+        "italy":         ("italy",          "europe",        "europe"),
+        "spain":         ("spain",          "europe",        "europe"),
+        "netherlands":   ("netherlands",    "europe",        "europe"),
+        "belgium":       ("belgium",        "europe",        "europe"),
+        "switzerland":   ("switzerland",    "europe",        "europe"),
+        "austria":       ("austria",        "europe",        "europe"),
+        "poland":        ("poland",         "europe",        "europe"),
+        "sweden":        ("sweden",         "europe",        "europe"),
+        "norway":        ("norway",         "europe",        "europe"),
+        "denmark":       ("denmark",        "europe",        "europe"),
+        "finland":       ("finland",        "europe",        "europe"),
+        "portugal":      ("portugal",       "europe",        "europe"),
+        "greece":        ("greece",         "europe",        "europe"),
+        "czech":         ("czech_republic", "europe",        "europe"),
+        "hungary":       ("hungary",        "europe",        "europe"),
+        "romania":       ("romania",        "europe",        "europe"),
+        "bulgaria":      ("bulgaria",       "europe",        "europe"),
+        # Middle East
+        "saudi":         ("saudi_arabia",   "middle_east",   "middle_east"),
+        "uae":           ("uae",            "middle_east",   "middle_east"),
+        "qatar":         ("qatar",          "middle_east",   "middle_east"),
+        "kuwait":        ("kuwait",         "middle_east",   "middle_east"),
+        "bahrain":       ("bahrain",        "middle_east",   "middle_east"),
+        "oman":          ("oman",           "middle_east",   "middle_east"),
+        "jordan":        ("jordan",         "middle_east",   "middle_east"),
+        "lebanon":       ("lebanon",        "middle_east",   "middle_east"),
+        "israel":        ("israel",         "middle_east",   "middle_east"),
+        "turkey":        ("turkey",         "middle_east",   "middle_east"),
+        "iran":          ("iran",           "middle_east",   "middle_east"),
+        "iraq":          ("iraq",           "middle_east",   "middle_east"),
+        # North Africa
+        "egypt":         ("egypt",          "north_africa",  "north_africa"),
+        "libya":         ("libya",          "north_africa",  "north_africa"),
+        "tunisia":       ("tunisia",        "north_africa",  "north_africa"),
+        "algeria":       ("algeria",        "north_africa",  "north_africa"),
+        "morocco":       ("morocco",        "north_africa",  "north_africa"),
+        "sudan":         ("sudan",          "north_africa",  "north_africa"),
+        # Sub-Saharan Africa
+        "south africa":  ("south_africa",   "sub_saharan_africa", "sub_saharan_africa"),
+        "nigeria":       ("nigeria",        "sub_saharan_africa", "sub_saharan_africa"),
+        "kenya":         ("kenya",          "sub_saharan_africa", "sub_saharan_africa"),
+        "ethiopia":      ("ethiopia",       "sub_saharan_africa", "sub_saharan_africa"),
+        "ghana":         ("ghana",          "sub_saharan_africa", "sub_saharan_africa"),
+        "tanzania":      ("tanzania",       "sub_saharan_africa", "sub_saharan_africa"),
+        "uganda":        ("uganda",         "sub_saharan_africa", "sub_saharan_africa"),
+        # Asia Pacific
+        "china":         ("china",          "asia_pacific",  "asia_pacific"),
+        "japan":         ("japan",          "asia_pacific",  "asia_pacific"),
+        "south korea":   ("south_korea",    "asia_pacific",  "asia_pacific"),
+        "india":         ("india",          "asia_pacific",  "asia_pacific"),
+        "singapore":     ("singapore",      "asia_pacific",  "asia_pacific"),
+        "hong kong":     ("hong_kong",      "asia_pacific",  "asia_pacific"),
+        "taiwan":        ("taiwan",         "asia_pacific",  "asia_pacific"),
+        "australia":     ("australia",      "asia_pacific",  "asia_pacific"),
+        "new zealand":   ("new_zealand",    "asia_pacific",  "asia_pacific"),
+        "philippines":   ("philippines",    "asia_pacific",  "asia_pacific"),
+        "malaysia":      ("malaysia",       "asia_pacific",  "asia_pacific"),
+        "indonesia":     ("indonesia",      "asia_pacific",  "asia_pacific"),
+        "thailand":      ("thailand",       "asia_pacific",  "asia_pacific"),
+        "vietnam":       ("vietnam",        "asia_pacific",  "asia_pacific"),
+    }
 
-    if any(t in text for t in libyan):   return "Libya"
-    if any(t in text for t in neighbor): return "Neighbor"
-    if any(t in text for t in mena):     return "MENA"
+    for keyword, (country, sub, region) in GEO_MAP.items():
+        if keyword in text:
+            return f"{country}|{sub}|{region}"
+    return ""
+
+def detect_methodology(paper: dict) -> str:
+    """Return research methodology keyword from paper metadata, or ''."""
+    text = " ".join(str(v) for v in [
+        paper.get("title"), paper.get("abstract"),
+        paper.get("journal"), paper.get("methodology",""),
+    ]).lower()
+
+    patterns = [
+        (["randomized controlled trial","rct"], "rct"),
+        (["quasi-experiment","quasi experiment","non-equivalent"], "quasi_experimental"),
+        (["experimental","experiment group","control group","treatment group"], "experimental"),
+        (["longitudinal","panel data","repeated measures","follow-up"], "longitudinal"),
+        (["cross-sectional","cross sectional","survey study"], "cross_sectional"),
+        (["cohort","prospective","retrospective"], "cohort"),
+        (["case study","case report","in-depth case"], "case_study"),
+        (["ethnograph","fieldwork","participant observation"], "ethnographic"),
+        (["phenomenolog","lived experience"], "phenomenological"),
+        (["grounded theory","constant comparative"], "grounded_theory"),
+        (["narrative inquiry","narrative analysis"], "narrative"),
+        (["action research","participatory action"], "action_research"),
+        (["mixed method","mixed-method","quantitative and qualitative"], "mixed_methods"),
+        (["qualitative","in-depth interview","focus group","semi-structured"], "qualitative"),
+        (["quantitative","statistical","regression","anova","correlation"], "quantitative"),
+        (["systematic review","meta-analysis","meta analysis"], "systematic_review"),
+        (["literature review","scoping review","narrative review"], "literature_review"),
+        (["content analysis","thematic analysis"], "content_analysis"),
+        (["discourse analysis","conversation analysis"], "discourse_analysis"),
+        (["comparative","cross-cultural","cross cultural"], "comparative"),
+        (["historical research","archival","document analysis"], "historical"),
+        (["delphi","expert panel"], "delphi"),
+        (["simulation","modelling","computational"], "simulation"),
+        (["bibliometric","scientometric","citation analysis"], "bibliometric"),
+        (["survey","questionnaire","self-report"], "survey"),
+    ]
+    for keywords, label in patterns:
+        if any(k in text for k in keywords):
+            return label
+    return ""
+
+def detect_thesis_part(paper: dict) -> str:
+    """Return thesis section keyword from paper metadata, or ''."""
+    title   = (paper.get("title")    or "").lower()
+    abstract= (paper.get("abstract") or "").lower()
+    journal = (paper.get("journal")  or "").lower()
+    source  = (paper.get("source")   or "").lower()
+
+    if any(k in title for k in ("abstract","executive summary","synopsis")):
+        return "abstract"
+    if any(k in title for k in ("introduction","background","chapter 1","chapter one")):
+        return "introduction"
+    if any(k in title for k in ("literature review","theoretical framework","chapter 2","chapter two")):
+        return "literature_review"
+    if any(k in title for k in ("methodology","method","research design","chapter 3","chapter three")):
+        return "methodology"
+    if any(k in title for k in ("results","findings","analysis","chapter 4","chapter four")):
+        return "results"
+    if any(k in title for k in ("discussion","chapter 5","chapter five")):
+        return "discussion"
+    if any(k in title for k in ("conclusion","recommendation","implication","chapter 6")):
+        return "conclusion"
+    if any(k in title for k in ("reference","bibliography")):
+        return "references"
+    if any(k in title for k in ("appendix","appendices")):
+        return "appendices"
+    if any(k in title for k in ("foreword","preface")):
+        return "preface"
+    if any(k in title for k in ("epilogue","afterword")):
+        return "epilogue"
     return ""
 
 
@@ -6357,14 +6506,41 @@ def main():
                            "6":"MA","7":"MA","8":"MA","9":"MA","10":"MA","11":"","12":""}
         if sl_key.isdigit() and sl_key in STUDY_LEVEL_MAP:
             study_level_filter = STUDY_LEVEL_MAP[sl_key]
-        # Methodology filter (stored as keywords for relevance)
+        # Methodology filter (maps form option → detect_methodology return)
         raw_meth = os.environ.get("CI_METHODOLOGY", "")
         meth_key = raw_meth.split(" -", 1)[0].strip()
-        methodology_filter = "" if meth_key in ("51", "auto", "") else raw_meth.split(" -", 1)[-1] if " - " in raw_meth else ""
-        # Thesis part filter
+        METH_MAP = {"1":"experimental","2":"quasi_experimental","3":"rct",
+                    "4":"quantitative","5":"qualitative","6":"quantitative",
+                    "7":"mixed_methods","8":"case_study","9":"ethnographic",
+                    "10":"phenomenological","11":"grounded_theory","12":"narrative",
+                    "13":"action_research","14":"survey","15":"longitudinal",
+                    "16":"cross_sectional","17":"cohort","18":"comparative",
+                    "19":"comparative","20":"historical","21":"content_analysis",
+                    "22":"discourse_analysis","23":"discourse_analysis",
+                    "24":"content_analysis","25":"grounded_theory",
+                    "26":"phenomenological","27":"qualitative","28":"content_analysis",
+                    "29":"grounded_theory","30":"experimental","31":"experimental",
+                    "32":"delphi","33":"qualitative","34":"qualitative",
+                    "35":"qualitative","36":"quantitative","37":"experimental",
+                    "38":"systematic_review","39":"bibliometric","40":"bibliometric",
+                    "41":"content_analysis","42":"simulation","43":"simulation",
+                    "44":"simulation","45":"literature_review","46":"historical",
+                    "47":"qualitative","48":"qualitative","49":"action_research",
+                    "50":"action_research"}
+        methodology_filter = METH_MAP.get(meth_key, "")
+        # Thesis part filter (maps form option → detect_thesis_part return)
         raw_tp = os.environ.get("CI_THESIS_PART", "")
         tp_key = raw_tp.split(" -", 1)[0].strip()
-        thesis_part_filter = "" if tp_key in ("28", "auto", "") else raw_tp.split(" -", 1)[-1] if " - " in raw_tp else ""
+        TP_MAP = {"1":"abstract","2":"introduction","3":"literature_review",
+                  "4":"literature_review","5":"methodology","6":"results",
+                  "7":"discussion","8":"conclusion","9":"references",
+                  "10":"appendices","11":"introduction","12":"literature_review",
+                  "13":"methodology","14":"results","15":"discussion",
+                  "16":"conclusion","17":"preface","18":"introduction",
+                  "19":"literature_review","20":"conclusion","21":"epilogue",
+                  "22":"abstract","23":"introduction","24":"methodology",
+                  "25":"results","26":"conclusion","27":"conclusion"}
+        thesis_part_filter = TP_MAP.get(tp_key, "")
         # Quartile filter
         raw_q = os.environ.get("CI_QUARTILE", "")
         q_key = raw_q.split(" -", 1)[0].strip()
@@ -6697,7 +6873,25 @@ def main():
                 filtered.append(p)
         all_papers = filtered
 
-    # Filter by geographic area
+    # Filter by methodology
+    if methodology_filter:
+        filtered = []
+        for p in all_papers:
+            pm = detect_methodology(p)
+            if pm == methodology_filter:
+                filtered.append(p)
+        all_papers = filtered
+
+    # Filter by thesis part
+    if thesis_part_filter:
+        filtered = []
+        for p in all_papers:
+            pt = detect_thesis_part(p)
+            if pt == thesis_part_filter:
+                filtered.append(p)
+        all_papers = filtered
+
+    # Filter by geographic area (hierarchical: 'usa|north_america|americas')
     if geographic_filter and geographic_filter != "worldwide":
         filtered = []
         for p in all_papers:
@@ -6768,10 +6962,35 @@ def main():
     cache.record_run(len(new_papers), dl_count, skipped)
     cache.save()
 
-    # Reports — markdown + Node.js DOCX + Excel
-    md_path   = generate_markdown_report(report_data, out_folder)
-    docx_path = generate_docx_report(report_data, out_folder)  # Uses Node.js generate_report.js
-    xlsx_path = _write_master_xlsx(all_papers, out_folder)
+    # Reports — controlled by output_format
+    md_path = None; docx_path = None; xlsx_path = None
+    of = (output_format or "both_docx_xlsx").lower()
+    gen_all = of in ("all", "both_docx_xlsx", "")
+    if gen_all or "markdown" in of or "md" == of:
+        md_path = generate_markdown_report(report_data, out_folder)
+    if gen_all or "docx" in of or "both" in of:
+        docx_path = generate_docx_report(report_data, out_folder)
+    if gen_all or "xlsx" in of or "excel" in of or "sheet" in of or "csv" in of:
+        xlsx_path = _write_master_xlsx(all_papers, out_folder)
+
+    # ── Conditional learning + paper generation ────────────────────
+    if HAS_LEARNING:
+        if learn_enabled and all_papers:
+            try:
+                info("Running learning system on search results…")
+                learn_from_search(title, all_papers[:200])
+                info("Learning update complete")
+            except Exception as e:
+                warn(f"Learning step skipped: {e}")
+        if generate_paper and all_papers:
+            try:
+                info(f"Generating {paper_type} paper…")
+                result = li_generate_paper(title, paper_type, rqs)
+                out_path = out_folder / f"generated_{paper_type}_{datetime.now():%Y%m%d}.md"
+                out_path.write_text(result.get("content",""), encoding="utf-8")
+                ok(f"Generated paper saved: {out_path}")
+            except Exception as e:
+                warn(f"Paper generation skipped: {e}")
 
     total_dl = sum(1 for p in all_papers if p.get("downloaded"))
 
