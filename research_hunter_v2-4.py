@@ -6478,6 +6478,7 @@ def main():
             field = auto_detect_field(title, [])
         mode_str = os.environ.get("CI_MODE_VAL", "deep")
         mode = mode_str.split(" -", 1)[0].strip() or "deep"
+        skip_downloads = mode in ("sample", "simple")
         use_scihub = os.environ.get("CI_SCI_HUB", "").lower() in ("true", "1", "yes")
         sf_val = os.environ.get("CI_SINGLE_FOLDER", "").lower()
         single_folder = sf_val.startswith("single") or sf_val in ("1", "yes")
@@ -6764,82 +6765,85 @@ def main():
 
     if not _gen_only:
         print()
-        dl_mode_str = "single folder" if single_folder else "smart folders"
-        info(f"Interleaved quartile verification + download (14-layer chain) into {dl_mode_str}…")
+        if skip_downloads:
+            info(f"Mode '{mode}': metadata-only — skipping PDF downloads")
+        else:
+            dl_mode_str = "single folder" if single_folder else "smart folders"
+            info(f"Interleaved quartile verification + download (14-layer chain) into {dl_mode_str}…")
 
-        BATCH_SIZE = 50
-        total_batches = (len(new_papers) + BATCH_SIZE - 1) // BATCH_SIZE
-        for batch_idx in range(total_batches):
-            start = batch_idx * BATCH_SIZE
-            end   = min(start + BATCH_SIZE, len(new_papers))
-            batch = new_papers[start:end]
-            batch_num = batch_idx + 1
+            BATCH_SIZE = 50
+            total_batches = (len(new_papers) + BATCH_SIZE - 1) // BATCH_SIZE
+            for batch_idx in range(total_batches):
+                start = batch_idx * BATCH_SIZE
+                end   = min(start + BATCH_SIZE, len(new_papers))
+                batch = new_papers[start:end]
+                batch_num = batch_idx + 1
 
-            info(f"  Batch {batch_num}/{total_batches}: quartile checking {len(batch)} papers…")
+                info(f"  Batch {batch_num}/{total_batches}: quartile checking {len(batch)} papers…")
 
-            seen: dict = {}
-            for p in batch:
-                journal = (p.get("journal") or p.get("venue") or "") or ""
-                if not journal.strip():
-                    p["scopus_quartile"] = {"quartile": "Not Found"}
-                    continue
-                jkey = journal.lower().strip()
-                if jkey in seen:
-                    p["scopus_quartile"] = seen[jkey]
-                else:
-                    try:
-                        r = check_quartile(journal)
-                    except Exception:
-                        r = {"quartile": "Not Found", "verified": False}
-                    qval = r.get("quartile","") if isinstance(r, dict) else str(r)
-                    if not qval or qval in ("Not Found","Not Ranked",""):
-                        upgraded = enhanced_quartile_check(p)
-                        if upgraded and upgraded not in ("Not Found",""):
-                            if isinstance(r, dict):
-                                r["quartile"] = upgraded
-                            else:
-                                r = {"quartile": upgraded}
-                    seen[jkey] = r
-                    p["scopus_quartile"] = r
+                seen: dict = {}
+                for p in batch:
+                    journal = (p.get("journal") or p.get("venue") or "") or ""
+                    if not journal.strip():
+                        p["scopus_quartile"] = {"quartile": "Not Found"}
+                        continue
+                    jkey = journal.lower().strip()
+                    if jkey in seen:
+                        p["scopus_quartile"] = seen[jkey]
+                    else:
+                        try:
+                            r = check_quartile(journal)
+                        except Exception:
+                            r = {"quartile": "Not Found", "verified": False}
+                        qval = r.get("quartile","") if isinstance(r, dict) else str(r)
+                        if not qval or qval in ("Not Found","Not Ranked",""):
+                            upgraded = enhanced_quartile_check(p)
+                            if upgraded and upgraded not in ("Not Found",""):
+                                if isinstance(r, dict):
+                                    r["quartile"] = upgraded
+                                else:
+                                    r = {"quartile": upgraded}
+                        seen[jkey] = r
+                        p["scopus_quartile"] = r
 
-            for p in batch:
-                q = (p.get("scopus_quartile") or {})
-                q = q.get("quartile","Not Found") if isinstance(q, dict) else str(q)
-                q_cnt[q if q in q_cnt else "Not Found"] += 1
+                for p in batch:
+                    q = (p.get("scopus_quartile") or {})
+                    q = q.get("quartile","Not Found") if isinstance(q, dict) else str(q)
+                    q_cnt[q if q in q_cnt else "Not Found"] += 1
 
-            ok(f"  Batch {batch_num}: Q1={q_cnt['Q1']} Q2={q_cnt['Q2']} Q3={q_cnt['Q3']} Q4={q_cnt['Q4']} N/A={q_cnt['Not Found']}")
+                ok(f"  Batch {batch_num}: Q1={q_cnt['Q1']} Q2={q_cnt['Q2']} Q3={q_cnt['Q3']} Q4={q_cnt['Q4']} N/A={q_cnt['Not Found']}")
 
-            info(f"  Batch {batch_num}: downloading {len(batch)} papers…")
-            for i, paper in enumerate(batch, 1):
-                global_idx = start + i
-                q_badge = (paper.get("scopus_quartile") or {})
-                q_badge = q_badge.get("quartile","?") if isinstance(q_badge, dict) else str(q_badge)
-                success, folder_used = smart_file_paper(paper, out_folder, use_scihub, red_list, cache, single_folder)
-                paper["downloaded"] = success
-                if success:
-                    dl_count += 1
-                    folder_dl[folder_used] = folder_dl.get(folder_used, 0) + 1
-                dt = detect_doc_type(paper)
-                if dt in type_cnt:
-                    type_cnt[dt] += 1
-                gt = detect_geo_tier(paper)
-                if gt in geo_cnt:
-                    geo_cnt[gt] += 1
-                if i % 10 == 0:
-                    info(f"    [{global_idx}/{len(new_papers)}] {dl_count} downloaded so far…")
-                time.sleep(0.15)
+                info(f"  Batch {batch_num}: downloading {len(batch)} papers…")
+                for i, paper in enumerate(batch, 1):
+                    global_idx = start + i
+                    q_badge = (paper.get("scopus_quartile") or {})
+                    q_badge = q_badge.get("quartile","?") if isinstance(q_badge, dict) else str(q_badge)
+                    success, folder_used = smart_file_paper(paper, out_folder, use_scihub, red_list, cache, single_folder)
+                    paper["downloaded"] = success
+                    if success:
+                        dl_count += 1
+                        folder_dl[folder_used] = folder_dl.get(folder_used, 0) + 1
+                    dt = detect_doc_type(paper)
+                    if dt in type_cnt:
+                        type_cnt[dt] += 1
+                    gt = detect_geo_tier(paper)
+                    if gt in geo_cnt:
+                        geo_cnt[gt] += 1
+                    if i % 10 == 0:
+                        info(f"    [{global_idx}/{len(new_papers)}] {dl_count} downloaded so far…")
+                    time.sleep(0.15)
 
-        ok(f"Scopus Summary (this run):")
-        for q, c in q_cnt.items():
-            log(f"  {quartile_badge(q)}: {c}")
+            ok(f"Scopus Summary (this run):")
+            for q, c in q_cnt.items():
+                log(f"  {quartile_badge(q)}: {c}")
 
-        cache.save()
-        ok(f"Downloaded {dl_count} / {len(new_papers)} PDFs")
-        if red_list.entries:
-            warn(red_list.summary())
-        # Mark completion so auto-trigger can break the chain
-        if cache.stats().get("queries_exhausted"):
-            (out_folder / ".search_complete").write_text("done", encoding="utf-8")
+            cache.save()
+            ok(f"Downloaded {dl_count} / {len(new_papers)} PDFs")
+            if red_list.entries:
+                warn(red_list.summary())
+            # Mark completion so auto-trigger can break the chain
+            if cache.stats().get("queries_exhausted"):
+                (out_folder / ".search_complete").write_text("done", encoding="utf-8")
 
     # Load & merge previous results
     existing: list = []
