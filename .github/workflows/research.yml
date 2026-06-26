@@ -1293,7 +1293,7 @@ jobs:
 
   daily_learn:
     needs: [verify, research]
-    if: always() && github.event_name == 'workflow_dispatch' && contains(fromJson('["learn-only","full-research"]'), github.event.inputs.operation_mode)
+    if: always() && github.event_name == 'workflow_dispatch' && (contains(github.event.inputs.operation_mode, 'learn-only') || contains(github.event.inputs.operation_mode, 'full-research'))
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
@@ -1387,7 +1387,7 @@ jobs:
 
   research:
     needs: [verify]
-    if: github.event_name == 'workflow_dispatch' && contains(fromJson('["research-only","full-research","generate-only"]'), github.event.inputs.operation_mode)
+    if: github.event_name == 'workflow_dispatch' && (contains(github.event.inputs.operation_mode, 'research-only') || contains(github.event.inputs.operation_mode, 'full-research') || contains(github.event.inputs.operation_mode, 'generate-only'))
     runs-on: ubuntu-latest
     timeout-minutes: 180
     env:
