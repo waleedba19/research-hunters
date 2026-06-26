@@ -7161,7 +7161,7 @@ def _write_master_xlsx(all_papers: list, out_folder: Path, queries_used: list = 
         # SAVE
         # ═══════════════════════════════════════════════════════════════
         wb.save(xlsx_path)
-        ok(f"master_papers.xlsx: {xlsx_path} ({len(wb.sheets)} sheets, {len(all_papers)} papers)")
+        ok(f"master_papers.xlsx: {xlsx_path} ({len(wb.sheetnames)} sheets, {len(all_papers)} papers)")
         return xlsx_path
     except ImportError:
         pass
