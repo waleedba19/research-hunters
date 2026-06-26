@@ -1387,7 +1387,7 @@ jobs:
 
   research:
     needs: [verify]
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' && contains(fromJson('["research-only","full-research"]'), github.event.inputs.operation_mode)
     runs-on: ubuntu-latest
     timeout-minutes: 180
     env:
@@ -1506,18 +1506,31 @@ jobs:
       - name: Run Research Hunter (cumulative mode)
         env:
           CI_MODE: "true"
+          CI_OPERATION_MODE: "${{ github.event.inputs.operation_mode }}"
           CI_TITLE: "${{ github.event.inputs.title }}"
           CI_RQ1: "${{ github.event.inputs.rq1 }}"
           CI_RQ2: "${{ github.event.inputs.rq2 }}"
           CI_RQ3: "${{ github.event.inputs.rq3 }}"
           CI_FIELD: "${{ github.event.inputs.field }}"
           CI_STUDY_TYPES: "${{ github.event.inputs.study_type }}"
+          CI_STUDY_LEVEL: "${{ github.event.inputs.study_level }}"
+          CI_METHODOLOGY: "${{ github.event.inputs.methodology }}"
+          CI_THESIS_PART: "${{ github.event.inputs.thesis_part }}"
+          CI_QUARTILE: "${{ github.event.inputs.quartile }}"
           CI_MODE_VAL: "${{ github.event.inputs.mode }}"
+          CI_RESEARCH_DEPTH: "${{ github.event.inputs.research_depth }}"
+          CI_PAPER_LIMIT: "${{ github.event.inputs.paper_limit }}"
           CI_LANGUAGE: "${{ github.event.inputs.language }}"
           CI_SCI_HUB: "${{ github.event.inputs.scihub }}"
           CI_SINGLE_FOLDER: "${{ github.event.inputs.folder_mode }}"
           CI_YEAR_FROM: "${{ github.event.inputs.year_from }}"
           CI_YEAR_TO: "${{ github.event.inputs.year_to }}"
+          CI_LEARN: "${{ github.event.inputs.learn }}"
+          CI_GENERATE_PAPER: "${{ github.event.inputs.generate_paper }}"
+          CI_PAPER_TYPE: "${{ github.event.inputs.paper_type }}"
+          CI_OUTPUT_FORMAT: "${{ github.event.inputs.output_format }}"
+          CI_GEOGRAPHIC_AREA: "${{ github.event.inputs.geographic_area }}"
+          CI_PROXY: "${{ github.event.inputs.proxy }}"
           FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
           PYTHONIOENCODING: utf-8
         run: |
@@ -1526,6 +1539,7 @@ jobs:
           echo "  Title: ${{ github.event.inputs.title }}"
           echo "  Mode:  ${{ github.event.inputs.mode }}"
           echo "  Depth: ${{ github.event.inputs.research_depth }}"
+          echo "  Operation: ${{ github.event.inputs.operation_mode }}"
           echo "========================================================"
           echo ""
           python research_hunter_v2-4.py; echo "EXIT CODE: $?"
