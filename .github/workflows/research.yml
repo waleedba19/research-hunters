@@ -1023,6 +1023,15 @@ on:
           - 'deep - DEEP (~3-6 hrs) - Max 2000 papers, full DL, all quartiles [RECOMMENDED]'
           - 'ultra - ULTRA (~8-16 hrs) - Max 5000 papers, full DL + Q1-Q4 stratified fill'
           - 'maximum - MAXIMUM (~16-32 hrs) - Unlimited papers, exhaustive DL + Q1-Q4 fill'
+      research_depth:
+        description: '🎯 RESEARCH DEPTH — Auto-splits work into 3h chunks. Each chunk resumes where the last stopped.'
+        required: true
+        default: 'medium - Balanced (2-4 chunks, ~6-12h total) [RECOMMENDED]'
+        type: choice
+        options:
+          - 'light - Light (1-2 chunks, ~3-6h total) — Quick turnaround'
+          - 'medium - Balanced (2-4 chunks, ~6-12h total) [RECOMMENDED]'
+          - 'deep - Deep (4-8 chunks, ~12-24h total) — Exhaustive coverage'
       paper_limit:
         description: '📦 PAPER LIMIT — Overrides mode default. Sets maximum papers to collect across all platforms.'
         required: true
@@ -1426,6 +1435,37 @@ jobs:
           SAFE=$(echo "$TITLE" | sed 's/[^a-zA-Z0-9_\-]/_/g' | sed 's/__*/_/g' | cut -c1-50)
           echo "folder_name=RESEARCH_${SAFE}" >> $GITHUB_OUTPUT
           echo "Using folder: RESEARCH_${SAFE}"
+      - name: Calculate chunk plan
+        id: chunk
+        shell: bash
+        run: |
+          FOLDER="pdf_files/${{ steps.folder.outputs.folder_name }}"
+          mkdir -p "$FOLDER"
+          STATE_FILE="$FOLDER/chunk_state.json"
+          DEPTH="${{ github.event.inputs.research_depth }}"
+          DEPTH=$(echo "$DEPTH" | cut -d' ' -f1)
+          if [ -f "$STATE_FILE" ]; then
+            CHUNK=$(python3 -c "import json; d=json.load(open('$STATE_FILE')); print(d.get('chunk', 1))")
+            CHUNK=$((CHUNK + 1))
+          else
+            CHUNK=1
+          fi
+          case "$DEPTH" in
+            light) ESTIMATED=2 ;;
+            medium) ESTIMATED=4 ;;
+            deep) ESTIMATED=8 ;;
+            *) ESTIMATED=4 ;;
+          esac
+          echo "{\"chunk\": $CHUNK, \"estimated\": $ESTIMATED, \"depth\": \"$DEPTH\"}" > "$STATE_FILE"
+          echo "current_chunk=$CHUNK" >> $GITHUB_OUTPUT
+          echo "total_chunks=$ESTIMATED" >> $GITHUB_OUTPUT
+          echo "depth=$DEPTH" >> $GITHUB_OUTPUT
+          echo "============================================"
+          echo "  RESEARCH PLAN"
+          echo "  Chunk $CHUNK of ~$ESTIMATED"
+          echo "  Depth: $DEPTH"
+          echo "  Each chunk runs up to 3 hours"
+          echo "============================================"
       - name: Download previous research data (cumulative)
         if: always()
         continue-on-error: true
@@ -1524,6 +1564,22 @@ jobs:
           fi
           echo "zip_name=$ZIP_NAME" >> $GITHUB_OUTPUT
 
+      - name: Report chunk progress
+        if: always()
+        shell: bash
+        run: |
+          STATE_FILE="pdf_files/${{ steps.folder.outputs.folder_name }}/chunk_state.json"
+          CACHE_FILE="pdf_files/${{ steps.folder.outputs.folder_name }}/search_cache.json"
+          echo "============================================"
+          echo "  CHUNK ${{ steps.chunk.outputs.current_chunk }} OF ~${{ steps.chunk.outputs.total_chunks }}"
+          echo "  Depth: ${{ steps.chunk.outputs.depth }}"
+          if [ -f "$CACHE_FILE" ]; then
+            FOUND=$(python3 -c "import json; d=json.load(open('$CACHE_FILE')); print(len(d.get('papers_found',{})))" 2>/dev/null || echo "?")
+            DL=$(python3 -c "import json; d=json.load(open('$CACHE_FILE')); print(len(d.get('papers_downloaded',{})))" 2>/dev/null || echo "?")
+            echo "  Papers found: $FOUND  |  Downloaded: $DL"
+          fi
+          echo "============================================"
+
       - name: Auto-trigger next run (chain continuation)
         if: always() && steps.check_results.outputs.status == 'success'
         env:
@@ -1545,6 +1601,7 @@ jobs:
           TRIGGER_GENERATE_PAPER: ${{ github.event.inputs.generate_paper }}
           TRIGGER_PAPER_TYPE: ${{ github.event.inputs.paper_type }}
           TRIGGER_OUTPUT_FORMAT: ${{ github.event.inputs.output_format }}
+          TRIGGER_RESEARCH_DEPTH: ${{ github.event.inputs.research_depth }}
         shell: bash
         run: |
           echo "Checking if more work remains..."
@@ -1558,17 +1615,25 @@ jobs:
           EXHAUSTED=$(python3 -c "import json; d=json.load(open('$CACHE_FILE')); print(str(d.get('queries_exhausted',False)))" 2>/dev/null || echo "False")
           echo "Progress: $TOTAL_DL downloaded / $TOTAL_FOUND found / exhausted=$EXHAUSTED"
           if [ "$EXHAUSTED" = "True" ] && [ "$TOTAL_FOUND" -le "$TOTAL_DL" ]; then
-            echo "All work complete - no need to trigger another run"
+            echo "============================================"
+            echo "  ALL RESEARCH COMPLETE!"
+            echo "  Chunk ${{ steps.chunk.outputs.current_chunk }} of ~${{ steps.chunk.outputs.total_chunks }}"
+            echo "  Total papers found: $TOTAL_FOUND"
+            echo "  Total downloaded: $TOTAL_DL"
+            echo "============================================"
             exit 0
           fi
           REMAINING=$(( (TOTAL_FOUND - TOTAL_DL + 49) / 50 ))
           echo "Approximately $REMAINING batches remaining"
           if [ "$REMAINING" -le 0 ]; then
             echo "All papers downloaded - no need to trigger another run"
+            echo "============================================"
+            echo "  ALL RESEARCH COMPLETE!"
+            echo "============================================"
             exit 0
           fi
           echo "Triggering next run via GitHub API..."
-          PAYLOAD=$(printf '{"ref":"%s","inputs":{"title":"%s","rq1":"%s","rq2":"%s","rq3":"%s","field":"%s","study_type":"%s","study_level":"%s","methodology":"%s","thesis_part":"%s","quartile":"%s","language":"%s","year_from":"%s","year_to":"%s","mode":"%s","paper_limit":"%s","folder_mode":"%s","scihub":"%s","proxy":"%s","learn":"%s","generate_paper":"%s","paper_type":"%s","output_format":"%s","geographic_area":"%s"}}' \
+          PAYLOAD=$(printf '{"ref":"%s","inputs":{"title":"%s","rq1":"%s","rq2":"%s","rq3":"%s","field":"%s","study_type":"%s","study_level":"%s","methodology":"%s","thesis_part":"%s","quartile":"%s","language":"%s","year_from":"%s","year_to":"%s","mode":"%s","paper_limit":"%s","folder_mode":"%s","scihub":"%s","proxy":"%s","learn":"%s","generate_paper":"%s","paper_type":"%s","output_format":"%s","geographic_area":"%s","research_depth":"%s"}}' \
             '${{ github.ref_name }}' \
             '${{ github.event.inputs.title }}' \
             '${{ github.event.inputs.rq1 }}' \
@@ -1592,7 +1657,8 @@ jobs:
             '${{ github.event.inputs.generate_paper }}' \
             '${{ github.event.inputs.paper_type }}' \
             '${{ github.event.inputs.output_format }}' \
-            '${{ github.event.inputs.geographic_area }}')
+            '${{ github.event.inputs.geographic_area }}' \
+            '${{ github.event.inputs.research_depth }}')
           curl -s -X POST \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer $GITHUB_TOKEN" \
