@@ -1666,26 +1666,7 @@ jobs:
             exit 0
           fi
           echo "Triggering next run via GitHub API..."
-          python3 << 'PYEOF'
-import json, os
-
-payload = {
-    "ref": os.environ.get("GITHUB_REF_NAME", "main"),
-    "inputs": {}
-}
-
-for k, v in sorted(os.environ.items()):
-    if k.startswith("TRIGGER_"):
-        input_name = k.replace("TRIGGER_", "").lower()
-        payload["inputs"][input_name] = v
-
-with open("/tmp/payload.json", "w") as f:
-    json.dump(payload, f)
-
-print("=== PAYLOAD (all inputs preserved) ===")
-print(json.dumps(payload, indent=2))
-print("======================================")
-PYEOF
+          python3 -c "import json, os; payload = {'ref': os.environ.get('GITHUB_REF_NAME', 'main'), 'inputs': {}}; [payload['inputs'].update({k.replace('TRIGGER_', '').lower(): v}) for k, v in os.environ.items() if k.startswith('TRIGGER_')]; open('/tmp/payload.json', 'w').write(json.dumps(payload)); print('=== PAYLOAD (all inputs preserved) ==='); print(json.dumps(payload, indent=2)); print('======================================')"
           curl -s -X POST \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer $GITHUB_TOKEN" \
