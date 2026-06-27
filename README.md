@@ -106,7 +106,8 @@ python telegram_bot.py
 ## CI/CD
 
 - `bot-polling.yml` — runs the bot in 5-min cycles via GHA.
-- `test.yml` — runs unit tests on every push.
+- `ci.yml` — fast offline checks (compile, imports, unit tests, health) on every PR + push.
+- `test.yml` — full suite incl. network/ollama end-to-end smoke tests (manual `workflow_dispatch`).
 - `backup.yml` — weekly state + logs backup.
 - `write-chapter.yml` — v0.2 multi-day chapter writer.
 

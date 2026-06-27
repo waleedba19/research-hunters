@@ -39,6 +39,17 @@ smoke_reports/
 # Database files (regenerated each run)
 *.db
 
+# Reference manager libraries (personal, large — never commit)
+*.sdf
+
+# Generated reports / spreadsheets (regenerated each run)
+master_papers.xlsx
+ULTIMATE_RESEARCH_SYNTHESIS.xlsx
+ULTIMATE_RESEARCH_SYNTHESIS.docx
+
+# Backup files
+*.backup
+
 # Brain report (regenerated each run)
 brain_report.md
 

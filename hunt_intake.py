@@ -29,7 +29,7 @@ log = get_logger("hunt_intake")
 HUNT_STEPS: List[Dict[str, Any]] = [
     {
         "key": "research_type",
-        "prompt": ("📚 *Step 1/13: Research type*\n\n"
+        "prompt": ("📚 *Step 1/14: Research type*\n\n"
                    "What type of work are you researching for?\n"
                    "(This helps me tailor the search and quartile check.)"),
         "options": [
@@ -46,7 +46,7 @@ HUNT_STEPS: List[Dict[str, Any]] = [
     },
     {
         "key": "title",
-        "prompt": ("🔖 *Step 2/13: Title / Topic*\n\n"
+        "prompt": ("🔖 *Step 2/14: Title / Topic*\n\n"
                    "What is the topic of your hunt?\n"
                    "_(e.g., 'machine learning in education' or "
                    "'Attention is all you need')_"),
@@ -54,7 +54,7 @@ HUNT_STEPS: List[Dict[str, Any]] = [
     },
     {
         "key": "field",
-        "prompt": ("🎓 *Step 3/13: Field / discipline*\n\n"
+        "prompt": ("🎓 *Step 3/14: Field / discipline*\n\n"
                    "Which academic field is your topic in?\n"
                    "_(This picks the right platforms, journals, and quartile check.)_"),
         "options": [
@@ -75,7 +75,7 @@ HUNT_STEPS: List[Dict[str, Any]] = [
     },
     {
         "key": "rq_angle",
-        "prompt": ("🧭 *Step 4/13: Research angle*\n\n"
+        "prompt": ("🧭 *Step 4/14: Research angle*\n\n"
                    "Which angle is your study approaching the topic from?\n"
                    "_(This drives the AI's RQ generation & search-query bias.)_"),
         "options": [
@@ -91,7 +91,7 @@ HUNT_STEPS: List[Dict[str, Any]] = [
     },
     {
         "key": "research_questions",
-        "prompt": ("❓ *Step 5/13: Research Questions*\n\n"
+        "prompt": ("❓ *Step 5/14: Research Questions*\n\n"
                    "How should I handle research questions?\n"
                    "_(I'll generate 3 RQ *packages* with different angles after "
                    "the intake. Pick the package you like, or type your own.)_"),
@@ -104,7 +104,7 @@ HUNT_STEPS: List[Dict[str, Any]] = [
     },
     {
         "key": "year_range",
-        "prompt": ("📅 *Step 6/13: Year range*\n\n"
+        "prompt": ("📅 *Step 6/14: Year range*\n\n"
                    "Which years should I search?\n"
                    "_(Examples: '2020-2024', '2018', or just press Skip for any)_"),
         "default": "any",
@@ -112,7 +112,7 @@ HUNT_STEPS: List[Dict[str, Any]] = [
     },
     {
         "key": "language",
-        "prompt": ("🌐 *Step 7/13: Language of papers*\n\n"
+        "prompt": ("🌐 *Step 7/14: Language of papers*\n\n"
                    "Which language should the papers be in?"),
         "options": [
             ("en",    "🇬🇧 English"),
@@ -128,7 +128,7 @@ HUNT_STEPS: List[Dict[str, Any]] = [
     },
     {
         "key": "country",
-        "prompt": ("🗺 *Step 8/13: Geographic focus*\n\n"
+        "prompt": ("🗺 *Step 8/14: Geographic focus*\n\n"
                    "Which region/countries should the study emphasize?\n"
                    "_(Filters & boosts region-specific repositories.)_"),
         "options": [
@@ -146,7 +146,7 @@ HUNT_STEPS: List[Dict[str, Any]] = [
     },
     {
         "key": "paper_type",
-        "prompt": ("📄 *Step 9/13: Paper type*\n\n"
+        "prompt": ("📄 *Step 9/14: Paper type*\n\n"
                    "Which types of papers should I look for?"),
         "options": [
             ("journal",    "📰 Journal articles"),
@@ -161,7 +161,7 @@ HUNT_STEPS: List[Dict[str, Any]] = [
     },
     {
         "key": "quartile_filter",
-        "prompt": ("⭐ *Step 10/13: Quartile filter*\n\n"
+        "prompt": ("⭐ *Step 10/14: Quartile filter*\n\n"
                    "Should I limit by journal quartile (Scimago/JCR)?"),
         "options": [
             ("q1",    "⭐ Q1 only (top 25%)"),
@@ -173,7 +173,7 @@ HUNT_STEPS: List[Dict[str, Any]] = [
     },
     {
         "key": "open_access",
-        "prompt": ("🔓 *Step 11/13: Open Access only?*\n\n"
+        "prompt": ("🔓 *Step 11/14: Open Access only?*\n\n"
                    "Should I restrict to open-access papers only?"),
         "options": [
             ("yes", "✅ Yes, open-access only"),
@@ -184,7 +184,7 @@ HUNT_STEPS: List[Dict[str, Any]] = [
     },
     {
         "key": "platforms",
-        "prompt": ("🌐 *Step 12/13: Platforms*\n\n"
+        "prompt": ("🌐 *Step 12/14: Platforms*\n\n"
                    "Which platforms should I search?"),
         "options": [
             ("all", "🌍 All 81 platforms (best coverage, slowest)"),
@@ -196,7 +196,7 @@ HUNT_STEPS: List[Dict[str, Any]] = [
     },
     {
         "key": "max_papers",
-        "prompt": ("📄 *Step 13/13: Max papers*\n\n"
+        "prompt": ("📄 *Step 13/14: Max papers*\n\n"
                    "How many papers should I aim to find?\n"
                    "_(Default: 1000. Type 0 or 'deep' for no cap. "
                    "5000 papers = 30-90 min on deep search.)_"),

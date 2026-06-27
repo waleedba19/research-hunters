@@ -1,0 +1,97 @@
+name: CI
+
+# Fast, deterministic checks that run automatically on every PR and push.
+# No ollama and no network-dependent smoke tests (those live in test.yml,
+# which is workflow_dispatch). Everything here must pass offline.
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install deps
+        run: pip install --no-cache-dir -r requirements.txt
+
+      - name: Syntax check all .py files (warnings are errors)
+        run: python3 -W error::SyntaxWarning -m compileall -q .
+
+      - name: Import smoke test
+        run: |
+          python3 -c "import logger, error_handler, state_manager, wizard, scoring_prompts, pdf_parser, metadata_extractor, platform_registry, google_integration, precision_engine, telegram_bot, hunt_pipeline, verify_refs, verify_refs.orchestrator, verify_refs.reports, verify_refs.input_parser" && echo "ALL IMPORTS OK"
+
+      - name: "Unit test: state_manager"
+        run: |
+          python3 -c "
+          from state_manager import save_chapter_state, load_chapter_state, clear_chapter_state
+          save_chapter_state(99999, {'foo': 'bar'})
+          s = load_chapter_state(99999)
+          assert s and s.get('foo') == 'bar', s
+          clear_chapter_state(99999)
+          assert load_chapter_state(99999) is None
+          print('state_manager OK')
+          "
+
+      - name: "Unit test: wizard"
+        run: |
+          python3 -c "
+          from wizard import start_wizard, get_current_step, record_answer, skip_step, WIZARD_STEPS
+          start_wizard(88888)
+          for step in WIZARD_STEPS:
+              s = skip_step(88888)
+          assert s.get('wizard_complete'), s
+          print('wizard OK')
+          "
+
+      - name: "Unit test: pdf_parser"
+        run: |
+          python3 -c "
+          from pdf_parser import parse_chapter_references, extract_text
+          txt = 'Some text (Smith, 2020, p. 12) about stuff. More (Jones et al., 2021).\n\nReferences\n\n1. Smith, J. (2020). Deep learning. Journal of AI, 5(2), 1-10.\n2. Jones, A. et al. (2021). Neural networks. Nature, 100, 200-210.\n'
+          import tempfile, os
+          f = tempfile.NamedTemporaryFile(suffix='.txt', delete=False, mode='w')
+          f.write(txt); f.close()
+          r = parse_chapter_references(f.name)
+          assert len(r['in_text_citations']) >= 1, r
+          assert len(r['reference_list']) >= 1, r
+          os.unlink(f.name)
+          print('pdf_parser OK')
+          "
+
+      - name: "Unit test: verify_refs (parser + reports, no e2e)"
+        run: python3 tests/test_verify_refs.py --no-e2e
+
+      - name: "Unit test: hunt_intake (state machine)"
+        run: python3 tests/test_hunt_intake.py
+
+      - name: "E2E test: hunt_intake (button + text + skip flow)"
+        run: python3 tests/test_hunt_intake_e2e.py
+
+      - name: "Unit test: report_pdf"
+        run: python3 tests/test_report_pdf.py
+
+      - name: "Unit test: drive_integration (mocked Drive)"
+        run: python3 tests/test_drive_integration.py
+
+      - name: "Unit test: future_studies (mocked ollama)"
+        run: python3 tests/test_future_studies.py
+
+      - name: "Unit test: telegram_ui"
+        run: python3 -m unittest discover -s tests -p "test_telegram_ui.py"
+
+      - name: "Generate sample reports (fixed dataset, no ollama)"
+        run: python3 tests/generate_sample_reports.py
+
+      - name: "Health check: platforms, helpers, structure, verify_refs"
+        run: python3 tests/test_health.py

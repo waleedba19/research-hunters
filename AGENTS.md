@@ -28,7 +28,7 @@ The system previously used `ghcr.io/wo312092-creator/runner-base:latest` but now
   - Status: VERIFIED (≥0.85 score), LIKELY (0.60-0.85), UNVERIFIED, FAKE.
 - `report_pdf.py` — v6.4 DOCX→PDF via LibreOffice (6 paths) or docx2pdf. Heavy report for Telegram delivery.
 - `future_studies.py` — v6.5 AI-powered research gap suggestions. Uses `precision_engine._call_ollama` to generate 3-5 (configurable) gap-filling study proposals. Falls back to 5 deterministic templates if ollama fails. `to_markdown()` renders suggestions for the report section.
-- `hunt_intake.py` — v6.3 5-step /hunt2 state machine (title, research_type, platforms, max_papers, download_pdfs). Wired into `telegram_bot._run_v2_hunt_from_intake` with heartbeat every 5 min.
+- `hunt_intake.py` — /hunt2 intake state machine (`HUNT_STEPS`, 14 steps: research_type, title, field, rq_angle, research_questions, year_range, language, country, paper_type, quartile_filter, open_access, platforms, max_papers, download_pdfs). Only `title` is required; every other step is skippable. Wired into `telegram_bot._run_v2_hunt_from_intake` with heartbeat every 5 min.
 
 ## Conventions
 
@@ -69,7 +69,8 @@ for p in r[:3]:
 ## GHA workflows
 
 - `bot-polling.yml` — runs every 5 min. Long-polls Telegram, processes up to 25 updates per cycle, exits. Total compute: ~144 min/day.
-- `test.yml` — runs on PR + push. Unit tests for state_manager, wizard, pdf_parser.
+- `ci.yml` — runs automatically on every PR + push. Fast, deterministic, offline checks: compile (warnings = errors), import smoke, unit tests (state_manager, wizard, pdf_parser, verify_refs, hunt_intake, report_pdf, drive_integration, future_studies, telegram_ui) + health check. No ollama, no network.
+- `test.yml` — `workflow_dispatch` only. Full suite including the network/ollama end-to-end smoke tests (`test_hunt_smoke`, `test_verify_refs_smoke`) that can't run reliably offline.
 - `backup.yml` — weekly tar.gz of state + logs, uploaded as artifact.
 - `write-chapter.yml` — v0.2. Multi-job chapter writer via repository_dispatch.
 
