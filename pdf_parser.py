@@ -157,7 +157,7 @@ def _parse_reference_entries(ref_text: str) -> List[str]:
 
 
 def _split_by_year_positions(text: str) -> List[str]:
-    """Split text on year positions, walking back from each year to find entry start.
+    r"""Split text on year positions, walking back from each year to find entry start.
     Entry start = the last ".\s" that comes before the year, where what's after
     looks like an author name (Capital + word + maybe comma + maybe "et al.").
     """
@@ -196,7 +196,7 @@ def _split_by_year_positions(text: str) -> List[str]:
 
 
 def _find_entry_boundary(text: str, year_pos: int) -> Optional[int]:
-    """Walk back from year_pos to find the position where the current entry starts.
+    r"""Walk back from year_pos to find the position where the current entry starts.
     Returns the character index right after the ".\s" that ends the previous entry.
     Strategy: find the ".\s" + Capital letter pattern, with a minimum distance
     of 10 chars from the year (so we skip "et al." and initials like "A.").

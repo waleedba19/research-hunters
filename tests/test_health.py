@@ -10,7 +10,7 @@ Runs on every CI test. Verifies:
   6. Platform count meets minimum (>= 70, currently 81)
   7. Reference-list-driven verification mode (verify_refs) is wired up
   8. Telegram bot has the /verifyrefs command + all step handlers
-  9. Unified /hunt2 intake (hunt_intake module) has all 5 steps and is wired to telegram_bot
+  9. Unified /hunt2 intake (hunt_intake module) has all 14 steps and is wired to telegram_bot
   10. v6.4 deep search unleashed (max_papers default = 1000)
   11. v6.4 report_pdf module exists for DOCX to PDF heavy report conversion
   12. v6.4.1 google_integration Drive upload is unit-tested (8 mocked tests)
@@ -225,26 +225,28 @@ def main() -> int:
             is_intake_active, is_intake_complete, cancel_intake,
             intake_progress_text,
         )
-        expected_keys = {"research_type", "title", "research_questions",
-                         "year_range", "platforms", "max_papers", "download_pdfs"}
+        expected_keys = {"research_type", "title", "field", "rq_angle",
+                         "research_questions", "year_range", "language",
+                         "country", "paper_type", "quartile_filter",
+                         "open_access", "platforms", "max_papers", "download_pdfs"}
         actual_keys = {s["key"] for s in HUNT_STEPS}
         if expected_keys != actual_keys:
             print(f"[health] FAIL: HUNT_STEPS keys mismatch: {actual_keys} vs {expected_keys}")
             errors += 1
         else:
-            print(f"[health] OK: HUNT_STEPS has all 7 expected keys: {sorted(actual_keys)}")
-        if len(HUNT_STEPS) != 7:
-            print(f"[health] FAIL: expected 7 steps, got {len(HUNT_STEPS)}")
+            print(f"[health] OK: HUNT_STEPS has all {len(expected_keys)} expected keys: {sorted(actual_keys)}")
+        if len(HUNT_STEPS) != 14:
+            print(f"[health] FAIL: expected 14 steps, got {len(HUNT_STEPS)}")
             errors += 1
         else:
-            print(f"[health] OK: 7 steps total")
+            print(f"[health] OK: 14 steps total")
         # Required step check
         required_steps = [s["key"] for s in HUNT_STEPS if not s.get("allow_skip")]
         if required_steps != ["title"]:
             print(f"[health] FAIL: only 'title' should be required, got {required_steps}")
             errors += 1
         else:
-            print(f"[health] OK: only 'title' is required, other 4 steps skippable")
+            print(f"[health] OK: only 'title' is required, other steps skippable")
         # Default max_papers should be 1000 (v6.4 — unleashes deep search)
         max_papers_step = next(s for s in HUNT_STEPS if s["key"] == "max_papers")
         default = max_papers_step.get("default")
