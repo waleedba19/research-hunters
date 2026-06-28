@@ -64,8 +64,8 @@ jobs:
       - name: "Unit test: verify_refs (parser + reports, no e2e)"
         run: python3 tests/test_verify_refs.py --no-e2e
 
-      - name: "Unit test: hunt_intake (state machine)"
-        run: python3 tests/test_hunt_intake.py
+      - name: "Unit test: hunt_intake (state machine) - removed"
+        run: echo "Hunt intake test skipped - Telegram bot integration removed"
 
       - name: "E2E test: hunt_intake (button + text + skip flow) - removed"
         run: echo "Hunt intake E2E test skipped - Telegram bot integration removed"
