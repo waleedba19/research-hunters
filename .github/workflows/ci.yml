@@ -29,7 +29,7 @@ jobs:
 
       - name: Import smoke test
         run: |
-          python3 -c "import logger, error_handler, state_manager, wizard, scoring_prompts, pdf_parser, metadata_extractor, platform_registry, google_integration, precision_engine, telegram_bot, hunt_pipeline, verify_refs, verify_refs.orchestrator, verify_refs.reports, verify_refs.input_parser" && echo "ALL IMPORTS OK"
+          python3 -c "import logger, error_handler, state_manager, scoring_prompts, pdf_parser, metadata_extractor, platform_registry, precision_engine, hunt_pipeline, verify_refs, verify_refs.orchestrator, verify_refs.reports, verify_refs.input_parser" && echo "ALL IMPORTS OK"
 
       - name: "Unit test: state_manager"
         run: |
@@ -75,14 +75,14 @@ jobs:
       - name: "Unit test: hunt_intake (state machine)"
         run: python3 tests/test_hunt_intake.py
 
-      - name: "E2E test: hunt_intake (button + text + skip flow)"
-        run: python3 tests/test_hunt_intake_e2e.py
+      - name: "E2E test: hunt_intake (button + text + skip flow) - removed"
+        run: echo "Hunt intake E2E test skipped - Telegram bot integration removed"
 
       - name: "Unit test: report_pdf"
         run: python3 tests/test_report_pdf.py
 
-      - name: "Unit test: drive_integration (mocked Drive)"
-        run: python3 tests/test_drive_integration.py
+      - name: "Unit test: drive_integration (removed - Excel-focused system)"
+        run: echo "Drive integration test skipped - Google Drive integration removed"
 
       - name: "Unit test: future_studies (mocked ollama)"
         run: python3 tests/test_future_studies.py
@@ -92,6 +92,9 @@ jobs:
 
       - name: "Generate sample reports (fixed dataset, no ollama)"
         run: python3 tests/generate_sample_reports.py
+
+      - name: "Test Excel generation system (v10.0)"
+        run: python3 generate_ultimate_excel_v10.py
 
       - name: "Health check: platforms, helpers, structure, verify_refs"
         run: python3 tests/test_health.py
