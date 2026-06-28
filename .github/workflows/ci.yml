@@ -43,16 +43,8 @@ jobs:
           print('state_manager OK')
           "
 
-      - name: "Unit test: wizard"
-        run: |
-          python3 -c "
-          from wizard import start_wizard, get_current_step, record_answer, skip_step, WIZARD_STEPS
-          start_wizard(88888)
-          for step in WIZARD_STEPS:
-              s = skip_step(88888)
-          assert s.get('wizard_complete'), s
-          print('wizard OK')
-          "
+      - name: "Unit test: wizard (removed - Excel-focused system)"
+        run: echo "Wizard test skipped - Telegram bot integration removed"
 
       - name: "Unit test: pdf_parser"
         run: |
@@ -87,8 +79,8 @@ jobs:
       - name: "Unit test: future_studies (mocked ollama)"
         run: python3 tests/test_future_studies.py
 
-      - name: "Unit test: telegram_ui"
-        run: python3 -m unittest discover -s tests -p "test_telegram_ui.py"
+      - name: "Unit test: telegram_ui (removed - Excel-focused system)"
+        run: echo "Telegram UI test skipped - Telegram bot integration removed"
 
       - name: "Generate sample reports (fixed dataset, no ollama)"
         run: python3 tests/generate_sample_reports.py
