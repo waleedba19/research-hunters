@@ -7170,8 +7170,14 @@ def main():
             sys.exit(2)
         raw_field = os.environ.get("CI_FIELD", "")
         if raw_field and not raw_field.startswith("auto"):
-            fkey = raw_field.split(" -", 1)[0].strip()
-            field = FIELDS.get(fkey, raw_field)
+            # The workflow option the user picked is the source of truth —
+            # e.g. "15 - Higher Education". Resolve to the clean name after
+            # " -" so the engine always matches what the user saw, even when
+            # the internal FIELDS dict numbering is out of sync.
+            if " -" in raw_field:
+                field = raw_field.split(" -", 1)[1].strip()
+            else:
+                field = raw_field
         else:
             field = auto_detect_field(title, [])
         mode_str = os.environ.get("CI_MODE_VAL", "deep")
@@ -7192,8 +7198,20 @@ def main():
         rqs = [v for v in [os.environ.get("CI_RQ1", ""), os.environ.get("CI_RQ2", "")] if v.strip()]
         raw_st = os.environ.get("CI_STUDY_TYPES", "")
         if raw_st and not raw_st.startswith("auto"):
-            st_keys = [s.split(" -", 1)[0].strip() for s in raw_st.split(",")]
-            study_types = [STUDY_TYPES.get(k, "") for k in st_keys if k.isdigit() and k in STUDY_TYPES]
+            # The workflow option the user picked is the source of truth —
+            # resolve to the clean name after " -" so the engine always matches
+            # what the user saw, even when STUDY_TYPES dict numbering is out of sync.
+            study_types = []
+            for s in raw_st.split(","):
+                s = s.strip()
+                if not s:
+                    continue
+                if " -" in s:
+                    study_types.append(s.split(" -", 1)[1].strip())
+                else:
+                    study_types.append(s)
+            if not study_types:
+                study_types = auto_detect_study_type(title, rqs)
         else:
             study_types = auto_detect_study_type(title, rqs)
         # Study level filter
