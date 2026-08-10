@@ -2,34 +2,36 @@
 """
 run.py — Convenience entrypoint.
 
-Tries to run the Telegram bot. If credentials are missing, prints setup help.
+Runs a local research hunt via hunt_pipeline.run_hunt. The Telegram bot layer
+was removed from this repo; the core search engine works standalone.
+
+Usage:
+  python run.py "Your research topic"
+  python run.py "Your research topic" --max-papers 50
 """
+import argparse
+import json
 import os
 import sys
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Run a local research hunt.")
+    parser.add_argument("title", nargs="?", help="Research topic / title")
+    parser.add_argument("--max-papers", type=int, default=30, help="Max papers to fetch")
+    parser.add_argument("--field", default="general", help="Academic field")
+    parser.add_argument("--year-from", type=int, default=2018)
+    parser.add_argument("--year-to", type=int, default=2025)
+    parser.add_argument("--no-download", action="store_true", help="Skip PDF downloads")
+    args = parser.parse_args()
+
     print("=" * 60)
-    print("Literature Review Verifier — Search Sleeping Bot")
+    print("Research Hunter — Local Hunt")
     print("=" * 60)
 
-    # Check required env vars
-    tg_token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
-    g_refresh = os.environ.get("GOOGLE_OAUTH_REFRESH", "")
-
-    missing = []
-    if not tg_token:
-        missing.append("TELEGRAM_BOT_TOKEN")
-    if not g_refresh:
-        missing.append("GOOGLE_OAUTH_REFRESH")
-
-    if missing:
-        print(f"\n⚠️  Missing env vars: {', '.join(missing)}")
-        print("Set them in .env (see .env.example) or export them, then run again.")
-        print("\nQuick start:")
-        print("  cp .env.example .env")
-        print("  # Edit .env with your tokens")
-        print("  python run.py")
+    if not args.title:
+        print("\nUsage: python run.py \"<research topic>\" [--max-papers N]")
+        print("Example: python run.py \"impact of AI on education\" --max-papers 20")
         return 1
 
     # Check v2-4 source
@@ -37,19 +39,45 @@ def main():
     if not os.path.exists(v24_path):
         print(f"\n⚠️  research_hunter_v2_4.py not found at {v24_path}")
         print("Drop your v2-4 source there (see V2_4_README.md).")
-        print("The bot will still work, but /find will return no results until then.")
-        print()
+        return 1
 
-    # Try to import and run
     try:
-        import telegram_bot
-        print("\n✅ Starting bot in long-polling mode (Ctrl+C to stop)...")
-        telegram_bot.main()
-    except KeyboardInterrupt:
-        print("\n👋 Bot stopped.")
+        from hunt_pipeline import run_hunt
     except Exception as e:
-        print(f"\n❌ Bot failed to start: {e}")
+        print(f"\n❌ Failed to import hunt_pipeline: {e}")
         return 2
+
+    params = {
+        "title": args.title,
+        "field": args.field,
+        "study_types": [],
+        "year_from": args.year_from,
+        "year_to": args.year_to,
+        "research_questions": [],
+        "platforms": ["all"],
+        "search_mode": "normal",
+        "use_scihub": False,
+        "single_folder": True,
+        "study_keywords": [],
+        "lang_label": "English",
+        "search_languages": ["en"],
+        "max_papers": args.max_papers,
+        "download_pdfs": not args.no_download,
+    }
+
+    print(f"\n🚀 Starting hunt: {args.title!r}")
+    print(f"   Max papers: {args.max_papers} | Years: {args.year_from}-{args.year_to}")
+    try:
+        result = run_hunt(params)
+    except KeyboardInterrupt:
+        print("\n👋 Hunt stopped.")
+        return 0
+    except Exception as e:
+        print(f"\n❌ Hunt failed: {e}")
+        return 2
+
+    summary = {k: v for k, v in result.items() if k != "papers"}
+    print(f"\n✅ Hunt complete:\n{json.dumps(summary, indent=2, default=str)}")
     return 0
 
 

@@ -1,35 +1,60 @@
 name: Hunt Runner
 
+# Runs the research hunt pipeline (hunt_pipeline.run_hunt) and uploads the
+# results as artifacts. The Telegram/Drive notification layer was removed;
+# this workflow now produces downloadable artifacts instead.
+
 on:
   workflow_dispatch:
     inputs:
-      chat_id:
-        description: "Telegram chat ID to send results to"
+      title:
+        description: "Research topic / title"
         required: true
         type: string
-      params_json:
-        description: "JSON-encoded hunt parameters"
-        required: true
+      field:
+        description: "Academic field (default: general)"
+        required: false
+        default: "general"
+        type: string
+      max_papers:
+        description: "Max papers to fetch"
+        required: false
+        default: "30"
+        type: string
+      year_from:
+        description: "Earliest publication year"
+        required: false
+        default: "2018"
+        type: string
+      year_to:
+        description: "Latest publication year"
+        required: false
+        default: "2025"
         type: string
 
+permissions:
+  contents: read
+
 concurrency:
-  group: hunt-runner-${{ inputs.chat_id }}
+  group: hunt-runner
   cancel-in-progress: true
 
 jobs:
   hunt:
     runs-on: ubuntu-latest
-    timeout-minutes: 360
+    timeout-minutes: 120
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup system deps + Ollama
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Setup Ollama
         run: |
           set -e
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq curl
           curl -fsSL https://ollama.com/install.sh | sh
           ollama serve > /tmp/ollama.log 2>&1 &
           for i in $(seq 1 60); do
@@ -43,19 +68,53 @@ jobs:
           ollama list
 
       - name: Install deps
-        run: pip install --no-cache-dir --break-system-packages -r requirements.txt
+        run: pip install --no-cache-dir -r requirements.txt
 
-      - name: Write params
+      - name: Run hunt pipeline
         env:
-          RAW_JSON: '${{ inputs.params_json }}'
-        run: python3 -c "import os; open('/tmp/hunt_params.json','w').write(os.environ['RAW_JSON'])"
-
-      - name: Run hunt
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          GOOGLE_OAUTH_REFRESH: ${{ secrets.GOOGLE_OAUTH_REFRESH }}
-          GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
-          GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
           OLLAMA_HOST: http://127.0.0.1:11434
-          CHAT_ID: ${{ inputs.chat_id }}
-        run: python3 gha_run_hunt.py
+          CI_MODE: "true"
+          PYTHONIOENCODING: utf-8
+          HUNT_TITLE: ${{ inputs.title }}
+          HUNT_FIELD: ${{ inputs.field }}
+          HUNT_MAX_PAPERS: ${{ inputs.max_papers }}
+          HUNT_YEAR_FROM: ${{ inputs.year_from }}
+          HUNT_YEAR_TO: ${{ inputs.year_to }}
+        run: |
+          python3 -c "
+          import json, os, sys
+          from hunt_pipeline import run_hunt
+
+          params = {
+              'title': os.environ.get('HUNT_TITLE', ''),
+              'field': os.environ.get('HUNT_FIELD', 'general'),
+              'study_types': [],
+              'year_from': int(os.environ.get('HUNT_YEAR_FROM', '2018')),
+              'year_to': int(os.environ.get('HUNT_YEAR_TO', '2025')),
+              'research_questions': [],
+              'platforms': ['all'],
+              'search_mode': 'normal',
+              'use_scihub': False,
+              'single_folder': True,
+              'study_keywords': [],
+              'lang_label': 'English',
+              'search_languages': ['en'],
+              'max_papers': int(os.environ.get('HUNT_MAX_PAPERS', '30')),
+              'download_pdfs': True,
+          }
+          result = run_hunt(params)
+          print('=== HUNT RESULT ===')
+          print(json.dumps({k: v for k, v in result.items() if k != 'papers'}, indent=2, default=str))
+          if not result.get('success', True):
+              print('Hunt reported failure', file=sys.stderr)
+              sys.exit(1)
+          "
+
+      - name: Upload hunt results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hunt-results
+          path: pdf_files/
+          if-no-files-found: ignore
+          retention-days: 30
