@@ -1004,9 +1004,9 @@ on:
           - '1505'
           - '1500 - Ancient/Historical Sources'
       mode:
-        description: '⚡ SEARCH MODE — All modes search all 128+ platforms. Mode controls search depth only. Paper limit is set separately below. Every mode guarantees Excel (40+ sheets) + DOCX report. Toggle "Download PDFs" below to also get PDF files.'
+        description: '⚡ SEARCH MODE — All modes search all 81 platforms. Mode controls search depth only. Paper limit is set separately below. Every mode guarantees Excel (40+ sheets) + DOCX report. Toggle "Download PDFs" below to also get PDF files.'
         required: true
-        default: 'deep - DEEP — Searches all 128 platforms with full depth [RECOMMENDED]'
+        default: 'deep - DEEP — Searches all 81 platforms with full depth [RECOMMENDED]'
         type: choice
         options:
           - 'sample - SAMPLE — Light search, quick turnaround, limited platforms'
@@ -1014,7 +1014,7 @@ on:
           - 'quick - QUICK — Fast search across all platforms'
           - 'field - FIELD — Balanced search for field-level coverage'
           - 'extended - EXTENDED — Extended search, thorough coverage [RECOMMENDED]'
-          - 'deep - DEEP — Full-depth search across all 128+ platforms [RECOMMENDED]'
+          - 'deep - DEEP — Full-depth search across all 81 platforms [RECOMMENDED]'
           - 'ultra - ULTRA — Ultra-deep search with multiple query rounds'
           - 'maximum - MAXIMUM — Exhaustive search, every possible query'
       research_depth:

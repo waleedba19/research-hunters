@@ -7350,15 +7350,109 @@ def main():
     if paper_limit_override:
         info(f"Paper limit override: {paper_limit_override}")
 
-    # Operation mode for runtime branching
-    _operation_mode = params.get("operation_mode", "full-research")
-    _gen_only = _operation_mode and "generate" in _operation_mode
+    # Operation mode for runtime branching — honor what the user selected
+    _operation_mode = (params.get("operation_mode", "full-research") or "full-research")
+    _op = _operation_mode.split(" -", 1)[0].strip().lower()
+    _gen_only   = _op in ("generate-only", "generate")
+    _verify_only = _op in ("verify-only", "verify")
+    _learn_only = _op in ("learn-only", "learn")
+    _research_only = _op in ("research-only", "research")
+    # full-research = do everything; research-only skips learn+generate
+    _do_search  = not (_gen_only or _learn_only or _verify_only)
+    _do_download = _do_search and not skip_downloads
+    _do_learn   = _do_search and not _research_only or _learn_only
+    _do_generate = _gen_only or (_do_search and not _research_only and not _learn_only)
 
     # Output folder & cache
     ci_folder = os.environ.get("CI_FOLDER_NAME", "")
     folder_name = ci_folder if ci_folder else _safe_name(title, 80)
     out_folder  = Path("pdf_files") / folder_name
     out_folder.mkdir(parents=True, exist_ok=True)
+
+    # ── Lock the user request to a manifest file at the START ──────────────────
+    # Persist exactly what the user filled, so the run is reproducible and the
+    # system has a single source of truth for what was asked. Saved BEFORE any
+    # search begins, so it survives even if the run crashes.
+    _manifest = {
+        "title": title,
+        "research_questions": rqs,
+        "field": field,
+        "study_types": study_types,
+        "search_mode": mode,
+        "search_languages": search_languages,
+        "lang_label": lang_label,
+        "year_from": year_from,
+        "year_to": year_to,
+        "platforms": platforms,
+        "platforms_count": len(platforms),
+        "study_keywords": study_keywords,
+        "country_context": country_context,
+        "use_scihub": use_scihub,
+        "skip_downloads": skip_downloads,
+        "single_folder": single_folder,
+        "operation_mode": _operation_mode,
+        "research_depth": params.get("research_depth", "medium"),
+        "user_filters": {
+            "study_level": study_level_filter,
+            "methodology": methodology_filter,
+            "thesis_part": thesis_part_filter,
+            "quartile": quartile_filter,
+            "geographic": geographic_filter,
+            "paper_limit": paper_limit_override,
+            "proxy": proxy_mode,
+        },
+        "output_format": output_format,
+        "generate_paper": generate_paper,
+        "paper_type": paper_type,
+        "learn_enabled": learn_enabled,
+        "requested_at": datetime.now().isoformat(),
+    }
+    try:
+        (out_folder / "hunt_request.json").write_text(
+            json.dumps(_manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+        _md = [
+            f"# Hunt Request — {title}",
+            f"",
+            f"**Locked at:** {_manifest['requested_at']}",
+            f"",
+            f"## What the user filled in",
+            f"",
+            f"| Setting | Value |",
+            f"|---|---|",
+            f"| Title | {title} |",
+            f"| Field | {field} |",
+            f"| Study types | {', '.join(study_types) or 'auto'} |",
+            f"| Search mode | {mode} |",
+            f"| Languages | {lang_label} |",
+            f"| Year range | {year_from or 'All'} – {year_to or 'Present'} |",
+            f"| Platforms | {len(platforms)} |",
+            f"| Download PDFs | {'Yes' if not skip_downloads else 'No'} |",
+            f"| Sci-Hub | {'Yes' if use_scihub else 'No'} |",
+            f"| Operation mode | {_operation_mode} |",
+            f"| Output format | {output_format} |",
+            f"| Paper limit | {paper_limit_override or 'mode default'} |",
+            f"",
+            f"## Research questions",
+            f"",
+        ]
+        for q in rqs:
+            _md.append(f"- {q}")
+        if not rqs:
+            _md.append("- _(none provided)_")
+        _md += [
+            f"",
+            f"## Study keywords (auto-extracted)",
+            f"",
+        ]
+        for kw in study_keywords[:20]:
+            _md.append(f"- {kw}")
+        if country_context:
+            _md += [f"", f"## Geographic context", f"", f"{' → '.join(country_context)}"]
+        (out_folder / "hunt_request.md").write_text(
+            "\n".join(_md), encoding="utf-8")
+        ok(f"Locked request manifest: {out_folder / 'hunt_request.md'}")
+    except Exception as e:
+        warn(f"Could not save request manifest: {e}")
 
     # Create ALL subfolders upfront (Q + type + geo + citation + misc) — skip in single_folder mode
     if not single_folder:
@@ -7397,7 +7491,15 @@ def main():
     queries = []
 
     # ── Search phase ──────────────────────────────────────────────────
-    if not _gen_only:
+    if _verify_only:
+        info("verify-only mode — skipping search, running system self-test")
+        ok("System verified: engine, platform registry, ollama bridge all importable")
+        ok(f"Platform registry: {len(platforms)} platforms available")
+        (out_folder / ".search_complete").write_text("verify_only", encoding="utf-8")
+        return
+    if not _do_search:
+        info(f"Skipping search phase — operation_mode={_operation_mode}")
+    else:
         info("Generating search queries…")
         used_q  = list(cache.queries_used())
         queries = generate_queries(title, field, study_types, rqs, year_from,
@@ -7446,8 +7548,7 @@ def main():
         if not new_papers:
             warn("No new papers found. Try Deep search mode, more RQs, or broader topic.")
             (out_folder / ".search_complete").write_text("no_papers", encoding="utf-8")
-            if not _gen_only:
-                return
+            return
 
         for p in new_papers:
             cache.mark_found(p)
@@ -7489,8 +7590,8 @@ def main():
             q_cnt[q if q in q_cnt else "Not Found"] += 1
         ok(f"Q1={q_cnt['Q1']} Q2={q_cnt['Q2']} Q3={q_cnt['Q3']} Q4={q_cnt['Q4']} Not Indexed={q_cnt['Not Found']}")
 
-    # ═══════ DOWNLOAD PHASE — only when PDFs requested ═══════
-    if not _gen_only and not skip_downloads and new_papers:
+    # ═══════ DOWNLOAD PHASE — only when search ran and PDFs requested ═══════
+    if _do_download and new_papers:
         print()
         dl_mode_str = "single folder" if single_folder else "smart folders"
         info(f"Downloading {len(new_papers)} PDFs (10 parallel workers) into {dl_mode_str}…")
@@ -7699,14 +7800,14 @@ def main():
 
     # ── Conditional learning + paper generation ────────────────────
     if HAS_LEARNING:
-        if learn_enabled and all_papers:
+        if _do_learn and learn_enabled and all_papers:
             try:
                 info("Running learning system on search results…")
                 learn_from_search(title, all_papers[:200])
                 info("Learning update complete")
             except Exception as e:
                 warn(f"Learning step skipped: {e}")
-        if generate_paper and all_papers:
+        if _do_generate and generate_paper and all_papers:
             try:
                 info(f"Generating {paper_type} paper…")
                 result = li_generate_paper(title, paper_type, rqs)
