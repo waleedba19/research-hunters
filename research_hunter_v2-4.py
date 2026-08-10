@@ -1135,91 +1135,6 @@ Write in formal academic prose. No bullet points. No headers within the summary.
 # ── HTTP Helpers ──────────────────────────────────────────────────────────────
 HDRS = {"User-Agent": "ResearchHunter/5.0 (academic; mailto:research@hunter.edu)"}
 
-# ════════════════════════════════════════════════════════════════════════════════
-#  ACADEMIC PROXY — auto-detects qoder G4F (port 8082), supports proxies.txt
-# ════════════════════════════════════════════════════════════════════════════════
-class AcademicProxy:
-    """
-    Proxy manager for accessing restricted academic sites.
-    Priority: qoder G4F proxy (localhost:8082) → academic_proxies.txt → direct.
-    """
-    PROXY_FILE       = "academic_proxies.txt"
-    QODER_HTTP_PORT  = 8082
-    RESTRICTED = {
-        "scholar.google.com","proquest.com","jstor.org",
-        "sciencedirect.com","springer.com","wiley.com",
-        "tandfonline.com","researchgate.net","academia.edu",
-        "sci-hub.se","sci-hub.st","z-lib.org","libgen.is","annas-archive.org",
-    }
-
-    def __init__(self):
-        self.external: list[str] = []
-        self._idx: int = 0
-        self.enabled: bool = False
-        self._qoder_alive: bool = False
-        self._load()
-        self._detect_qoder()
-
-    def _load(self):
-        pf = Path(self.PROXY_FILE)
-        if pf.exists():
-            lines = [l.strip() for l in pf.read_text(encoding="utf-8").splitlines()
-                     if l.strip() and not l.startswith("#")]
-            self.external = lines
-            if lines:
-                ok(f"Loaded {len(lines)} proxies from {self.PROXY_FILE}")
-
-    def _detect_qoder(self):
-        try:
-            r = requests.get(f"http://localhost:{self.QODER_HTTP_PORT}/",
-                             timeout=2, allow_redirects=False)
-            self._qoder_alive = r.status_code < 500
-        except Exception:
-            self._qoder_alive = False
-        if self._qoder_alive:
-            info(f"Qoder G4F proxy detected on port {self.QODER_HTTP_PORT}")
-
-    def current(self) -> dict:
-        if self._qoder_alive:
-            p = f"http://localhost:{self.QODER_HTTP_PORT}"
-            return {"http": p, "https": p}
-        if self.external:
-            p = self.external[self._idx % len(self.external)]
-            scheme = "socks5" if p.count(":") >= 2 else "http"
-            return {"http": f"{scheme}://{p}", "https": f"{scheme}://{p}"}
-        return {}
-
-    def rotate(self):
-        self._idx += 1
-        if self.external:
-            warn(f"Proxy rotated → {self.external[self._idx % len(self.external)]}")
-
-    def session_kwargs(self, verify: bool = False) -> dict:
-        kw: dict = {"headers": HDRS, "timeout": 20}
-        if self.enabled:
-            p = self.current()
-            if p:
-                kw["proxies"] = p
-                kw["verify"]  = verify
-        return kw
-
-    def needs_proxy(self, url: str) -> bool:
-        try:
-            from urllib.parse import urlparse
-            domain = urlparse(url).netloc.lstrip("www.")
-            return any(d in domain for d in self.RESTRICTED)
-        except Exception:
-            return False
-
-    def enable(self):
-        self.enabled = True
-        info("Academic proxy enabled")
-
-    def disable(self):
-        self.enabled = False
-
-_academic_proxy = AcademicProxy()
-
 
 def _get(url, params=None, timeout=14, hdrs=None, use_proxy=None) -> dict | list | None:
     """Proxy-aware GET.  use_proxy=None → auto by domain."""
@@ -5128,10 +5043,12 @@ def _google_scholar_direct_pdf(title: str) -> Optional[str]:
 
 
 def download_with_full_chain(paper: dict, dest_path: Path,
-                               use_scihub: bool = True,
+                               use_scihub: bool = False,
                                red_list=None) -> tuple[bool, list[str]]:
     """
     14-layer fallback download chain — maximum PDF retrieval coverage.
+    Sci-Hub / shadow libraries are OFF by default; pass use_scihub=True to
+    enable them (see DISCLAIMER.md for the legal/ethical considerations).
     Optimized for speed: layers are run in 3 waves by speed/reliability.
 
     Wave A (fast, parallel — typical 2-5s, ~80% of papers succeed here):

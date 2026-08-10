@@ -219,9 +219,14 @@ HUNT_STEPS: List[Dict[str, Any]] = [
 
 
 def _get_state_funcs():
-    """Lazy import to avoid circular dependency."""
-    from telegram_bot import load_chat_state, save_chat_state
-    return load_chat_state, save_chat_state
+    """Lazy import to avoid circular dependency. Falls back to state_manager
+    when the Telegram bot module is not installed."""
+    try:
+        from telegram_bot import load_chat_state, save_chat_state
+        return load_chat_state, save_chat_state
+    except ImportError:
+        from state_manager import load_chapter_state as load_chat_state, save_chapter_state as save_chat_state
+        return load_chat_state, save_chat_state
 
 
 def start_hunt_intake(chat_id: int, prefill: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:

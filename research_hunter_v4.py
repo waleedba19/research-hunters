@@ -1,11 +1,16 @@
 """
 research_hunter_v4.py — Main v4 wrapper.
 Imports everything from research_hunter_v2_4 (the v6 SUPER LOADED GOD MODE) and
-adds 11 new glue functions for the Telegram bot, wizard, precision, Drive, Sheets.
+adds glue functions for the precision/wizard/Drive/Sheets layers.
 
 This file is the v4 layer: v2-4's 70+ search platforms + 14-layer PDF chain stay
-untouched. The new functions are mostly thin orchestrators that call v2-4 + the
-new precision/wizard/google modules.
+untouched. The new functions are thin orchestrators that call v2-4 + the
+precision/wizard/google modules.
+
+NOTE: The Telegram bot, wizard, and Google Drive modules were removed from this
+repo (see commit "Fix test workflow - remove all Telegram/Drive references").
+The glue functions below degrade gracefully when those optional modules are
+absent, so v4 still imports and the core search engine (v2-4) works standalone.
 """
 import os
 import sys
@@ -18,8 +23,22 @@ from pdf_parser import parse_chapter_references
 from metadata_extractor import extract_page1_metadata, merge_with_crossref_meta
 from precision_engine import precision_search, score_paper_match, cross_source_validate, detect_reference_type
 from platform_registry import search_all_platforms, get_all_platform_names
-import google_integration as gdrive
-from state_manager import save_chapter_state, load_chapter_state
+
+# Optional modules — removed from this repo but re-added without breaking imports
+try:
+    from state_manager import save_chapter_state, load_chapter_state
+except ImportError:  # pragma: no cover
+    save_chapter_state = load_chapter_state = None  # type: ignore[assignment]
+
+try:
+    import google_integration as gdrive
+except ImportError:  # pragma: no cover
+    gdrive = None  # type: ignore[assignment]
+
+try:
+    from wizard import start_wizard, get_current_step, is_wizard_active  # type: ignore
+except ImportError:  # pragma: no cover
+    start_wizard = get_current_step = is_wizard_active = None  # type: ignore
 
 log4 = get_logger("research_hunter_v4")
 
@@ -43,12 +62,15 @@ v24_log = log4  # in case v2-4 code imported v4 to get a logger
 def wizard_collect_inputs(chat_id: int) -> Dict[str, Any]:
     """Stateful wizard entry point. Returns the current step's prompt dict.
     Telegram bot calls this on every incoming message; it dispatches to wizard.py.
+    Returns an empty state if the wizard module is not installed.
     """
-    from wizard import start_wizard, get_current_step, is_wizard_active
+    if is_wizard_active is None or load_chapter_state is None:
+        log.warning("wizard/state_manager not installed; returning empty state")
+        return {"state": None, "step": None}
     if not is_wizard_active(chat_id):
-        start_wizard(chat_id)
+        start_wizard(chat_id)  # type: ignore[misc]
     state = load_chapter_state(chat_id)
-    step = get_current_step(state or {})
+    step = get_current_step(state or {})  # type: ignore[misc]
     return {"state": state, "step": step}
 
 
@@ -73,17 +95,26 @@ def cross_source_validate_w(papers: List[Dict[str, Any]]) -> List[Dict[str, Any]
 
 
 def create_drive_folder_w(chapter_name: str) -> Optional[str]:
-    """Create per-chapter folder structure in Google Drive."""
+    """Create per-chapter folder structure in Google Drive. None if gdrive absent."""
+    if gdrive is None:
+        log.warning("google_integration not installed; create_drive_folder_w is a no-op")
+        return None
     return gdrive.create_drive_folder(chapter_name)
 
 
 def create_doi_sheet_w(chapter_name: str, papers: List[Dict[str, Any]]) -> Optional[str]:
-    """Create the Google Sheet with one row per verified reference."""
+    """Create the Google Sheet with one row per verified reference. None if gdrive absent."""
+    if gdrive is None:
+        log.warning("google_integration not installed; create_doi_sheet_w is a no-op")
+        return None
     return gdrive.create_doi_sheet(chapter_name, papers)
 
 
 def upload_to_drive_w(local_path: str, drive_folder_id: str) -> Optional[str]:
-    """Upload a downloaded PDF to a specific Drive folder."""
+    """Upload a downloaded PDF to a specific Drive folder. None if gdrive absent."""
+    if gdrive is None:
+        log.warning("google_integration not installed; upload_to_drive_w is a no-op")
+        return None
     return gdrive.upload_to_drive(local_path, drive_folder_id)
 
 
@@ -127,7 +158,10 @@ def telegram_edit_progress_w(chat_id: int, message_id: int, new_text: str) -> No
 
 
 def save_chapter_state_w(chat_id: int, state: Dict[str, Any]) -> None:
-    """Persist per-chat state across bot restarts."""
+    """Persist per-chat state across bot restarts. No-op if state_manager absent."""
+    if save_chapter_state is None:
+        log.warning("state_manager not installed; save_chapter_state_w is a no-op")
+        return
     save_chapter_state(chat_id, state)
 
 

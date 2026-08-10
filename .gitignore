@@ -11,7 +11,18 @@ dist/
 
 # Credentials — NEVER commit (loaded from D:\opencode\ or with_env.bat)
 credentials/
-*.json
+# Credential / token JSON files (specific — don't blanket-ignore all JSON)
+memory.json
+ghost_credentials.json
+g4f_locked_config.json
+oauth_token.json
+oauth_refresh.json
+token.json
+secrets.json
+# Per-chat state JSON (state_manager output)
+chat_*.json
+state_*.json
+# Sample reports ARE committed (they're test fixtures)
 !sample_reports/*.json
 !tests/sample_refs.txt
 !package.json
@@ -46,6 +57,7 @@ smoke_reports/
 master_papers.xlsx
 ULTIMATE_RESEARCH_SYNTHESIS.xlsx
 ULTIMATE_RESEARCH_SYNTHESIS.docx
+ULTIMATE_RESEARCH_SYNTHESIS_V10.xlsx
 
 # Backup files
 *.backup
