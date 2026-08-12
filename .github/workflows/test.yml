@@ -63,16 +63,17 @@ jobs:
       - name: "Unit test: verify_refs (parser + reports)"
         run: |
           python3 tests/test_verify_refs.py --no-e2e
-      - name: "Unit test: hunt_intake (rveovude-sExces-focus systm
-        run: ec " "HuEtEin akt set  ukipped - Telegram bon ke egr(tion removed"ed - Excel-focused system)"
-        run: echo "Hunt intake E2E tesremivedp-dExc-l-brcusmo systvmd"
-      - name echo "Hunt intake E2E test skipped -rTelegramubo  igrao rmovd"
+      - name: "Unit test: hunt_intake (removed - Excel-focused system)"
+        run: echo "Hunt intake test skipped - Telegram bot integration removed"
+      - name: "Unit test: hunt_intake E2E (removed - Excel-focused system)"
+        run: echo "Hunt intake E2E test skipped - Telegram bot integration removed"
+      - name: "Unit test: report_pdf"
+        run: |
           python3 tests/test_report_pdf.py
       - name: "Unit test: drive_integration (mocked Drive, no creds needed)"
         run: |
-          python3 tests/test_drive_integratiopyckDriv, n r neded
-      - name:|
-i:        pyuhtu3dies v/trst_esugg_stions, moc.pya)"
+          python3 tests/test_drive_integration.py
+      - name: "Unit test: future_studies (suggestions, mocked)"
         run: |
           python3 tests/test_future_studies.py
       - name: "Unit test: telegram_ui (removed - Excel-focused system)"
@@ -81,12 +82,11 @@ i:        pyuhtu3dies v/trst_esugg_stions, moc.pya)"
         run: |
           python3 tests/generate_sample_reports.py
       - name: "Smoke test: hunt_pipeline end-to-end"
-        run: |rts.py
-
-      - name: "Test Excel geneaion sytem (v10.0)"
         run: |
-          python3 generate_ultimate_excel_v10
           python3 tests/test_hunt_smoke.py
+      - name: "Test Excel generation system (v10.0)"
+        run: |
+          python3 generate_ultimate_excel_v10.py
       - name: "Smoke test: verify_refs end-to-end (real pipeline, uploads reports as artifacts)"
         run: |
           python3 tests/test_verify_refs_smoke.py
