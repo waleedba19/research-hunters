@@ -26,6 +26,13 @@ jobs:
           if ! curl -fsS --max-time 5 http://127.0.0.1:11434/api/tags >/dev/null 2>&1; then
             echo "::warning::ollama failed to start within 180s - tests requiring ollama will be skipped"
           fi
+      - name: Pull ollama model (qwen2.5vl:3b)
+        run: |
+          # precision_engine uses qwen2.5vl:3b for scoring. Without the model
+          # pulled, every _call_ollama returns parse failure -> score 0.00 ->
+          # all refs UNVERIFIED. Pull with a generous timeout (model is ~2GB).
+          echo "Pulling qwen2.5vl:3b (this can take a few minutes)..."
+          ollama pull qwen2.5vl:3b || echo "::warning::ollama pull failed - scoring tests may fail"
       - name: Install deps (PEP 668 workaround for Ubuntu 24.04)
         run: pip install --no-cache-dir --break-system-packages -r requirements.txt || echo "::warning::pip install failed - some tests may fail"
       - name: Syntax check all .py files
