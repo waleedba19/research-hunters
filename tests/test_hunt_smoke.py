@@ -177,7 +177,7 @@ def main() -> int:
     core_report_files = {
         "results.json": out_folder / "results.json",
         "research_report.md": out_folder / "research_report.md",
-        "master_database.xlsx": out_folder / "master_database.xlsx",
+        "master_papers.xlsx": out_folder / "master_papers.xlsx",
     }
     for label, path in core_report_files.items():
         if not path.exists():
