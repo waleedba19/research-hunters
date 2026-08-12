@@ -111,3 +111,16 @@ python -m verify_refs.cli --input tests/sample_refs.txt --output-folder my_repor
   instead of a Windows path. Don't reintroduce hardcoded OS-specific paths.
 - **Google OAuth expired** — refresh token is long-lived, but if it expires, re-authorize.
 - **State isolation in tests** — set `STATE_DIR` env var to a temp dir; state_manager honors it.
+
+## Chain workflow (multi-day runs) — critical design
+
+The `.github/workflows/research.yml` workflow chains multiple 6h-limited GitHub Actions runs into one logical multi-day run via `workflow_dispatch` self-retriggering. FOUR bugs (all fixed in commit 91efe42) defeated this; do not reintroduce them:
+
+1. **Chain breaks on 3h timeout** — the python step must write `results.json` (and `cache.save()`) IMMEDIATELY after the search phase, BEFORE downloads. If results.json only exists at the end, a timeout cancel mid-download means `check_results` sees 0 results → `status=no_results` → the auto-trigger `if:` never fires → chunk 2 never runs → all search progress lost. The auto-trigger uses `if: always() && steps.check_results.outputs.status == 'success'` — `always()` is REQUIRED so it fires even when the research job is `cancelled` by the timeout. `check_results` must treat search_cache.json OR results.json OR PDFs as progress.
+
+2. **Download resume across chunks** — `search_cache.SearchCache` tracks `_downloaded_keys` SEPARATELY from `_seen_keys` (found keys). The download phase builds its queue from `new_papers + cache.pending_downloads(ckpt_existing)`. Without separate tracking, chunk 2 would skip ALL papers found in chunk 1 (they're in seen_keys) even if they were never downloaded. Do NOT collapse these two sets back into one.
+
+3. **DOAB API returns bare lists** — `search_doab()` must handle `data` being a `list`, a `dict` with a `result` key, or `None`. `link` and `contributor` items may be strings, not dicts — guard with `isinstance(l, dict)`.
+
+4. **Downloads hang** — Wave C of `download_with_full_chain` (DrissionPage "Walter Ghost", Anna's Archive, LibGen scraping) has no per-layer timeout. The download batch must use `wait(timeout=120)` (not `as_completed` which blocks forever) so a hung batch is abandoned and stragglers cancelled. `socket.setdefaulttimeout(60)` at `main()` start is a global backstop. A 6-PDFs-in-3h run means workers are hanging — investigate ghost/scraping layers.
+
