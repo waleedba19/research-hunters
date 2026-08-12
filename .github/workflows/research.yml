@@ -1577,10 +1577,16 @@ jobs:
           OUT_DIR="pdf_files/${{ steps.folder.outputs.folder_name }}"
           PDF_COUNT=$(find "$OUT_DIR" -name "*.pdf" 2>/dev/null | wc -l)
           JSON_COUNT=$(find "$OUT_DIR" -name "results.json" 2>/dev/null | wc -l)
+          CACHE_COUNT=$(find "$OUT_DIR" -name "*search_cache*.json" 2>/dev/null | wc -l)
           echo "PDFs in cumulative folder: $PDF_COUNT"
           echo "Results JSON: $JSON_COUNT"
+          echo "Search cache: $CACHE_COUNT"
           echo "pdf_count=$PDF_COUNT" >> $GITHUB_OUTPUT
-          if [ "$PDF_COUNT" -gt 0 ] || [ "$JSON_COUNT" -gt 0 ]; then
+          # Treat as success if ANY progress was made — results.json (search
+          # checkpoint) OR search_cache.json OR downloaded PDFs. This ensures
+          # the chain continues even when the 3h timeout killed downloads
+          # mid-run (search results are checkpointed before downloads start).
+          if [ "$PDF_COUNT" -gt 0 ] || [ "$JSON_COUNT" -gt 0 ] || [ "$CACHE_COUNT" -gt 0 ]; then
             echo "status=success" >> $GITHUB_OUTPUT
           else
             echo "status=no_results" >> $GITHUB_OUTPUT
@@ -1626,6 +1632,9 @@ jobs:
           echo "============================================"
 
       - name: Auto-trigger next run (chain continuation)
+        # Fire whenever progress was made, even if the 3h timeout cancelled
+        # the python step mid-download. The step body guards against triggering
+        # when no work remains (.search_complete / exhausted / max_chunks).
         if: always() && steps.check_results.outputs.status == 'success'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -29,7 +29,7 @@ v6 SUPER LOADED enhancements:
 """
 
 # ── Imports ───────────────────────────────────────────────────────────────────
-import os, sys, re, json, time, hashlib, shutil, subprocess, threading
+import os, sys, re, json, time, hashlib, shutil, subprocess, threading, socket
 import unicodedata, csv, difflib, random, string
 from pathlib  import Path
 from datetime import datetime
@@ -3845,18 +3845,32 @@ def search_doab(query: str, year_from=None, limit: int = 20) -> list:
     """DOAB — Directory of Open Access Books."""
     params = {"query": query, "limit": limit, "expand": "metadata"}
     data = _get("https://directory.doabooks.org/rest/search", params)
+    # DOAB may return either {"result": [...]} or a bare list — handle both.
+    if isinstance(data, list):
+        items = data
+    elif isinstance(data, dict):
+        items = data.get("result", []) or []
+    else:
+        items = []
     out = []
-    for item in (data or {}).get("result", []):
+    for item in items:
+        if not isinstance(item, dict):
+            continue
         bib = item.get("bibliographicRecord", {}) or {}
+        links = item.get("link") or []
+        pdf_url = None
+        for l in links:
+            if isinstance(l, dict) and l.get("type") == "OPEN":
+                pdf_url = l.get("url")
+                break
         out.append({
             "title": bib.get("title"),
-            "authors": [a.get("name", "") for a in (bib.get("contributor") or [])],
+            "authors": [a.get("name", "") for a in (bib.get("contributor") or []) if isinstance(a, dict)],
             "year": str(bib.get("publicationDate", "")),
             "journal": "DOAB",
             "doi": None,
             "abstract": "",
-            "pdf_url": next((l.get("url") for l in (item.get("link") or [])
-                           if l.get("type") == "OPEN"), None),
+            "pdf_url": pdf_url,
         })
     return _norm(out, "DOAB") if out else []
 
@@ -7549,6 +7563,9 @@ def _extract_year(raw: str) -> str | None:
 
 
 def main():
+    # Global socket timeout backstop — prevents any HTTP call from hanging
+    # indefinitely (the #1 cause of multi-hour download stalls in CI).
+    socket.setdefaulttimeout(60)
     # CI mode: skip interactive wizard, read from env vars
     if os.environ.get("CI_MODE", "").lower() in ("true", "1", "yes"):
         title = os.environ.get("CI_TITLE", "").strip()
@@ -7918,13 +7935,47 @@ def main():
             q_cnt[q if q in q_cnt else "Not Found"] += 1
         ok(f"Q1={q_cnt['Q1']} Q2={q_cnt['Q2']} Q3={q_cnt['Q3']} Q4={q_cnt['Q4']} Not Indexed={q_cnt['Not Found']}")
 
+    # ═══════ CHECKPOINT: save found papers BEFORE downloads ═══════
+    # If the job is killed by the 3h timeout during PDF downloads, the
+    # search results (which took the longest to gather) are preserved here
+    # so the next chunk can resume downloading instead of re-searching.
+    # This also lets check_results set status=success so the chain fires.
+    ckpt_existing: list = []
+    results_path = out_folder / "results.json"
+    try:
+        if results_path.exists():
+            prev = json.loads(results_path.read_text(encoding="utf-8"))
+            ckpt_existing = prev.get("papers") or []
+        ckpt_all = cache.deduplicate(new_papers + ckpt_existing)
+        ckpt_data = {
+            "papers": ckpt_all,
+            "total_papers": len(ckpt_all),
+            "new_this_run": len(new_papers),
+            "checkpoint": "post-search-pre-download",
+            "timestamp": datetime.now().isoformat(timespec="seconds"),
+            "queries_used": list(cache.queries_used()),
+        }
+        results_path.write_text(
+            json.dumps(ckpt_data, ensure_ascii=False, indent=2), encoding="utf-8")
+        cache.save()
+        ok(f"Checkpoint saved: results.json ({len(ckpt_all)} papers) — search progress protected from timeout")
+    except Exception as exc:
+        warn(f"Checkpoint save failed (non-fatal): {exc}")
+
     # ═══════ DOWNLOAD PHASE — only when PDFs requested ═══════
     if not _gen_only and not skip_downloads and new_papers:
         print()
         dl_mode_str = "single folder" if single_folder else "smart folders"
-        info(f"Downloading {len(new_papers)} PDFs (10 parallel workers) into {dl_mode_str}…")
+        # Resume downloads across chunks: include papers found in previous
+        # chunks (from the results.json checkpoint) that weren't downloaded yet.
+        # The cache's downloaded_keys set tracks what's already on disk.
+        resume_papers = cache.pending_downloads(ckpt_existing) if ckpt_existing else []
+        download_queue = new_papers + [p for p in resume_papers if p not in new_papers]
+        if resume_papers:
+            info(f"Resuming downloads: {len(resume_papers)} previously-found papers still pending")
+        info(f"Downloading {len(download_queue)} PDFs (10 parallel workers) into {dl_mode_str}…")
         BATCH_SIZE = 50
-        total_batches = (len(new_papers) + BATCH_SIZE - 1) // BATCH_SIZE
+        total_batches = (len(download_queue) + BATCH_SIZE - 1) // BATCH_SIZE
         _dl_lock = threading.Lock()
         class _TSRedList:
             def __init__(s, rl): s._rl = rl; s._lock = _dl_lock
@@ -7947,34 +7998,62 @@ def main():
         ts_cache = _TSCache(cache)
         for batch_idx in range(total_batches):
             start = batch_idx * BATCH_SIZE
-            end   = min(start + BATCH_SIZE, len(new_papers))
-            batch = new_papers[start:end]
+            end   = min(start + BATCH_SIZE, len(download_queue))
+            batch = download_queue[start:end]
             batch_num = batch_idx + 1
             info(f"  Batch {batch_num}/{total_batches}: downloading {len(batch)} papers…")
+            # Per-paper hard cap: each paper gets at most 120s. Papers that
+            # hang (ghost/scraping) are abandoned so the batch can't stall the
+            # whole run past the 3h GitHub timeout.
+            from concurrent.futures import wait as _fwait, FIRST_COMPLETED as _FC
             with ThreadPoolExecutor(max_workers=10) as ex:
                 futs = {ex.submit(smart_file_paper, p, out_folder, use_scihub, ts_red_list, ts_cache, single_folder): p for p in batch}
                 dl_this_batch = 0
-                for i, fut in enumerate(as_completed(futs), 1):
-                    p = futs[fut]
-                    try:
-                        success, folder_used = fut.result()
-                    except Exception as exc:
-                        warn(f"  Worker failed: {exc}")
-                        success = False
-                        folder_used = "Not_Indexed"
-                    p["downloaded"] = success
-                    if success:
-                        dl_count += 1
-                        dl_this_batch += 1
-                        folder_dl[folder_used] = folder_dl.get(folder_used, 0) + 1
-                    dt = detect_doc_type(p)
-                    if dt in type_cnt: type_cnt[dt] += 1
-                    gt = detect_geo_tier(p)
-                    if gt in geo_cnt: geo_cnt[gt] += 1
-                    if i % 10 == 0 or i == len(batch):
-                        info(f"    [{start + i}/{len(new_papers)}] {dl_count} downloaded ({dl_this_batch} this batch)…")
+                done_in_batch = 0
+                while futs:
+                    done, _pending = _fwait(futs, timeout=120, return_when=_FC)
+                    if not done:
+                        warn(f"  Batch {batch_num}: {len(futs)} papers hung >120s — abandoning to preserve progress")
+                        break
+                    for fut in done:
+                        p = futs.pop(fut)
+                        done_in_batch += 1
+                        try:
+                            success, folder_used = fut.result()
+                        except Exception as exc:
+                            warn(f"  Worker failed: {exc}")
+                            success = False
+                            folder_used = "Not_Indexed"
+                        p["downloaded"] = success
+                        if success:
+                            dl_count += 1
+                            dl_this_batch += 1
+                            folder_dl[folder_used] = folder_dl.get(folder_used, 0) + 1
+                        dt = detect_doc_type(p)
+                        if dt in type_cnt: type_cnt[dt] += 1
+                        gt = detect_geo_tier(p)
+                        if gt in geo_cnt: geo_cnt[gt] += 1
+                        if done_in_batch % 10 == 0 or done_in_batch == len(batch):
+                            info(f"    [{start + done_in_batch}/{len(download_queue)}] {dl_count} downloaded ({dl_this_batch} this batch)…")
+                for f in futs:
+                    f.cancel()
+                # Periodic checkpoint after each batch — if the 3h timeout
+                # kills the job mid-run, downloaded_count is preserved so the
+                # next chunk resumes downloading instead of re-downloading.
+                try:
+                    ts_cache.save()
+                    ckpt_papers = cache.deduplicate(download_queue + ckpt_existing)
+                    results_path.write_text(json.dumps({
+                        "papers": ckpt_papers,
+                        "total_papers": len(ckpt_papers),
+                        "downloaded_this_run": dl_count,
+                        "checkpoint": "mid-download-batch-%d" % batch_num,
+                        "timestamp": datetime.now().isoformat(timespec="seconds"),
+                    }, ensure_ascii=False, indent=2), encoding="utf-8")
+                except Exception:
+                    pass
         cache.save()
-        ok(f"Downloaded {dl_count} / {len(new_papers)} PDFs")
+        ok(f"Downloaded {dl_count} / {len(download_queue)} PDFs")
         if red_list.entries:
             warn(red_list.summary())
         if cache.stats().get("queries_exhausted"):

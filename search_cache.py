@@ -26,6 +26,7 @@ class SearchCache:
         self._cache_path = self.out_folder / self.CACHE_FILE
 
         self._seen_keys: Set[str] = set()
+        self._downloaded_keys: Set[str] = set()
         self._queries: Set[str] = set()
         self._found_count: int = 0
         self._downloaded_count: int = 0
@@ -39,12 +40,14 @@ class SearchCache:
             try:
                 data = json.loads(self._cache_path.read_text(encoding="utf-8"))
                 self._seen_keys = set(data.get("seen_keys", []))
+                self._downloaded_keys = set(data.get("downloaded_keys", []))
                 self._queries = set(data.get("queries", []))
                 self._found_count = data.get("found_count", 0)
                 self._downloaded_count = data.get("downloaded_count", 0)
                 self._run_count = data.get("run_count", 0)
                 self._queries_exhausted = bool(data.get("queries_exhausted", False))
-                log.info("cache loaded from %s (%d keys)", self._cache_path, len(self._seen_keys))
+                log.info("cache loaded from %s (%d keys, %d downloaded)",
+                         self._cache_path, len(self._seen_keys), len(self._downloaded_keys))
             except Exception as e:
                 log.warning("cache load failed: %s", e)
 
@@ -52,6 +55,7 @@ class SearchCache:
         try:
             data = {
                 "seen_keys": list(self._seen_keys),
+                "downloaded_keys": list(self._downloaded_keys),
                 "queries": list(self._queries),
                 "found_count": self._found_count,
                 "downloaded_count": self._downloaded_count,
@@ -62,7 +66,8 @@ class SearchCache:
                 "papers_downloaded": self._downloaded_count,
             }
             self._cache_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
-            log.debug("cache saved to %s (%d keys)", self._cache_path, len(self._seen_keys))
+            log.debug("cache saved to %s (%d keys, %d downloaded)",
+                      self._cache_path, len(self._seen_keys), len(self._downloaded_keys))
             return True
         except Exception as e:
             log.warning("cache save failed: %s", e)
@@ -86,8 +91,28 @@ class SearchCache:
         k = self._key(paper)
         if k:
             self._seen_keys.add(k)
-            self._downloaded_count += 1
+            if k not in self._downloaded_keys:
+                self._downloaded_keys.add(k)
+                self._downloaded_count += 1
             self.save()
+
+    def is_downloaded(self, paper: dict) -> bool:
+        """True if this paper was already successfully downloaded."""
+        k = self._key(paper)
+        return bool(k and k in self._downloaded_keys)
+
+    def pending_downloads(self, papers: List[dict]) -> List[dict]:
+        """Return the subset of `papers` that have NOT been downloaded yet.
+
+        Used by the download phase to resume downloads across chunks: chunk 2
+        picks up papers found in chunk 1 but not yet downloaded.
+        """
+        out = []
+        for p in papers:
+            k = self._key(p)
+            if not k or k not in self._downloaded_keys:
+                out.append(p)
+        return out
 
     def mark_found(self, paper: dict):
         k = self._key(paper)
