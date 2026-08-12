@@ -7741,6 +7741,35 @@ def main():
     _operation_mode = params.get("operation_mode", "full-research")
     _gen_only = (_operation_mode or "").split(" -", 1)[0].strip().lower() == "generate-only"
 
+    # ═══════ ACTIVE CONFIGURATION BANNER ═══════
+    # Print a clear summary of every selection the system received, so the
+    # user can verify the system is acting on exactly the form they filled.
+    info("══════════════════════════════════════════════════════")
+    info(f"  ACTIVE CONFIGURATION — the system will work on THIS form:")
+    info(f"  Title          : {title}")
+    info(f"  Field          : {field}")
+    info(f"  Research Qs    : {len(rqs)} provided")
+    info(f"  Study types    : {study_types or '(auto)'}")
+    info(f"  Year range     : {year_from or 'All'} → {year_to or 'Present'}")
+    info(f"  Language       : {lang_label}")
+    info(f"  Mode (depth)   : {mode}")
+    info(f"  Research depth : {params.get('research_depth','medium')}")
+    info(f"  Paper limit    : {paper_limit_override or '(mode default)'}")
+    info(f"  Quartile       : {quartile_filter or '(all)'}")
+    info(f"  Study level    : {study_level_filter or '(all)'}")
+    info(f"  Methodology    : {methodology_filter or '(all)'}")
+    info(f"  Thesis part    : {thesis_part_filter or '(all)'}")
+    info(f"  Geographic     : {geographic_filter or '(worldwide)'}")
+    info(f"  Operation mode : {_operation_mode}  {'(GENERATE-ONLY: skip search)' if _gen_only else '(includes search)'}")
+    dl_on = os.environ.get("CI_DOWNLOAD_PDFS", "").lower() in ("true", "1", "yes")
+    info(f"  Download PDFs  : {'ON' if dl_on else 'OFF (reports + Excel only)'}")
+    info(f"  Output format  : {output_format}")
+    info(f"  Sci-Hub        : {'ON' if use_scihub else 'OFF'}")
+    info(f"  Learn          : {'ON' if learn_enabled else 'OFF'}")
+    info(f"  Generate paper : {'ON' if generate_paper else 'OFF'} ({paper_type})")
+    info(f"  Platforms      : {len(platforms)} will be queried")
+    info("══════════════════════════════════════════════════════")
+
     # Output folder & cache
     ci_folder = os.environ.get("CI_FOLDER_NAME", "")
     folder_name = ci_folder if ci_folder else _safe_name(title, 80)
@@ -7786,6 +7815,7 @@ def main():
     red_list = RedListManager(out_folder)
 
     queries = []
+    new_papers = []
 
     # ── Search phase ──────────────────────────────────────────────────
     if not _gen_only:
@@ -7798,50 +7828,58 @@ def main():
                             {q.lower() for q in queries + used_q}]
         queries = (queries + extra_kw_queries[:8])[:25]
 
-        cache.add_queries(queries)
-        cache.save()
-        ok(f"Generated {len(queries)} queries:")
-        for i, q in enumerate(queries, 1):
-            log(f"  {i:2}. {q}")
+        # Detect exhaustion: if generate_queries returned nothing new (every
+        # candidate was already in used_q), the search space is exhausted.
+        # This is the signal the phased chain workflow uses to stop chaining.
+        genuinely_new = [q for q in queries if q.lower() not in {u.lower() for u in used_q}]
+        if not genuinely_new and used_q:
+            info("All search queries exhausted — search space fully covered.")
+            cache.set_exhausted(True)
+            (out_folder / ".search_complete").write_text("exhausted", encoding="utf-8")
+            new_papers = []
+        else:
+            cache.add_queries(queries)
+            cache.save()
+            ok(f"Generated {len(queries)} queries:")
+            for i, q in enumerate(queries, 1):
+                log(f"  {i:2}. {q}")
 
-        print()
-        info(f"Searching {len(platforms)} platforms ({mode} mode)…")
-        raw = search_all(queries, platforms, year_from=year_from, year_to=year_to,
-                         field=field, country_context=country_context)
+            print()
+            info(f"Searching {len(platforms)} platforms ({mode} mode)…")
+            raw = search_all(queries, platforms, year_from=year_from, year_to=year_to,
+                             field=field, country_context=country_context)
 
-        deduped = cache.deduplicate(raw)
-        info(f"Raw: {len(raw)} → deduplicated: {len(deduped)}")
+            deduped = cache.deduplicate(raw)
+            info(f"Raw: {len(raw)} → deduplicated: {len(deduped)}")
 
-        relevant, removed = filter_by_relevance(deduped, title, field, threshold=0.15)
-        if removed:
-            warn(f"Relevance filter removed {removed} unrelated papers")
+            relevant, removed = filter_by_relevance(deduped, title, field, threshold=0.15)
+            if removed:
+                warn(f"Relevance filter removed {removed} unrelated papers")
 
-        new_papers, skipped = cache.filter_new(relevant)
-        if skipped:
-            info(f"Skipped {skipped} already-found papers from previous runs")
+            new_papers, skipped = cache.filter_new(relevant)
+            if skipped:
+                info(f"Skipped {skipped} already-found papers from previous runs")
 
-        if existing_titles:
-            truly_new = []
-            dup_count = 0
+            if existing_titles:
+                truly_new = []
+                dup_count = 0
+                for p in new_papers:
+                    if is_duplicate_paper(p, existing_titles):
+                        dup_count += 1
+                    else:
+                        truly_new.append(p)
+                if dup_count > 0:
+                    warn(f"Duplicate scan: skipped {dup_count} papers already downloaded as PDFs")
+                new_papers = truly_new
+
+            ok(f"New papers this run: {len(new_papers)}")
+
+            if not new_papers:
+                warn("No new papers found. Try Deep search mode, more RQs, or broader topic.")
+                (out_folder / ".search_complete").write_text("no_papers", encoding="utf-8")
+
             for p in new_papers:
-                if is_duplicate_paper(p, existing_titles):
-                    dup_count += 1
-                else:
-                    truly_new.append(p)
-            if dup_count > 0:
-                warn(f"Duplicate scan: skipped {dup_count} papers already downloaded as PDFs")
-            new_papers = truly_new
-
-        ok(f"New papers this run: {len(new_papers)}")
-
-        if not new_papers:
-            warn("No new papers found. Try Deep search mode, more RQs, or broader topic.")
-            (out_folder / ".search_complete").write_text("no_papers", encoding="utf-8")
-            if not _gen_only:
-                return
-
-        for p in new_papers:
-            cache.mark_found(p)
+                cache.mark_found(p)
 
     # ═══════ QUARTILE CHECK — always runs (even when downloads OFF) ═══════
     dl_count = 0

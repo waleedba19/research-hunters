@@ -1441,27 +1441,53 @@ jobs:
           STATE_FILE="$FOLDER/chunk_state.json"
           DEPTH="${{ github.event.inputs.research_depth }}"
           DEPTH=$(echo "$DEPTH" | cut -d' ' -f1)
+          MODE="${{ github.event.inputs.mode }}"
+          MODE=$(echo "$MODE" | cut -d' ' -f1)
           if [ -f "$STATE_FILE" ]; then
             CHUNK=$(python3 -c "import json; d=json.load(open('$STATE_FILE')); print(d.get('chunk', 1))")
             CHUNK=$((CHUNK + 1))
           else
             CHUNK=1
           fi
+          # Base chunk count from research_depth (controls chunking aggressiveness)
           case "$DEPTH" in
-            light) ESTIMATED=2 ;;
-            medium) ESTIMATED=4 ;;
-            deep) ESTIMATED=8 ;;
-            *) ESTIMATED=4 ;;
+            light)  BASE=2 ;;
+            medium) BASE=4 ;;
+            deep)   BASE=8 ;;
+            *)      BASE=4 ;;
           esac
-          echo "{\"chunk\": $CHUNK, \"estimated\": $ESTIMATED, \"depth\": \"$DEPTH\"}" > "$STATE_FILE"
+          # Mode multiplier — ultra/maximum modes are meant to run for DAYS.
+          # Each chunk runs up to 3h, so maximum×deep = 80 chunks ≈ 10 days.
+          case "$MODE" in
+            sample)   MULT=1 ;;
+            simple)   MULT=1 ;;
+            quick)    MULT=1 ;;
+            field)    MULT=2 ;;
+            extended) MULT=3 ;;
+            deep)     MULT=4 ;;
+            ultra)    MULT=6 ;;
+            maximum)  MULT=10 ;;
+            *)        MULT=2 ;;
+          esac
+          ESTIMATED=$(( BASE * MULT ))
+          # Hard ceiling so the chain can never loop forever (~8 days max).
+          MAX_CHUNKS=64
+          if [ "$ESTIMATED" -gt "$MAX_CHUNKS" ]; then
+            ESTIMATED=$MAX_CHUNKS
+          fi
+          echo "{\"chunk\": $CHUNK, \"estimated\": $ESTIMATED, \"depth\": \"$DEPTH\", \"mode\": \"$MODE\", \"max\": $MAX_CHUNKS}" > "$STATE_FILE"
           echo "current_chunk=$CHUNK" >> $GITHUB_OUTPUT
           echo "total_chunks=$ESTIMATED" >> $GITHUB_OUTPUT
+          echo "max_chunks=$MAX_CHUNKS" >> $GITHUB_OUTPUT
           echo "depth=$DEPTH" >> $GITHUB_OUTPUT
+          HOURS=$(( ESTIMATED * 3 ))
+          DAYS=$(( HOURS / 24 ))
           echo "============================================"
           echo "  RESEARCH PLAN"
-          echo "  Chunk $CHUNK of ~$ESTIMATED"
-          echo "  Depth: $DEPTH"
-          echo "  Each chunk runs up to 3 hours"
+          echo "  Chunk $CHUNK of ~$ESTIMATED (hard max $MAX_CHUNKS)"
+          echo "  Mode: $MODE  |  Depth: $DEPTH"
+          echo "  Estimated total: ~${HOURS}h ($DAYS days at 3h/chunk)"
+          echo "  Each chunk runs up to 3 hours, then auto-chains to the next"
           echo "============================================"
       - name: Download previous research data (cumulative)
         if: always()
@@ -1633,13 +1659,29 @@ jobs:
         run: |
           echo "Checking if more work remains..."
           OUT_DIR="pdf_files/${{ steps.folder.outputs.folder_name }}"
+          CURRENT_CHUNK=${{ steps.chunk.outputs.current_chunk }}
+          MAX_CHUNKS=${{ steps.chunk.outputs.max_chunks }}
+
+          # Stop condition 1: the python wrote .search_complete (exhausted or no papers)
           if [ -f "$OUT_DIR/.search_complete" ]; then
+            REASON=$(cat "$OUT_DIR/.search_complete" 2>/dev/null || echo "done")
             echo "============================================"
             echo "  SEARCH COMPLETE FLAG FOUND — stopping chain"
+            echo "  Reason: $REASON"
             echo "============================================"
             exit 0
           fi
-          echo "Chunk ${{ steps.chunk.outputs.current_chunk }} of ~${{ steps.chunk.outputs.total_chunks }} — continuing chain"
+
+          # Stop condition 2: hard chunk cap reached (safety net — never loop forever)
+          if [ -n "$MAX_CHUNKS" ] && [ "$CURRENT_CHUNK" -ge "$MAX_CHUNKS" ]; then
+            echo "============================================"
+            echo "  HARD CHUNK CAP REACHED ($CURRENT_CHUNK/$MAX_CHUNKS) — stopping chain"
+            echo "  The search ran for ~$(( MAX_CHUNKS * 3 ))h. Final output is in this run's artifacts."
+            echo "============================================"
+            exit 0
+          fi
+
+          echo "Chunk $CURRENT_CHUNK of ~${{ steps.chunk.outputs.total_chunks }} (max $MAX_CHUNKS) — continuing chain"
           CACHE_FILE="$OUT_DIR/search_cache.json"
           if [ ! -f "$CACHE_FILE" ]; then
             CACHE_FILE="$OUT_DIR/.search_cache.json"
@@ -1648,28 +1690,26 @@ jobs:
             echo "No cache file found - cannot determine remaining work"
             exit 0
           fi
-          TOTAL_FOUND=$(python3 -c "import json; d=json.load(open('$CACHE_FILE')); print(len(d.get('papers_found',{})))" 2>/dev/null || echo "0")
-          TOTAL_DL=$(python3 -c "import json; d=json.load(open('$CACHE_FILE')); print(len(d.get('papers_downloaded',{})))" 2>/dev/null || echo "0")
-          EXHAUSTED=$(python3 -c "import json; d=json.load(open('$CACHE_FILE')); print(str(d.get('queries_exhausted',False)))" 2>/dev/null || echo "False")
+          # Read cache state. search_cache.py writes these as ints/bools:
+          #   papers_found (int), papers_downloaded (int), queries_exhausted (bool)
+          TOTAL_FOUND=$(python3 -c "import json; d=json.load(open('$CACHE_FILE')); v=d.get('papers_found', d.get('found_count',0)); print(v if isinstance(v,int) else len(v))" 2>/dev/null || echo "0")
+          TOTAL_DL=$(python3 -c "import json; d=json.load(open('$CACHE_FILE')); v=d.get('papers_downloaded', d.get('downloaded_count',0)); print(v if isinstance(v,int) else len(v))" 2>/dev/null || echo "0")
+          EXHAUSTED=$(python3 -c "import json; d=json.load(open('$CACHE_FILE')); print(str(d.get('queries_exhausted', False)))" 2>/dev/null || echo "False")
           echo "Progress: $TOTAL_DL downloaded / $TOTAL_FOUND found / exhausted=$EXHAUSTED"
-          if [ "$EXHAUSTED" = "True" ] && [ "$TOTAL_FOUND" -le "$TOTAL_DL" ]; then
+          if [ "$EXHAUSTED" = "True" ]; then
             echo "============================================"
-            echo "  ALL RESEARCH COMPLETE!"
-            echo "  Chunk ${{ steps.chunk.outputs.current_chunk }} of ~${{ steps.chunk.outputs.total_chunks }}"
+            echo "  ALL RESEARCH COMPLETE — queries exhausted!"
+            echo "  Chunk $CURRENT_CHUNK of ~${{ steps.chunk.outputs.total_chunks }}"
             echo "  Total papers found: $TOTAL_FOUND"
             echo "  Total downloaded: $TOTAL_DL"
             echo "============================================"
             exit 0
           fi
           REMAINING=$(( (TOTAL_FOUND - TOTAL_DL + 49) / 50 ))
-          echo "Approximately $REMAINING batches remaining"
-          if [ "$REMAINING" -le 0 ]; then
-            echo "All papers downloaded - no need to trigger another run"
-            echo "============================================"
-            echo "  ALL RESEARCH COMPLETE!"
-            echo "============================================"
-            exit 0
+          if [ "$REMAINING" -le 0 ] && [ "$TOTAL_FOUND" -gt 0 ]; then
+            echo "All found papers downloaded - no download work remaining"
           fi
+          echo "Approximately $REMAINING download batches remaining — triggering next chunk"
           echo "Triggering next run via GitHub API..."
           python3 -c "import json, os; payload = {'ref': os.environ.get('GITHUB_REF_NAME', 'main'), 'inputs': {}}; [payload['inputs'].update({k.replace('TRIGGER_', '').lower(): v}) for k, v in os.environ.items() if k.startswith('TRIGGER_')]; open('/tmp/payload.json', 'w').write(json.dumps(payload)); print('=== PAYLOAD (all inputs preserved) ==='); print(json.dumps(payload, indent=2)); print('======================================')"
           curl -s -X POST \

@@ -30,6 +30,7 @@ class SearchCache:
         self._found_count: int = 0
         self._downloaded_count: int = 0
         self._run_count: int = 0
+        self._queries_exhausted: bool = False
 
         self._load()
 
@@ -42,6 +43,7 @@ class SearchCache:
                 self._found_count = data.get("found_count", 0)
                 self._downloaded_count = data.get("downloaded_count", 0)
                 self._run_count = data.get("run_count", 0)
+                self._queries_exhausted = bool(data.get("queries_exhausted", False))
                 log.info("cache loaded from %s (%d keys)", self._cache_path, len(self._seen_keys))
             except Exception as e:
                 log.warning("cache load failed: %s", e)
@@ -54,6 +56,10 @@ class SearchCache:
                 "found_count": self._found_count,
                 "downloaded_count": self._downloaded_count,
                 "run_count": self._run_count,
+                "queries_exhausted": self._queries_exhausted,
+                # Aliases so the workflow's chain-detection reads the right keys:
+                "papers_found": len(self._seen_keys),
+                "papers_downloaded": self._downloaded_count,
             }
             self._cache_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
             log.debug("cache saved to %s (%d keys)", self._cache_path, len(self._seen_keys))
@@ -99,6 +105,7 @@ class SearchCache:
             "total_found": self._found_count,
             "total_downloaded": self._downloaded_count,
             "queries_used": len(self._queries),
+            "queries_exhausted": self._queries_exhausted,
             "runs_total": self._run_count,
         }
 
@@ -155,3 +162,19 @@ class SearchCache:
         self.save()
         log.info("cache.record_run #%d: found=%d downloaded=%d skipped=%d",
                  self._run_count, n_found, n_downloaded, n_skipped)
+
+    def set_exhausted(self, exhausted: bool = True):
+        """Mark that all search queries have been exhausted (no new queries left).
+
+        The phased/chain workflow reads this flag to decide whether to trigger
+        the next chunk or stop the chain. Set it when generate_queries returns
+        no new queries or every platform has been fully queried.
+        """
+        if self._queries_exhausted != exhausted:
+            self._queries_exhausted = exhausted
+            self.save()
+            log.info("cache: queries_exhausted=%s", exhausted)
+
+    def is_complete(self) -> bool:
+        """True when search is fully exhausted AND every found paper is downloaded."""
+        return self._queries_exhausted and self._downloaded_count >= self._found_count
