@@ -379,11 +379,11 @@ def run_verification(
         docx_path = os.path.join(output_dir, "02_Verification_Results",
                                  "literature_verification_report.docx")
         try:
-            build_excel_report(classified, excel_path, source_desc=source_desc)
+            build_excel_report(classified, excel_path, source_description=source_desc)
         except Exception as e:
             log.error(f"Excel report build failed: {e}")
         try:
-            build_docx_report(classified, docx_path, source_desc=source_desc)
+            build_docx_report(classified, docx_path, source_description=source_desc)
         except Exception as e:
             log.error(f"DOCX report build failed: {e}")
         out["excel_path"] = excel_path
