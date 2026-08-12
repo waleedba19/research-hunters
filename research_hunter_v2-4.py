@@ -6705,6 +6705,107 @@ def wizard() -> dict:
     }
 
 
+# ── Research config persistence (human-readable audit of user selections) ──────
+def _write_research_config(params: dict, out_folder: Path) -> Path | None:
+    """
+    Persist every user selection from the Run-workflow dashboard to a
+    human-readable Markdown file in the output folder. This is the import
+    artifact: the system writes what the user chose, so the run can be
+    audited and the choices are never silently lost.
+    """
+    try:
+        lines = [
+            "# Research Run Configuration",
+            "",
+            f"> Generated: {datetime.now():%Y-%m-%d %H:%M:%S}",
+            f"> Output folder: `{out_folder}`",
+            "",
+            "This file captures every selection the user made on the Run-workflow",
+            "dashboard. The system reads these from the CI_* environment variables",
+            "and acts on them; this Markdown file is the persisted, readable record.",
+            "",
+            "## Core inputs",
+            "",
+            f"- **Title**: {params.get('title', '')}",
+            f"- **Field**: {params.get('field', 'auto')}",
+            f"- **Research questions**: {params.get('research_questions') or '(none)'}",
+            f"- **Study types**: {params.get('study_types') or '(auto-detect)'}",
+            f"- **Year range**: {params.get('year_range', 'All')}",
+            "",
+            "## Search behaviour",
+            "",
+            f"- **Operation mode**: {params.get('operation_mode', 'full-research')}",
+            f"- **Search mode (depth)**: {params.get('search_mode', 'deep')}",
+            f"- **Research depth (chunking)**: {params.get('research_depth', 'medium')}",
+            f"- **Paper limit override**: {params.get('paper_limit_override') or 'no limit (use mode default)'}",
+            f"- **Platforms**: {len(params.get('platforms') or [])} platforms",
+            f"- **Search languages**: {params.get('lang_label', 'English')} ({params.get('search_languages') or ['en']})",
+            f"- **Use Sci-Hub fallback**: {params.get('use_scihub', False)}",
+            f"- **Single folder mode**: {params.get('single_folder', False)}",
+            f"- **Proxy mode**: {params.get('proxy_mode', 'n')}",
+            "",
+            "## Filters applied to results",
+            "",
+            f"- **Study level filter**: {params.get('study_level_filter') or '(none)'}",
+            f"- **Methodology filter**: {params.get('methodology_filter') or '(none)'}",
+            f"- **Thesis part filter**: {params.get('thesis_part_filter') or '(none)'}",
+            f"- **Quartile filter**: {params.get('quartile_filter') or '(all)'}",
+            f"- **Geographic area filter**: {params.get('geographic_filter') or '(worldwide)'}",
+            f"- **Country context**: {params.get('country_context') or '(auto)'}",
+            f"- **Study keywords**: {', '.join((params.get('keywords') or [])[:15]) or '(none)'}",
+            "",
+            "## Output & post-processing",
+            "",
+            f"- **Output format**: {params.get('output_format', 'both_docx_xlsx')}",
+            f"- **Download PDFs**: {os.environ.get('CI_DOWNLOAD_PDFS', 'false').lower() in ('true', '1', 'yes')}",
+            f"- **Learn enabled**: {params.get('learn_enabled', False)}",
+            f"- **Generate paper**: {params.get('generate_paper', False)}",
+            f"- **Paper type**: {params.get('paper_type', 'empirical')}",
+            "",
+            "## What the system will do based on these selections",
+            "",
+        ]
+        op = (params.get("operation_mode") or "").lower()
+        op_key = op.split(" -", 1)[0].strip()
+        if op_key == "generate-only":
+            lines.append("- Operation mode is **generate-only**: skip the 81-platform search,")
+            lines.append("  jump straight to paper generation using any cached results.")
+        elif "research" in op_key or "full" in op_key:
+            lines.append("- Operation mode includes **research**: query all platforms on the")
+            lines.append("  title, deduplicate, score, and filter by the filters above.")
+        else:
+            lines.append(f"- Operation mode: **{op_key}** (see workflow for behaviour).")
+        skip_dl = os.environ.get("CI_DOWNLOAD_PDFS", "").lower() not in ("true", "1", "yes")
+        if skip_dl:
+            lines.append("- Download PDFs is **OFF**: generate reports + Excel only, with all")
+            lines.append("  clickable links. No PDF files will be downloaded.")
+        else:
+            lines.append("- Download PDFs is **ON**: download PDFs via the 14-layer chain")
+            lines.append("  (with Sci-Hub fallback if enabled), then generate reports.")
+        of = (params.get("output_format") or "both_docx_xlsx").lower()
+        if "xlsx" in of or "excel" in of or "sheet" in of or "csv" in of:
+            lines.append("- Output format includes **Excel**: generate master_papers.xlsx")
+            lines.append("  with 40 color-coded sheets (dashboard, metadata, quartile, geo,")
+            lines.append("  citations, authors, journals, institutions, coverage gaps, etc.).")
+        if "docx" in of or "both" in of or of in ("all", ""):
+            lines.append("- Output format includes **DOCX**: generate a professional")
+            lines.append("  research_report.docx alongside the Excel.")
+        if "markdown" in of or "md" == of or of in ("all", ""):
+            lines.append("- Output format includes **Markdown**: generate research_report.md.")
+        lines += [
+            "",
+            "---",
+            "End of configuration.",
+        ]
+        cfg_path = out_folder / "research_config.md"
+        cfg_path.write_text("\n".join(lines), encoding="utf-8")
+        ok(f"research_config.md: {cfg_path} (selections persisted)")
+        return cfg_path
+    except Exception as ex:
+        warn(f"research_config.md write failed: {ex}")
+        return None
+
+
 # ── Main ───────────────────────────────────────────────────────────────────────
 def _write_master_xlsx(all_papers: list, out_folder: Path, queries_used: list = None) -> Path | None:
     """
@@ -7158,6 +7259,209 @@ def _write_master_xlsx(all_papers: list, out_folder: Path, queries_used: list = 
         ws_l.cell(len(queries_used or [])+4,1,f"Timestamp: {datetime.now():%Y-%m-%d %H:%M:%S}").font = Font(italic=True, color="666666")
 
         # ═══════════════════════════════════════════════════════════════
+        # SHEETS 22-40: ADDITIONAL ANALYTICS SHEETS
+        # ═══════════════════════════════════════════════════════════════
+
+        # SHEET: Year-by-Year Breakdown
+        ws_yy = wb.create_sheet("Year-by-Year"); ws_yy.sheet_properties.tabColor = "4472C4"
+        yy_rows = [[yr, year_cnt[yr], f"{year_cnt[yr]/max(len(all_papers),1)*100:.1f}%"]
+                   for yr in sorted(y for y in year_cnt if y.isdigit() and len(y) == 4)]
+        _styled_sheet(ws_yy, ["Year", "Papers", "Percentage"], yy_rows, widths=[10, 10, 12])
+
+        # SHEET: Decade Distribution
+        ws_dec = wb.create_sheet("Decade Distribution"); ws_dec.sheet_properties.tabColor = "5B9BD5"
+        decade_cnt = Counter()
+        for p in all_papers:
+            yr = str(p.get("year", ""))
+            if yr.isdigit() and len(yr) == 4:
+                d = f"{(int(yr)//10)*10}s"
+                decade_cnt[d] += 1
+            elif yr:
+                decade_cnt["Unknown Year"] += 1
+        dec_rows = [[d, decade_cnt[d], f"{decade_cnt[d]/max(len(all_papers),1)*100:.1f}%"]
+                    for d in sorted(decade_cnt)]
+        _styled_sheet(ws_dec, ["Decade", "Papers", "Percentage"], dec_rows, widths=[12, 10, 12])
+
+        # SHEET: Language Distribution
+        ws_lang = wb.create_sheet("Language Distribution"); ws_lang.sheet_properties.tabColor = "70AD47"
+        lang_rows = [[l or "Unknown", lang_cnt[l], f"{lang_cnt[l]/max(len(all_papers),1)*100:.1f}%"]
+                     for l, _ in lang_cnt.most_common()]
+        _styled_sheet(ws_lang, ["Language", "Papers", "Percentage"], lang_rows, widths=[16, 10, 12])
+
+        # SHEET: Open Access Status
+        ws_oa = wb.create_sheet("Open Access Status"); ws_oa.sheet_properties.tabColor = "ED7D31"
+        oa_cnt = Counter()
+        for p in all_papers:
+            oa = str(p.get("oa", "") or "").lower()
+            if oa in ("gold", "green", "hybrid", "bronze", "yes", "true"):
+                oa_cnt["Open Access"] += 1
+            elif oa:
+                oa_cnt[oa.capitalize()] += 1
+            else:
+                oa_cnt["Unknown/Closed"] += 1
+        oa_rows = [[o, oa_cnt[o], f"{oa_cnt[o]/max(len(all_papers),1)*100:.1f}%"]
+                   for o, _ in oa_cnt.most_common()]
+        _styled_sheet(ws_oa, ["Access Status", "Papers", "Percentage"], oa_rows, widths=[18, 10, 12])
+
+        # SHEET: Methodology Distribution
+        ws_meth = wb.create_sheet("Methodology Distribution"); ws_meth.sheet_properties.tabColor = "A5A5A5"
+        meth_cnt = Counter(str(p.get("methodology", "") or "Unknown") for p in all_papers)
+        meth_rows = [[m, meth_cnt[m], f"{meth_cnt[m]/max(len(all_papers),1)*100:.1f}%"]
+                     for m, _ in meth_cnt.most_common()]
+        _styled_sheet(ws_meth, ["Methodology", "Papers", "Percentage"], meth_rows, widths=[22, 10, 12])
+
+        # SHEET: Study Level Distribution
+        ws_sl = wb.create_sheet("Study Level Distribution"); ws_sl.sheet_properties.tabColor = "264478"
+        sl_cnt = Counter(detect_doc_type(p) or "Article" for p in all_papers)
+        sl_rows = [[s, sl_cnt[s], f"{sl_cnt[s]/max(len(all_papers),1)*100:.1f}%"]
+                   for s, _ in sl_cnt.most_common()]
+        _styled_sheet(ws_sl, ["Document Type", "Papers", "Percentage"], sl_rows, widths=[16, 10, 12])
+
+        # SHEET: Thesis Part Distribution
+        ws_tp = wb.create_sheet("Thesis Part Distribution"); ws_tp.sheet_properties.tabColor = "9E480E"
+        tp_cnt = Counter(str(p.get("thesis_part", "") or "Unknown") for p in all_papers)
+        tp_rows = [[t or "Unknown", tp_cnt[t], f"{tp_cnt[t]/max(len(all_papers),1)*100:.1f}%"]
+                   for t, _ in tp_cnt.most_common()]
+        _styled_sheet(ws_tp, ["Thesis Part", "Papers", "Percentage"], tp_rows, widths=[20, 10, 12])
+
+        # SHEET: Top Authors
+        ws_au = wb.create_sheet("Top Authors"); ws_au.sheet_properties.tabColor = "636363"
+        author_cnt = Counter()
+        for p in all_papers:
+            for a in (p.get("authors") or [])[:6]:
+                name = str(a).strip()
+                if name and len(name) > 1:
+                    author_cnt[name] += 1
+        au_rows = [[i, a, author_cnt[a]] for i, (a, _) in enumerate(author_cnt.most_common(50), 1)]
+        _styled_sheet(ws_au, ["Rank", "Author", "Papers"], au_rows, widths=[6, 30, 10])
+
+        # SHEET: Top Journals
+        ws_jr = wb.create_sheet("Top Journals"); ws_jr.sheet_properties.tabColor = "997300"
+        jr_cnt = Counter()
+        for p in all_papers:
+            j = str(p.get("journal", "") or p.get("venue", "") or "").strip()
+            if j:
+                jr_cnt[j] += 1
+        jr_rows = [[i, j[:100], jr_cnt[j]] for i, (j, _) in enumerate(jr_cnt.most_common(50), 1)]
+        _styled_sheet(ws_jr, ["Rank", "Journal", "Papers"], jr_rows, widths=[6, 50, 10])
+
+        # SHEET: Top Institutions
+        ws_in = wb.create_sheet("Top Institutions"); ws_in.sheet_properties.tabColor = "43682B"
+        inst_cnt = Counter()
+        for p in all_papers:
+            aff = p.get("affiliations") or p.get("institutions") or ""
+            if isinstance(aff, list):
+                aff = " | ".join(str(a) for a in aff)
+            for a in str(aff).split("|"):
+                a = a.strip()
+                if a and len(a) > 2:
+                    inst_cnt[a[:80]] += 1
+        in_rows = [[i, inst, inst_cnt[inst]] for i, (inst, _) in enumerate(inst_cnt.most_common(50), 1)]
+        _styled_sheet(ws_in, ["Rank", "Institution", "Papers"], in_rows, widths=[6, 50, 10])
+
+        # SHEET: Citation Buckets
+        ws_cb = wb.create_sheet("Citation Buckets"); ws_cb.sheet_properties.tabColor = "C00000"
+        cb_cnt = Counter()
+        for p in all_papers:
+            c = int(p.get("gs_citations") or 0)
+            if c == 0:
+                cb_cnt["0 citations"] += 1
+            elif c <= 10:
+                cb_cnt["1-10"] += 1
+            elif c <= 50:
+                cb_cnt["11-50"] += 1
+            elif c <= 100:
+                cb_cnt["51-100"] += 1
+            elif c <= 500:
+                cb_cnt["101-500"] += 1
+            else:
+                cb_cnt["500+"] += 1
+        cb_order = ["0 citations", "1-10", "11-50", "51-100", "101-500", "500+"]
+        cb_rows = [[b, cb_cnt.get(b, 0), f"{cb_cnt.get(b,0)/max(len(all_papers),1)*100:.1f}%"] for b in cb_order]
+        _styled_sheet(ws_cb, ["Citation Bucket", "Papers", "Percentage"], cb_rows, widths=[16, 10, 12])
+
+        # SHEET: DOI Coverage
+        ws_doi = wb.create_sheet("DOI Coverage"); ws_doi.sheet_properties.tabColor = "2E75B6"
+        with_doi = sum(1 for p in all_papers if str(p.get("doi", "") or "").strip())
+        without_doi = len(all_papers) - with_doi
+        doi_rows = [["With DOI", with_doi, f"{with_doi/max(len(all_papers),1)*100:.1f}%"],
+                    ["Without DOI", without_doi, f"{without_doi/max(len(all_papers),1)*100:.1f}%"]]
+        _styled_sheet(ws_doi, ["Status", "Papers", "Percentage"], doi_rows, widths=[14, 10, 12])
+
+        # SHEET: Abstract Coverage
+        ws_abs = wb.create_sheet("Abstract Coverage"); ws_abs.sheet_properties.tabColor = "548235"
+        with_abs = sum(1 for p in all_papers if str(p.get("abstract", "") or "").strip())
+        without_abs = len(all_papers) - with_abs
+        abs_rows = [["With Abstract", with_abs, f"{with_abs/max(len(all_papers),1)*100:.1f}%"],
+                    ["Without Abstract", without_abs, f"{without_abs/max(len(all_papers),1)*100:.1f}%"]]
+        _styled_sheet(ws_abs, ["Status", "Papers", "Percentage"], abs_rows, widths=[16, 10, 12])
+
+        # SHEET: Recent Papers (last 3 years)
+        ws_rec = wb.create_sheet("Recent (3 years)"); ws_rec.sheet_properties.tabColor = "00B050"
+        try:
+            current_year = datetime.now().year
+            cutoff = current_year - 3
+            recent = [p for p in all_papers if str(p.get("year", "")).isdigit()
+                      and int(p.get("year")) >= cutoff]
+        except Exception:
+            recent = []
+        rec_rows = [[i, str(p.get("title", ""))[:150],
+                     " | ".join(str(a) for a in (p.get("authors") or [])[:3])[:80],
+                     str(p.get("year", "")), _paper_q(p),
+                     int(p.get("gs_citations") or 0)]
+                    for i, p in enumerate(recent, 1)]
+        _styled_sheet(ws_rec, ["#", "Title", "Authors", "Year", "Q", "Citations"], rec_rows,
+                      q_col=5, widths=[4, 50, 28, 6, 8, 10])
+
+        # SHEET: High Impact (Q1+Q2 full list)
+        ws_hi = wb.create_sheet("High Impact (Q1+Q2)"); ws_hi.sheet_properties.tabColor = "006100"
+        high_impact = [p for p in all_papers if _paper_q(p) in ("Q1", "Q2")]
+        hi_rows = [[i, str(p.get("title", ""))[:150],
+                    " | ".join(str(a) for a in (p.get("authors") or [])[:3])[:80],
+                    str(p.get("year", "")), str(p.get("journal", ""))[:60], _paper_q(p),
+                    int(p.get("gs_citations") or 0), str(p.get("doi", ""))]
+                   for i, p in enumerate(high_impact, 1)]
+        _styled_sheet(ws_hi, ["#", "Title", "Authors", "Year", "Journal", "Q", "Citations", "DOI"],
+                      hi_rows, q_col=6, widths=[4, 50, 28, 6, 28, 8, 8, 30])
+
+        # SHEET: Source URL List (all clickable links)
+        ws_url = wb.create_sheet("Source URL List"); ws_url.sheet_properties.tabColor = "8FAADC"
+        url_rows = []
+        for i, p in enumerate(all_papers, 1):
+            doi = str(p.get("doi", "") or "")
+            link = f"https://doi.org/{doi}" if doi else str(p.get("url", "") or p.get("pdf_url", "") or "")
+            url_rows.append([i, str(p.get("title", ""))[:120], _paper_q(p), link])
+        _styled_sheet(ws_url, ["#", "Title", "Quartile", "Link"], url_rows, widths=[4, 50, 8, 60])
+
+        # SHEET: Red List (failed/pending downloads)
+        ws_rl = wb.create_sheet("Red List (Failed)"); ws_rl.sheet_properties.tabColor = "FF0000"
+        failed = [p for p in all_papers if not p.get("downloaded")]
+        rl_rows = [[i, str(p.get("title", ""))[:150],
+                    str(p.get("journal", ""))[:60], _paper_q(p),
+                    str(p.get("doi", "")) or str(p.get("url", ""))]
+                   for i, p in enumerate(failed, 1)]
+        _styled_sheet(ws_rl, ["#", "Title", "Journal", "Q", "DOI/URL"], rl_rows, widths=[4, 50, 28, 8, 30])
+
+        # SHEET: Coverage Gaps (years with 0 papers in range)
+        ws_gap = wb.create_sheet("Coverage Gaps"); ws_gap.sheet_properties.tabColor = "FFC000"
+        try:
+            yrs_present = {int(y) for y in year_cnt if y.isdigit() and len(y) == 4}
+            if yrs_present:
+                y_min, y_max = min(yrs_present), max(yrs_present)
+                gaps = [[y, 0] for y in range(y_min, y_max + 1) if y not in yrs_present]
+            else:
+                gaps = []
+        except Exception:
+            gaps = []
+        _styled_sheet(ws_gap, ["Year (no papers found)", "Papers"], gaps, widths=[22, 10])
+
+        # SHEET: Field/Topic Summary
+        ws_fs = wb.create_sheet("Field Summary"); ws_fs.sheet_properties.tabColor = "7030A0"
+        fs_rows = [[i, w, topic_words[w], round(topic_words[w] / max(topic_words.most_common(1)[0][1], 1) * 100, 1)]
+                   for i, (w, _) in enumerate(topic_words.most_common(40), 1)]
+        _styled_sheet(ws_fs, ["Rank", "Keyword/Topic", "Mentions", "Trend Score"], fs_rows, widths=[6, 30, 10, 12])
+
+        # ═══════════════════════════════════════════════════════════════
         # SAVE
         # ═══════════════════════════════════════════════════════════════
         wb.save(xlsx_path)
@@ -7435,13 +7739,17 @@ def main():
 
     # Operation mode for runtime branching
     _operation_mode = params.get("operation_mode", "full-research")
-    _gen_only = _operation_mode and "generate" in _operation_mode
+    _gen_only = (_operation_mode or "").split(" -", 1)[0].strip().lower() == "generate-only"
 
     # Output folder & cache
     ci_folder = os.environ.get("CI_FOLDER_NAME", "")
     folder_name = ci_folder if ci_folder else _safe_name(title, 80)
     out_folder  = Path("pdf_files") / folder_name
     out_folder.mkdir(parents=True, exist_ok=True)
+
+    # Persist the user's Run-workflow selections as a readable Markdown file
+    # so the system has an auditable record of every choice the user made.
+    _write_research_config(params, out_folder)
 
     # Create ALL subfolders upfront (Q + type + geo + citation + misc) — skip in single_folder mode
     if not single_folder:
