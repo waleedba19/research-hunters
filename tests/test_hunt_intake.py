@@ -1,11 +1,14 @@
 """
-tests/test_hunt_intake.py — Unit tests for the hunt_intake module.
+tests/test_hunt_intake.py — Unit tests for the hunt_intake state machine.
 
-Tests the state machine end-to-end without Telegram:
-  - All 5 steps can be recorded
-  - Skipping optional steps uses defaults
-  - get_intake_answers returns correct values
-  - cancel_intake clears state
+Tests the intake flow end-to-end (no Telegram, no network, no ollama):
+  - All 14 steps can be recorded and the intake reaches completion
+  - Skipping optional steps applies defaults
+  - The required 'title' step cannot be skipped
+  - cancel clears state
+  - get_intake_answers fills defaults for unanswered steps
+  - intake_progress_text reflects step progress
+State is isolated in a temp STATE_DIR so these tests never touch real chat data.
 """
 import os
 import sys
@@ -14,14 +17,13 @@ import tempfile
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, REPO_ROOT)
 
-# Use a temp STATE_DIR for isolation
+# Isolate state into a temp dir BEFORE importing state_manager/hunt_intake.
 TMP_DIR = tempfile.mkdtemp(prefix="hunt_intake_test_")
 os.environ["STATE_DIR"] = TMP_DIR
 
-# Import after setting env
 import importlib
-import telegram_bot  # noqa: E402
-importlib.reload(telegram_bot)
+import state_manager  # noqa: E402
+importlib.reload(state_manager)
 import hunt_intake  # noqa: E402
 importlib.reload(hunt_intake)
 

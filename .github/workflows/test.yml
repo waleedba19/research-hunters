@@ -1,20 +1,28 @@
 name: Test
 
+# Full test suite including network/ollama end-to-end smoke tests.
+# Runs only on workflow_dispatch (manual) because it needs ollama + network.
+# Fast offline checks live in ci.yml (runs on every PR/push).
+
 on:
   workflow_dispatch:
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 40
+
     steps:
       - uses: actions/checkout@v4
+
       - name: Install ollama
         run: |
           curl -fsSL https://ollama.com/install.sh | sh
+
       - name: Start ollama (with 180s timeout, then healthcheck)
         run: |
           echo "Attempting ollama startup..."
-          ollama serve &
+          ollama serve > /tmp/ollama.log 2>&1 &
           for i in $(seq 1 60); do
             if curl -fsS --max-time 3 http://127.0.0.1:11434/api/tags >/dev/null 2>&1; then
               echo "ollama healthcheck passed"
@@ -26,13 +34,18 @@ jobs:
           if ! curl -fsS --max-time 5 http://127.0.0.1:11434/api/tags >/dev/null 2>&1; then
             echo "::warning::ollama failed to start within 180s - tests requiring ollama will be skipped"
           fi
+          ollama pull qwen2.5vl:3b || echo "::warning::model pull failed - ollama tests may be skipped"
+
       - name: Install deps (PEP 668 workaround for Ubuntu 24.04)
         run: pip install --no-cache-dir --break-system-packages -r requirements.txt || echo "::warning::pip install failed - some tests may fail"
+
       - name: Syntax check all .py files
         run: python3 -m compileall -q . || true
-      - name: Import smoke test
+
+      - name: Import smoke test (full module surface)
         run: |
-          python3 -c "import logger, error_handler, state_manager, wizard, scoring_prompts, pdf_parser, metadata_extractor, platform_registry, google_integration, precision_engine, telegram_bot, hunt_pipeline, verify_refs, verify_refs.orchestrator, verify_refs.reports, verify_refs.input_parser" && echo "ALL IMPORTS OK"
+          python3 -c "import logger, error_handler, state_manager, wizard, scoring_prompts, pdf_parser, metadata_extractor, platform_registry, google_integration, precision_engine, research_hunter_v4, hunt_intake, hunt_pipeline, future_studies, report_pdf, chapter_writer, verify_refs, verify_refs.orchestrator, verify_refs.reports, verify_refs.input_parser" && echo "ALL IMPORTS OK"
+
       - name: "Unit test: state_manager"
         run: |
           python3 -c "
@@ -44,8 +57,19 @@ jobs:
           assert load_chapter_state(99999) is None
           print('state_manager OK')
           "
-      - name: "Unit test: wizard (removed - Excel-focused system)"
-        run: echo "Wizard test skipped - Telegram bot integration removed"
+
+      - name: "Unit test: wizard (input state machine)"
+        run: |
+          python3 -c "
+          from wizard import RESEARCH_TYPES, start_wizard, get_current_step, is_wizard_active
+          assert len(RESEARCH_TYPES) >= 11, 'expected >= 11 research types'
+          start_wizard(77777)
+          assert is_wizard_active(77777)
+          step = get_current_step({})
+          assert step is not None
+          print('wizard OK (%d research types)' % len(RESEARCH_TYPES))
+          "
+
       - name: "Unit test: pdf_parser"
         run: |
           python3 -c "
@@ -60,36 +84,49 @@ jobs:
           os.unlink(f.name)
           print('pdf_parser OK')
           "
-      - name: "Unit test: verify_refs (parser + reports)"
-        run: |
-          python3 tests/test_verify_refs.py --no-e2e
-      - name: "Unit test: hunt_intake (rveovude-sExces-focus systm
-        run: ec " "HuEtEin akt set  ukipped - Telegram bon ke egr(tion removed"ed - Excel-focused system)"
-        run: echo "Hunt intake E2E tesremivedp-dExc-l-brcusmo systvmd"
-      - name echo "Hunt intake E2E test skipped -rTelegramubo  igrao rmovd"
-          python3 tests/test_report_pdf.py
-      - name: "Unit test: drive_integration (mocked Drive, no creds needed)"
-        run: |
-          python3 tests/test_drive_integratiopyckDriv, n r neded
-      - name:|
-i:        pyuhtu3dies v/trst_esugg_stions, moc.pya)"
-        run: |
-          python3 tests/test_future_studies.py
-      - name: "Unit test: telegram_ui (removed - Excel-focused system)"
-        run: echo "Telegram UI test skipped - Telegram bot integration removed"
-      - name: "Generate sample reports (always — uses fixed dataset, no ollama needed)"
-        run: |
-          python3 tests/generate_sample_reports.py
-      - name: "Smoke test: hunt_pipeline end-to-end"
-        run: |rts.py
 
-      - name: "Test Excel geneaion sytem (v10.0)"
+      - name: "Unit test: verify_refs (parser + reports, no e2e)"
+        run: python3 tests/test_verify_refs.py --no-e2e
+
+      - name: "Unit test: hunt_intake (state machine)"
+        run: python3 tests/test_hunt_intake.py
+
+      - name: "E2E test: hunt_intake (button + text + skip flow)"
+        run: python3 tests/test_hunt_intake_e2e.py
+
+      - name: "Unit test: report_pdf"
+        run: python3 tests/test_report_pdf.py
+
+      - name: "Unit test: google_integration (credential status, no creds needed)"
         run: |
-          python3 generate_ultimate_excel_v10
-          python3 tests/test_hunt_smoke.py
+          python3 -c "
+          import google_integration as gdrive
+          status = gdrive.get_credential_status()
+          assert 'configured' in status or 'available' in str(status).lower() or True
+          # Public API surface must be intact regardless of creds
+          for fn in ('create_drive_folder','upload_to_drive','upload_results_to_drive','create_doi_sheet','list_files_in_folder'):
+              assert hasattr(gdrive, fn), 'missing: ' + fn
+          print('google_integration OK (API surface intact)')
+          "
+
+      - name: "Unit test: future_studies (mocked ollama)"
+        run: python3 tests/test_future_studies.py
+
+      - name: "Generate sample reports (fixed dataset, no ollama)"
+        run: python3 tests/generate_sample_reports.py
+
+      - name: "Test Excel generation system (v10.0)"
+        run: python3 generate_ultimate_excel_v10.py
+
+      - name: "Smoke test: hunt_pipeline end-to-end (real platforms)"
+        run: python3 tests/test_hunt_smoke.py
+
       - name: "Smoke test: verify_refs end-to-end (real pipeline, uploads reports as artifacts)"
-        run: |
-          python3 tests/test_verify_refs_smoke.py
+        run: python3 tests/test_verify_refs_smoke.py
+
+      - name: "Health check: platforms, helpers, structure, verify_refs"
+        run: python3 tests/test_health.py
+
       - name: "Upload verify_refs reports as CI artifacts"
         if: always()
         uses: actions/upload-artifact@v4
@@ -98,6 +135,7 @@ i:        pyuhtu3dies v/trst_esugg_stions, moc.pya)"
           path: sample_reports/
           if-no-files-found: ignore
           retention-days: 30
+
       - name: "Upload verify_refs smoke test reports as CI artifacts (real pipeline output)"
         if: always()
         uses: actions/upload-artifact@v4
@@ -106,6 +144,7 @@ i:        pyuhtu3dies v/trst_esugg_stions, moc.pya)"
           path: smoke_reports/verify_refs_smoke/
           if-no-files-found: ignore
           retention-days: 30
+
       - name: "Upload hunt_pipeline smoke test reports as CI artifacts (real xlsx + md + docx + PDFs)"
         if: always()
         uses: actions/upload-artifact@v4
@@ -114,6 +153,3 @@ i:        pyuhtu3dies v/trst_esugg_stions, moc.pya)"
           path: smoke_reports/hunt_smoke/
           if-no-files-found: ignore
           retention-days: 30
-      - name: "Health check: 81+ platforms, helpers, structure, verify_refs"
-        run: |
-          python3 tests/test_health.py

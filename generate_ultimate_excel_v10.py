@@ -967,7 +967,7 @@ print("✅ Executive Summary created")
 # ════════════════════════════════════════════════════════════════════════════
 # SAVE EXCEL FILE
 # ════════════════════════════════════════════════════════════════════════════
-output = Path("C:/Users/Administrator/CascadeProjects/research-hunters/ULTIMATE_RESEARCH_SYNTHESIS_V10.xlsx")
+output = Path(__file__).resolve().parent / "ULTIMATE_RESEARCH_SYNTHESIS_V10.xlsx"
 wb.save(output)
 print(f"\n🎉 ULTIMATE EXCEL V10 CREATED: {output}")
 print(f"📊 Total Sheets: {len(wb.sheetnames)}")

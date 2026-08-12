@@ -17,9 +17,9 @@ v6.7: 13 steps, each skippable (uses default if skipped):
   13. max_papers        - cap on results (default 1000)
   (14.) download_pdfs   - yes / no
 
-State is stored via telegram_bot.save_chat_state / load_chat_state.
+State is stored via state_manager.save_chapter_state / load_chapter_state.
 When all steps are answered, hunt_intake_complete = True and the
-caller (telegram_bot._on_hunt_intake_complete) shows the review screen.
+caller shows the review screen and dispatches the hunt.
 """
 from typing import Dict, Any, Optional, List
 from logger import get_logger
@@ -219,9 +219,14 @@ HUNT_STEPS: List[Dict[str, Any]] = [
 
 
 def _get_state_funcs():
-    """Lazy import to avoid circular dependency."""
-    from telegram_bot import load_chat_state, save_chat_state
-    return load_chat_state, save_chat_state
+    """Lazy import of the canonical state API from state_manager.
+
+    Returns (load_fn, save_fn) with signatures:
+        load_fn(chat_id) -> Optional[dict]
+        save_fn(chat_id, dict) -> None
+    """
+    from state_manager import load_chapter_state, save_chapter_state
+    return load_chapter_state, save_chapter_state
 
 
 def start_hunt_intake(chat_id: int, prefill: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:

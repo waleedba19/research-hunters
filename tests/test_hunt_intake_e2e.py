@@ -1,11 +1,12 @@
 """
-tests/test_hunt_intake_e2e.py — End-to-end test of the /hunt2 Telegram flow.
+tests/test_hunt_intake_e2e.py — End-to-end test of the hunt intake flow.
 
-Simulates the user typing /hunt2 with a prefill, then clicking through the 5
-inline keyboard buttons (or skipping), and verifies the intake reaches
+Simulates an intake starting with a prefill, then stepping through all 14
+inputs (via "button"/"text"/"skip"), and verifies the intake reaches
 completion and returns a properly-filled answers dict ready for the v2 pipeline.
 
-Does NOT call the actual pipeline (no Ollama). Only the state machine.
+Does NOT call the actual pipeline (no ollama, no network). Only the state machine.
+State is isolated in a temp STATE_DIR.
 """
 import os
 import sys
@@ -14,13 +15,13 @@ import tempfile
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, REPO_ROOT)
 
-# Use a temp STATE_DIR for isolation
+# Isolate state into a temp dir BEFORE importing.
 TMP_DIR = tempfile.mkdtemp(prefix="hunt_intake_e2e_")
 os.environ["STATE_DIR"] = TMP_DIR
 
 import importlib
-import telegram_bot  # noqa: E402
-importlib.reload(telegram_bot)
+import state_manager  # noqa: E402
+importlib.reload(state_manager)
 import hunt_intake  # noqa: E402
 importlib.reload(hunt_intake)
 

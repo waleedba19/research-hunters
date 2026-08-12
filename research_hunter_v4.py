@@ -18,7 +18,6 @@ from pdf_parser import parse_chapter_references
 from metadata_extractor import extract_page1_metadata, merge_with_crossref_meta
 from precision_engine import precision_search, score_paper_match, cross_source_validate, detect_reference_type
 from platform_registry import search_all_platforms, get_all_platform_names
-import google_integration as gdrive
 from state_manager import save_chapter_state, load_chapter_state
 
 log4 = get_logger("research_hunter_v4")
@@ -73,25 +72,40 @@ def cross_source_validate_w(papers: List[Dict[str, Any]]) -> List[Dict[str, Any]
 
 
 def create_drive_folder_w(chapter_name: str) -> Optional[str]:
-    """Create per-chapter folder structure in Google Drive."""
+    """Create per-chapter folder structure in Google Drive. Returns None if Drive unavailable."""
+    try:
+        import google_integration as gdrive
+    except Exception as e:
+        log.warning(f"create_drive_folder_w: google_integration unavailable: {e}")
+        return None
     return gdrive.create_drive_folder(chapter_name)
 
 
 def create_doi_sheet_w(chapter_name: str, papers: List[Dict[str, Any]]) -> Optional[str]:
-    """Create the Google Sheet with one row per verified reference."""
+    """Create the Google Sheet with one row per verified reference. Returns None if Drive unavailable."""
+    try:
+        import google_integration as gdrive
+    except Exception as e:
+        log.warning(f"create_doi_sheet_w: google_integration unavailable: {e}")
+        return None
     return gdrive.create_doi_sheet(chapter_name, papers)
 
 
 def upload_to_drive_w(local_path: str, drive_folder_id: str) -> Optional[str]:
-    """Upload a downloaded PDF to a specific Drive folder."""
+    """Upload a downloaded PDF to a specific Drive folder. Returns None if Drive unavailable."""
+    try:
+        import google_integration as gdrive
+    except Exception as e:
+        log.warning(f"upload_to_drive_w: google_integration unavailable: {e}")
+        return None
     return gdrive.upload_to_drive(local_path, drive_folder_id)
 
 
 def telegram_send_rich_result_w(chat_id: int, papers: List[Dict[str, Any]],
                                  sheet_url: Optional[str] = None,
                                  drive_url: Optional[str] = None) -> Dict[str, Any]:
-    """Build a rich result payload that the Telegram bot can send.
-    The actual send is done by telegram_bot.py; this just builds the payload.
+    """Build a rich result payload for the caller (e.g. a bot or report).
+    This just builds the payload; the caller decides how to deliver it.
     """
     if not papers:
         return {"text": "❌ No papers matched. Try lowering the precision threshold or providing more context."}
@@ -122,7 +136,7 @@ def telegram_send_rich_result_w(chat_id: int, papers: List[Dict[str, Any]],
 
 
 def telegram_edit_progress_w(chat_id: int, message_id: int, new_text: str) -> None:
-    """Stub: actual edit happens in telegram_bot.py. This is for callers in v2-4 that want to log."""
+    """Log a progress update. The caller (e.g. a transport layer) may render it."""
     log.info(f"[progress] chat={chat_id} msg={message_id} text={new_text[:80]!r}")
 
 

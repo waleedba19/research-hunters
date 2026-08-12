@@ -9,6 +9,9 @@ build/
 dist/
 .pytest_cache/
 
+# Interrupted git rewrites (never commit these)
+.git-rewrite/
+
 # Credentials — NEVER commit (loaded from D:\opencode\ or with_env.bat)
 credentials/
 *.json

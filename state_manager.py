@@ -11,7 +11,10 @@ from logger import get_logger
 
 log = get_logger("state_manager")
 
-DEFAULT_STATE_DIR = os.path.join(os.path.dirname(__file__), "data", "state")
+DEFAULT_STATE_DIR = os.environ.get(
+    "STATE_DIR",
+    os.path.join(os.path.dirname(__file__), "data", "state"),
+)
 
 _lock = threading.Lock()
 
