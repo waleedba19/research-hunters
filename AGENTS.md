@@ -72,16 +72,23 @@ for p in r[:3]:
 ## GHA workflows
 
 - `bot-polling.yml` — runs every 5 min. Long-polls Telegram, processes up to 25 updates per cycle, exits. Total compute: ~144 min/day.
-- `ci.yml` — runs automatically on every PR + push. Fast, deterministic, offline checks: compile (warnings = errors), import smoke, unit tests (state_manager, wizard, pdf_parser, verify_refs, hunt_intake, report_pdf, drive_integration, future_studies, telegram_ui) + health check. No ollama, no network.
-- `test.yml` — `workflow_dispatch` only. Full suite including the network/ollama end-to-end smoke tests (`test_hunt_smoke`, `test_verify_refs_smoke`) that can't run reliably offline.
-- `backup.yml` — weekly tar.gz of state + logs, uploaded as artifact.
-- `write-chapter.yml` — v0.2. Multi-job chapter writer via repository_dispatch.
+- `ci.yml` — runs automatically on every PR + push. Fast, deterministic, offline checks: compile (warnings = errors), import smoke, unit tests (state_manager, pdf_parser, verify_refs, hunt_intake, report_pdf, drive_integration, future_studies) + health check. No ollama, no network.
+- `test.yml` — `workflow_dispatch` only. Full suite including the network/ollama end-to-end smoke tests (`test_hunt_smoke`, `test_verify_refs_smoke`). Requires ollama: the job runs `ollama serve` then `ollama pull qwen2.5vl:3b` (the model precision_engine uses) — without the pull, every `_call_ollama` returns a parse failure → score 0.00 → all refs UNVERIFIED.
+- `research.yml` — the user-facing "Run workflow" entry. Has a **`download_pdfs` toggle button** (default OFF): OFF = reports only (40-sheet Excel + DOCX + PDF, no PDF downloads); ON = reports + actual PDF file downloads. Generates the 40-sheet `ULTIMATE_RESEARCH_SYNTHESIS_V10.xlsx` from `results.json` and converts the DOCX report to PDF via LibreOffice (auto-installed if missing).
+
+## No-download run mode
+
+- `run_no_download.py` — standalone CLI: runs `hunt_pipeline.run_hunt(skip_download=True)`, then builds the 40-sheet Excel from `results.json`, and reports all DOCX/PDF/XLSX/MD outputs. Searches + dedupes + quartile/doc-type/geo detection still run; only the `smart_file_paper` PDF download step is skipped.
+- `hunt_pipeline.run_hunt(skip_download=...)` — when True, 0 PDFs are downloaded (fast), but all report generation (master_papers.xlsx, research_report.md/.docx, future studies) still runs.
+- `generate_ultimate_excel_v10.py <results.json>` — first CLI arg = a real `results.json` path → builds the 40-sheet workbook from actual hunt papers. No arg = sample mode (40 sheets of demo data). Default output path is script-relative (no hardcoded Windows path); auto-mkdirs.
 
 ## Common pitfalls
 
+- **ollama "alive" but model not pulled** — `curl localhost:11434/api/tags` succeeds as soon as `ollama serve` starts, but scoring returns 0.00 until `ollama pull qwen2.5vl:3b` completes. Always pull the model before scoring-dependent tests.
+- **Wrong xlsx filename** — `hunt_pipeline.run_hunt` produces `master_papers.xlsx` (via v2-4 `_write_master_xlsx`), NOT `master_database.xlsx` (that's the CSV name + a legacy label in the summary string).
+- **verify_refs report kwarg** — `build_excel_report`/`build_docx_report` take `source_description=` (not `source_desc=`). The orchestrator passes `source_description=source_desc`.
 - **ollama not running** — first step in every workflow is `/usr/local/bin/ollama-start.sh`. If the script is missing, the ollama model is still in the image but needs a server.
 - **MemoryError on big PDFs** — `pdf_parser.parse_chapter_references` caps `full_text` at 50k chars.
 - **Drive 15 GB cap** — supervisor email should be added to folder ACL for auto-sharing.
 - **No Node.js in image** — `write-chapter.yml` installs Node.js 20 via `actions/setup-node@v4` BEFORE running chapter_writer.py.
-- **Wizard in bad state** — `/cancel` or `/reset` clears the chat state file.
 - **Google OAuth expired** — refresh token is long-lived, but if it expires, user must re-authorize via `oauth_flow.py`.
