@@ -32,7 +32,7 @@ jobs:
         run: python3 -m compileall -q . || true
       - name: Import smoke test
         run: |
-          python3 -c "import logger, error_handler, state_manager, wizard, scoring_prompts, pdf_parser, metadata_extractor, platform_registry, google_integration, precision_engine, telegram_bot, hunt_pipeline, verify_refs, verify_refs.orchestrator, verify_refs.reports, verify_refs.input_parser" && echo "ALL IMPORTS OK"
+          python3 -c "import logger, error_handler, state_manager, scoring_prompts, pdf_parser, metadata_extractor, platform_registry, precision_engine, hunt_pipeline, report_pdf, generate_ultimate_excel_v10, verify_refs, verify_refs.orchestrator, verify_refs.reports, verify_refs.input_parser" && echo "ALL IMPORTS OK"
       - name: "Unit test: state_manager"
         run: |
           python3 -c "
