@@ -20,6 +20,7 @@ import shutil
 import sys
 import tempfile
 import time
+import urllib.request
 from pathlib import Path
 
 if sys.platform == "win32":
@@ -33,9 +34,26 @@ if sys.platform == "win32":
     os.environ.setdefault("PYTHONUTF8", "1")
 
 
+def _check_ollama_alive() -> bool:
+    """Return True if ollama is reachable on localhost:11434."""
+    try:
+        with urllib.request.urlopen("http://127.0.0.1:11434/api/tags", timeout=3) as r:
+            return r.status == 200
+    except Exception:
+        return False
+
+
 def main() -> int:
     print("[smoke] Starting hunt_pipeline smoke test")
     start = time.time()
+
+    # This test runs the full pipeline, which needs ollama for scoring and
+    # network access to the academic platforms. Skip gracefully (exit 0) when
+    # ollama is not running so the file is safe to run directly and from the
+    # offline CI job. The network/ollama smoke test is exercised by test.yml.
+    if not _check_ollama_alive():
+        print("[smoke] SKIPPED: ollama not running on http://127.0.0.1:11434")
+        return 0
 
     repo_root = Path(__file__).resolve().parent.parent
     os.chdir(repo_root)

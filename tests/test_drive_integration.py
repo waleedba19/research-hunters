@@ -26,6 +26,15 @@ sys.path.insert(0, str(REPO_ROOT))
 if sys.platform == "win32":
     os.environ.setdefault("PYTHONIOENCODING", "utf-8")
 
+# google_integration was removed when the project moved to an Excel-focused
+# system. Skip gracefully (exit 0) when the module is absent so the file is
+# safe to run directly and from CI.
+try:
+    import google_integration  # noqa: F401
+except ImportError:
+    print("SKIPPED: google_integration removed (Excel-focused system)")
+    sys.exit(0)
+
 
 def make_mock_drive_service():
     """Build a MagicMock that mimics the Google Drive v3 API surface we use."""

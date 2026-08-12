@@ -64,23 +64,29 @@ jobs:
       - name: "Unit test: verify_refs (parser + reports, no e2e)"
         run: python3 tests/test_verify_refs.py --no-e2e
 
-      - name: "Unit test: hunt_intake (state machine) - removed"
-        run: echo "Hunt intake test skipped - Telegram bot integration removed"
+      - name: "Unit test: hunt_intake (state machine)"
+        run: python3 tests/test_hunt_intake.py
 
-      - name: "E2E test: hunt_intake (button + text + skip flow) - removed"
-        run: echo "Hunt intake E2E test skipped - Telegram bot integration removed"
+      - name: "E2E test: hunt_intake (button + text + skip flow)"
+        run: python3 tests/test_hunt_intake_e2e.py
 
       - name: "Unit test: report_pdf"
         run: python3 tests/test_report_pdf.py
 
-      - name: "Unit test: drive_integration (removed - Excel-focused system)"
-        run: echo "Drive integration test skipped - Google Drive integration removed"
+      - name: "Unit test: drive_integration"
+        run: python3 tests/test_drive_integration.py
 
       - name: "Unit test: future_studies (mocked ollama)"
         run: python3 tests/test_future_studies.py
 
-      - name: "Unit test: telegram_ui (removed - Excel-focused system)"
-        run: echo "Telegram UI test skipped - Telegram bot integration removed"
+      - name: "Unit test: telegram_ui"
+        run: python3 tests/test_telegram_ui.py
+
+      - name: "Smoke test: telegram_ui builders"
+        run: python3 tests/smoke_telegram_ui.py
+
+      - name: "Unit test: google_credentials"
+        run: python3 tests/test_google_credentials.py
 
       - name: "Generate sample reports (fixed dataset, no ollama)"
         run: python3 tests/generate_sample_reports.py

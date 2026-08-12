@@ -29,6 +29,9 @@ The system previously used `ghcr.io/wo312092-creator/runner-base:latest` but now
 - `report_pdf.py` — v6.4 DOCX→PDF via LibreOffice (6 paths) or docx2pdf. Heavy report for Telegram delivery.
 - `future_studies.py` — v6.5 AI-powered research gap suggestions. Uses `precision_engine._call_ollama` to generate 3-5 (configurable) gap-filling study proposals. Falls back to 5 deterministic templates if ollama fails. `to_markdown()` renders suggestions for the report section.
 - `hunt_intake.py` — /hunt2 intake state machine (`HUNT_STEPS`, 14 steps: research_type, title, field, rq_angle, research_questions, year_range, language, country, paper_type, quartile_filter, open_access, platforms, max_papers, download_pdfs). Only `title` is required; every other step is skippable. Wired into `telegram_bot._run_v2_hunt_from_intake` with heartbeat every 5 min.
+- `run_no_download.py` — NEW. Run the hunt WITHOUT downloading PDFs. Searches all platforms, checks quartiles, dedupes, then produces the 40-sheet Excel (from REAL results) + full DOCX report + PDF report + master XLSX + markdown. Usage: `python3 run_no_download.py "<topic>" [field] --platforms crossref,openalex --max-papers N`. The `skip_download=True` param on `run_hunt` powers it (PDF fetch is skipped; quartile + doctype + geo detection still run).
+- `generate_ultimate_excel_v10.py` — 40-sheet Excel generator. Default mode uses built-in sample data (40 sheets). Real-data mode: pass a `results.json` path as the first CLI arg and it maps real hunt papers into the 40-sheet layout (narrative sections filled with "N/A (full-text not analyzed in no-download mode)" since no PDFs are read).
+- `report_pdf.py` — DOCX→PDF via LibreOffice (6 paths + `/usr/lib/libreoffice/program/soffice`) or docx2pdf. Sets `LD_LIBRARY_PATH` to the resolved soffice program dir because some Linux wrappers don't export it (libreglo.so not found otherwise).
 
 ## Conventions
 

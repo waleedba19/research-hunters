@@ -14,13 +14,22 @@ import tempfile
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, REPO_ROOT)
 
+# telegram_bot was removed when the project moved to an Excel-focused system.
+# These tests exercised the hunt2 intake flow that lived inside the bot. Skip
+# gracefully (exit 0) when the module is absent so the file is safe to run
+# directly and from CI.
+try:
+    import telegram_bot  # noqa: F401
+except ImportError:
+    print("SKIPPED: telegram_bot removed (Excel-focused system)")
+    sys.exit(0)
+
 # Use a temp STATE_DIR for isolation
 TMP_DIR = tempfile.mkdtemp(prefix="hunt_intake_test_")
 os.environ["STATE_DIR"] = TMP_DIR
 
 # Import after setting env
 import importlib
-import telegram_bot  # noqa: E402
 importlib.reload(telegram_bot)
 import hunt_intake  # noqa: E402
 importlib.reload(hunt_intake)

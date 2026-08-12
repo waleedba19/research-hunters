@@ -213,6 +213,8 @@ def run_hunt(
         search_mode (str) — "normal" or "deep"
         use_scihub (bool) — enable Sci-Hub downloads
         single_folder (bool) — save all PDFs to one folder
+        skip_download (bool) — search + quartile check + reports only, no PDF
+            downloads (reports/Excel/DOCX/PDF still produced)
         study_keywords (list) — extra keywords
         lang_label (str) — language label
         search_languages (list) — language codes
@@ -288,6 +290,7 @@ def _run_hunt_impl(
     search_languages = params.get("search_languages", ["en"])
     single_folder = params.get("single_folder", False)
     country_context = params.get("country_context") or v2_4.detect_country_context(title, rqs)
+    skip_download = params.get("skip_download", False)
 
     # Resolve platforms
     platforms = _resolve_platforms(platforms_raw)
@@ -446,7 +449,11 @@ def _run_hunt_impl(
             new_papers = new_papers[:max_papers]
 
     # ═══════ INTERLEAVED QUARTILE + DOWNLOAD PIPELINE ═══════
-    _progress_log(progress_callback, "checking_quartiles", "Checking quartiles & downloading...", 0.55)
+    if skip_download:
+        _progress_log(progress_callback, "checking_quartiles",
+                      "skip_download=True — checking quartiles only (no PDF downloads)...", 0.55)
+    else:
+        _progress_log(progress_callback, "checking_quartiles", "Checking quartiles & downloading...", 0.55)
 
     BATCH_SIZE = 50
     dl_count = 0
@@ -501,12 +508,16 @@ def _run_hunt_impl(
             0.55 + (batch_idx / total_batches) * 0.25,
         )
 
-        # Step C: Download batch
+        # Step C: Download batch (skipped when skip_download=True)
         for i, paper in enumerate(batch, 1):
             global_idx = start + i
-            success, folder_used = v2_4.smart_file_paper(
-                paper, out_folder, use_scihub, red_list, cache, single_folder
-            )
+            if skip_download:
+                success = False
+                folder_used = None
+            else:
+                success, folder_used = v2_4.smart_file_paper(
+                    paper, out_folder, use_scihub, red_list, cache, single_folder
+                )
             paper["downloaded"] = success
             if success:
                 dl_count += 1
@@ -518,12 +529,14 @@ def _run_hunt_impl(
             if gt in geo_cnt:
                 geo_cnt[gt] += 1
             if i % 10 == 0:
+                stage = "checking_quartiles" if skip_download else "downloading"
                 _progress_log(
-                    progress_callback, "downloading",
+                    progress_callback, stage,
                     f"[{global_idx}/{len(new_papers)}] {dl_count} downloaded so far...",
                     0.55 + (batch_idx / total_batches) * 0.25 + (i / len(batch)) * (0.25 / total_batches),
                 )
-            time.sleep(0.15)
+            if not skip_download:
+                time.sleep(0.15)
 
     cache.save()
 

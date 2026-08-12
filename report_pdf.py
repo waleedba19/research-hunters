@@ -22,25 +22,50 @@ log = get_logger(__name__)
 
 
 def _find_libreoffice() -> Optional[list]:
-    """Find a working LibreOffice executable. Returns the cmd as a list, or None."""
+    """Find a working LibreOffice executable. Returns the cmd as a list of
+    strings, or None if no candidate works.
+
+    On some Linux setups the soffice wrapper does not export LD_LIBRARY_PATH,
+    so the binary fails to load its bundled libs (e.g. libreglo.so). We work
+    around this by setting LD_LIBRARY_PATH to the resolved program directory
+    when probing each candidate.
+    """
     candidates = [
         ["soffice"],
         ["libreoffice"],
         ["/usr/bin/libreoffice"],
         ["/usr/bin/soffice"],
+        ["/usr/lib/libreoffice/program/soffice"],
         ["C:\\Program Files\\LibreOffice\\program\\soffice.exe"],
         ["C:\\Program Files (x86)\\LibreOffice\\program\\soffice.exe"],
         ["/Applications/LibreOffice.app/Contents/MacOS/soffice"],
     ]
     for cmd in candidates:
+        env = _libreoffice_env_for(cmd[0])
         try:
             r = subprocess.run(cmd + ["--version"],
-                               capture_output=True, text=True, timeout=10)
+                               capture_output=True, text=True, timeout=10, env=env)
             if r.returncode == 0:
                 return cmd
         except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
             continue
     return None
+
+
+def _libreoffice_env_for(exe: str) -> Optional[dict]:
+    """Build an env dict with LD_LIBRARY_PATH pointing at the soffice program
+    directory, so the bundled .so libs load on systems where the wrapper
+    doesn't set it. Returns a copy of os.environ (possibly modified).
+    """
+    env = os.environ.copy()
+    real = os.path.realpath(exe) if os.path.exists(exe) else None
+    prog_dir = os.path.dirname(real) if real and os.path.isabs(real) else None
+    if prog_dir:
+        existing = env.get("LD_LIBRARY_PATH")
+        env["LD_LIBRARY_PATH"] = (
+            prog_dir + (os.pathsep + existing) if existing else prog_dir
+        )
+    return env
 
 
 def docx_to_pdf(docx_path: str | Path,
@@ -68,6 +93,9 @@ def docx_to_pdf(docx_path: str | Path,
     # Method 1: LibreOffice
     lo_cmd = _find_libreoffice()
     if lo_cmd:
+        # Carry LD_LIBRARY_PATH so bundled .so libs load on systems where the
+        # soffice wrapper doesn't set it.
+        lo_env = _libreoffice_env_for(lo_cmd[0])
         try:
             log.info(f"Converting {docx_path.name} -> PDF via LibreOffice...")
             # Use a unique user profile dir per conversion to avoid lock conflicts
@@ -83,7 +111,7 @@ def docx_to_pdf(docx_path: str | Path,
                         "--outdir", str(out_dir),
                         str(docx_path),
                     ],
-                    capture_output=True, text=True, timeout=timeout,
+                    capture_output=True, text=True, timeout=timeout, env=lo_env,
                 )
                 if r.returncode == 0 and pdf_path.exists() and pdf_path.stat().st_size > 1000:
                     log.info(f"OK PDF via LibreOffice: {pdf_path.name} "

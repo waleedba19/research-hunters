@@ -45,6 +45,7 @@ smoke_reports/
 # Generated reports / spreadsheets (regenerated each run)
 master_papers.xlsx
 ULTIMATE_RESEARCH_SYNTHESIS.xlsx
+ULTIMATE_RESEARCH_SYNTHESIS_V10.xlsx
 ULTIMATE_RESEARCH_SYNTHESIS.docx
 
 # Backup files

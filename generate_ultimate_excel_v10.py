@@ -113,6 +113,73 @@ for i in range(6, 35):
         "discussion": f"Results support the theoretical framework. Limitations include sample constraints. Recommendations for future research and practice provided.",
     })
 
+
+# ── Optional real-data mode ──────────────────────────────────────────────────
+# If the first CLI arg is a path to a results.json produced by hunt_pipeline,
+# replace PAPERS with real search results. Fields that have no direct source
+# (narrative sections, SJR/IF) are filled with graceful placeholders so the
+# 40-sheet layout is preserved.
+def _load_real_papers(results_json_path: str) -> list:
+    """Map hunt_pipeline results.json papers into the Excel schema."""
+    with open(results_json_path, encoding="utf-8") as f:
+        data = json.load(f)
+    raw = data.get("papers") or []
+    mapped = []
+    for i, p in enumerate(raw, 1):
+        q = p.get("scopus_quartile") or {}
+        qval = q.get("quartile", "N/A") if isinstance(q, dict) else str(q or "N/A")
+        if qval in ("Not Found", "Not Ranked", "", None):
+            qval = "N/A"
+        authors = p.get("authors")
+        if isinstance(authors, list):
+            authors = ", ".join(authors)
+        abstract = (p.get("abstract") or "").strip()
+        # strip XML-ish tags from some platform abstracts
+        abstract = re.sub(r"<[^>]+>", "", abstract)
+        doi = p.get("doi") or ""
+        # year may arrive as a string ("2024") from some platforms; coerce.
+        try:
+            yv = p.get("year")
+            year = int(yv) if yv not in (None, "") else 0
+        except (ValueError, TypeError):
+            year = 0
+        mapped.append({
+            "id": i,
+            "title": p.get("title", "Untitled"),
+            "authors": authors or "Unknown",
+            "year": year,
+            "journal": p.get("journal") or p.get("venue") or "",
+            "publisher": p.get("publisher") or "",
+            "doi": doi,
+            "source": p.get("source", ""),
+            "quartile": qval,
+            "sjr": 0.0,
+            "if": 0.0,
+            "citescore": 0.0,
+            "citations_gs": int(p.get("gs_citations") or 0),
+            "field": data.get("field", "general"),
+            "doctype": p.get("doctype") or "Article",
+            "methodology": p.get("methodology") or "N/A",
+            "geo": p.get("geo") or "International",
+            "folder": p.get("folder") or qval,
+            "relevance": p.get("relevance") or "Medium",
+            "oa": bool(p.get("oa") or p.get("pdf_url")),
+            "downloaded": bool(p.get("downloaded")),
+            "funding": p.get("funding", ""),
+            "keywords": p.get("keywords", ""),
+            "introduction": abstract or "No abstract available (full-text not analyzed).",
+            "methodology": "N/A (full-text not analyzed in no-download mode).",
+            "results": "N/A (full-text not analyzed in no-download mode).",
+            "discussion": "N/A (full-text not analyzed in no-download mode).",
+        })
+    return mapped
+
+
+_results_arg = sys.argv[1] if len(sys.argv) > 1 else None
+if _results_arg and Path(_results_arg).name.endswith(".json") and Path(_results_arg).exists():
+    PAPERS = _load_real_papers(_results_arg)
+    print(f"📂 Loaded {len(PAPERS)} real papers from {_results_arg}")
+
 wb = Workbook()
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -967,7 +1034,16 @@ print("✅ Executive Summary created")
 # ════════════════════════════════════════════════════════════════════════════
 # SAVE EXCEL FILE
 # ════════════════════════════════════════════════════════════════════════════
-output = Path("C:/Users/Administrator/CascadeProjects/research-hunters/ULTIMATE_RESEARCH_SYNTHESIS_V10.xlsx")
+default_output = Path(__file__).resolve().parent / "ULTIMATE_RESEARCH_SYNTHESIS_V10.xlsx"
+# CLI args: argv[1] may be a results.json (real-data mode) OR an output .xlsx path.
+# A second non-json arg (argv[2]) overrides the output path explicitly.
+_output_arg = None
+for _a in sys.argv[1:]:
+    if not _a.endswith(".json"):
+        _output_arg = _a
+        break
+output = Path(_output_arg).resolve() if _output_arg else default_output
+output.parent.mkdir(parents=True, exist_ok=True)
 wb.save(output)
 print(f"\n🎉 ULTIMATE EXCEL V10 CREATED: {output}")
 print(f"📊 Total Sheets: {len(wb.sheetnames)}")

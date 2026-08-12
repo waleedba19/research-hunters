@@ -13,7 +13,13 @@ from unittest.mock import patch, MagicMock, mock_open
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
-import google_integration  # noqa: E402
+# google_integration was removed when the project moved to an Excel-focused
+# system. Skip gracefully (exit 0) when the module is absent.
+try:
+    import google_integration  # noqa: F401
+except ImportError:
+    print("SKIPPED: google_integration removed (Excel-focused system)")
+    sys.exit(0)
 
 
 def _make_sa_file(path: str):
