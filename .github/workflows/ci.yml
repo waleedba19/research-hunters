@@ -29,7 +29,7 @@ jobs:
 
       - name: Import smoke test (full module surface)
         run: |
-          python3 -c "import logger, error_handler, state_manager, wizard, scoring_prompts, pdf_parser, metadata_extractor, platform_registry, google_integration, precision_engine, research_hunter_v4, hunt_intake, hunt_pipeline, future_studies, report_pdf, chapter_writer, verify_refs, verify_refs.orchestrator, verify_refs.reports, verify_refs.input_parser" && echo "ALL IMPORTS OK"
+          python3 -c "import logger, error_handler, state_manager, wizard, scoring_prompts, pdf_parser, metadata_extractor, platform_registry, google_integration, precision_engine, research_hunter_v4, hunt_intake, hunt_pipeline, future_studies, report_pdf, chapter_writer, deep_reader, verify_refs, verify_refs.orchestrator, verify_refs.reports, verify_refs.input_parser" && echo "ALL IMPORTS OK"
 
       - name: "Unit test: state_manager"
         run: |
@@ -72,6 +72,9 @@ jobs:
 
       - name: "Unit test: verify_refs (parser + reports, no e2e)"
         run: python3 tests/test_verify_refs.py --no-e2e
+
+      - name: "Unit test: deep_reader (section detection + cleanup, no PDFs)"
+        run: python3 tests/test_deep_reader.py
 
       - name: "Unit test: hunt_intake (state machine, no Telegram)"
         run: python3 tests/test_hunt_intake.py

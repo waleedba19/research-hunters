@@ -2031,14 +2031,22 @@ def extract_quotes_from_text(text: str, keywords: list, max_quotes: int = 10) ->
 
 
 def enrich_paper_with_pdf_content(paper: dict, pdf_path: Path, keywords: list):
-    """Extract text and quotes from PDF and add to paper metadata."""
-    if not (HAS_PDFPLUMBER or HAS_PYMUPDF):
-        return
+    """Extract text, sections, and quotes from a downloaded PDF.
 
-    text = extract_pdf_text(pdf_path)
-    if text:
-        paper["pdf_text_length"] = len(text)
-        paper["pdf_quotes"] = extract_quotes_from_text(text, keywords)
+    Delegates to deep_reader.read_pdf_deeply() which reads the PDF page by
+    page, splits it into academic sections (Introduction, Literature Review,
+    Methodology, Results, Discussion, Conclusion), mines verbatim quotes, and
+    applies a cleanup pass that strips AI-sounding artifacts (em-dashes,
+    *I found*, filler phrases). The result is stored on the paper dict so the
+    Excel/DOCX report generators can render deep, sectioned, quote-backed
+    output instead of only the API abstract.
+    """
+    try:
+        from deep_reader import enrich_paper as _deep_enrich
+        _deep_enrich(paper, pdf_path, keywords)
+    except Exception:
+        # Never let enrichment failure break the download pipeline.
+        pass
 
 
 # ════════════════════════════════════════════════════════════════════════════════
@@ -5348,6 +5356,21 @@ def smart_file_paper(paper: dict, base_folder: Path,
         cache.mark_downloaded(paper, dest_path.name)
         paper["file_path"] = str(dest_path)
 
+        # Deep-read the PDF page by page: extract full text, split into
+        # academic sections (intro / lit review / methodology / results /
+        # discussion / conclusion), mine verbatim quotes, and clean AI
+        # artifacts. Stored on the paper dict for the Excel/DOCX reports.
+        # Uses the study keywords already attached to the paper (set by the
+        # pipeline before the download loop) or falls back to title-derived
+        # keywords.
+        try:
+            _kw = paper.get("_study_keywords") or []
+            if not _kw:
+                _kw = extract_study_keywords(paper.get("title", ""), [], "", count=15)
+            enrich_paper_with_pdf_content(paper, dest_path, _kw)
+        except Exception:
+            pass
+
         # Mirror into LOCAL_Libya if applicable
         if geo_tier == "Libya" and folder_key != "Libya":
             ly = base_folder / "LOCAL_Libya"
@@ -7971,6 +7994,11 @@ def main():
         # The cache's downloaded_keys set tracks what's already on disk.
         resume_papers = cache.pending_downloads(ckpt_existing) if ckpt_existing else []
         download_queue = new_papers + [p for p in resume_papers if p not in new_papers]
+        # Attach study keywords to each paper so the deep-read enrichment
+        # (smart_file_paper -> enrich_paper_with_pdf_content) can mine
+        # relevant quotes without needing the global scope.
+        for _p in download_queue:
+            _p["_study_keywords"] = study_keywords
         if resume_papers:
             info(f"Resuming downloads: {len(resume_papers)} previously-found papers still pending")
         info(f"Downloading {len(download_queue)} PDFs (10 parallel workers) into {dl_mode_str}…")

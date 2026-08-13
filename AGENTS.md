@@ -42,6 +42,18 @@ transports** layered on top when configured.
   - `cli.py` — `python -m verify_refs.cli --input <path> --output-folder <name>`.
   - Status: VERIFIED (≥0.85 score), LIKELY (0.60-0.85), UNVERIFIED, FAKE.
 - `report_pdf.py` — v6.4 DOCX→PDF via LibreOffice (6 paths) or docx2pdf.
+- `deep_reader.py` — v7 PDF deep-reading engine. Reads downloaded PDFs page
+  by page (pdfplumber→PyMuPDF fallback, capped at 60 pages / 200k chars),
+  splits text into academic sections (Introduction / Literature Review /
+  Methodology / Results / Discussion / Conclusion) via heading regex with
+  position-based fallback (flagged `inferred`), mines verbatim quotes with
+  page hints, and applies `clean_academic_text()` (strips `*I found*`,
+  em-dashes, markdown bold/italic, `[1]` ref markers, AI filler phrases,
+  curly-quote normalization). Called from `smart_file_paper()` via
+  `enrich_paper_with_pdf_content()` after every successful download. Stores
+  `pdf_full_text`, `pdf_sections`, `pdf_quotes`, `pdf_pages_read`, `pdf_reader`
+  on each paper dict. Never raises — failures are no-ops so the pipeline
+  continues. Imported lazily so the core loads without pdfplumber/PyMuPDF.
 - `future_studies.py` — v6.5 AI-powered research gap suggestions. Falls back to
   deterministic templates if ollama fails.
 
@@ -70,8 +82,9 @@ pip install -r requirements.txt
 
 # 2. Fast offline checks (mirrors ci.yml)
 python -W error::SyntaxWarning -m compileall -q .
-python -c "import logger, error_handler, state_manager, wizard, scoring_prompts, pdf_parser, metadata_extractor, platform_registry, google_integration, precision_engine, research_hunter_v4, hunt_intake, hunt_pipeline, future_studies, report_pdf, chapter_writer, verify_refs, verify_refs.orchestrator, verify_refs.reports, verify_refs.input_parser" && echo OK
+python -c "import logger, error_handler, state_manager, wizard, scoring_prompts, pdf_parser, metadata_extractor, platform_registry, google_integration, precision_engine, research_hunter_v4, hunt_intake, hunt_pipeline, future_studies, report_pdf, chapter_writer, deep_reader, verify_refs, verify_refs.orchestrator, verify_refs.reports, verify_refs.input_parser" && echo OK
 python tests/test_verify_refs.py --no-e2e
+python tests/test_deep_reader.py
 python tests/test_hunt_intake.py
 python tests/test_hunt_intake_e2e.py
 python tests/test_report_pdf.py
