@@ -4,6 +4,10 @@ pdfplumber>=0.11.0
 PyMuPDF>=1.24.0
 python-docx>=1.1.0
 odfpy>=1.4.1
+# OCR fallback for scanned PDFs (download mode). The `tesseract` binary is
+# installed separately via apt-get in the workflow; this package wraps it.
+pytesseract>=0.3.10
+Pillow>=10.0.0
 # Excel reports (verify_refs)
 openpyxl>=3.1.0
 # Telegram bot

@@ -95,6 +95,17 @@ except ImportError:
     except:
         pass
 
+# Tesseract OCR for scanned/image-only PDFs (download mode fallback). The
+# `tesseract` binary must be on PATH; pytesseract wraps it. Optional — when
+# absent, scanned PDFs simply yield little text and we keep what we got.
+try:
+    import pytesseract
+    from PIL import Image
+    import io
+    _HAS_OCR = True
+except Exception:
+    _HAS_OCR = False
+
 # DrissionPage for Walter Ghost (optional - graceful fallback with auto-install)
 HAS_DRISSIONPAGE = False
 _GHOST_INSTALL_ATTEMPTED = False
@@ -2019,7 +2030,51 @@ def extract_pdf_text(pdf_path: Path, max_pages: int = 0) -> str:
             doc.close()
         except Exception:
             pass
+    # OCR fallback for scanned / image-only PDFs: if we extracted very little
+    # text (less than ~100 chars/page), the PDF is likely a scan. Render each
+    # page to an image and run Tesseract OCR. Only in download mode (we have
+    # the file). This is the local equivalent of a cloud OCR service
+    # (e.g. Baidu unlimited-OCR); a Baidu OCR key can be plugged in here later.
+    if _HAS_OCR and HAS_PYMUPDF and text:
+        try:
+            doc = fitz.open(str(pdf_path))
+            npages = doc.page_count if max_pages <= 0 else min(max_pages, doc.page_count)
+            doc.close()
+            if npages > 0 and len(text) < npages * 100:
+                text = _ocr_pdf(pdf_path, max_pages) or text
+        except Exception:
+            pass
+    elif _HAS_OCR and HAS_PYMUPDF and not text:
+        text = _ocr_pdf(pdf_path, max_pages)
     return text.strip()
+
+
+def _ocr_pdf(pdf_path: Path, max_pages: int = 0) -> str:
+    """Render a scanned PDF to images and OCR each page with Tesseract.
+
+    Used as a fallback when pdfplumber/PyMuPDF return little/no selectable
+    text (image-only scans). This is the download-mode OCR path; a future
+    Baidu OCR (or other cloud OCR) integration would replace/augment this
+    call site. No-LLM, runs locally on the GitHub runner.
+    """
+    if not (_HAS_OCR and HAS_PYMUPDF):
+        return ""
+    out = ""
+    try:
+        doc = fitz.open(str(pdf_path))
+        pages = doc if max_pages <= 0 else doc[:max_pages]
+        for page in pages:
+            # Render at 200 DPI — good OCR accuracy vs size trade-off.
+            pix = page.get_pixmap(dpi=200)
+            img = Image.open(io.BytesIO(pix.tobytes("png")))
+            try:
+                out += pytesseract.image_to_string(img) + "\n"
+            except Exception:
+                continue
+        doc.close()
+    except Exception:
+        pass
+    return out.strip()
 
 
 def extract_quotes_from_text(text: str, keywords: list, max_quotes: int = 10) -> list:

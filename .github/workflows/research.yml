@@ -1421,6 +1421,7 @@ jobs:
           echo "Ollama READY"
       - name: Install dependencies
         run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq tesseract-ocr poppler-utils
           pip install -q requests rich openpyxl python-docx python-pptx pdfplumber pymupdf playwright pillow pytesseract reportlab ollama
           python -m playwright install chromium 2>&1 | tail -5
           npm install docx 2>&1 | tail -5
