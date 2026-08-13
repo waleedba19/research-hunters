@@ -62,6 +62,21 @@ transports** layered on top when configured.
   extracted text, color-tinted) + Author Quotes + Source URL List + APA refs.
 - `future_studies.py` — v6.5 AI-powered research gap suggestions. Falls back to
   deterministic templates if ollama fails.
+- `synthesis_engine.py` — v7 **deep research synthesis engine**. Six deterministic
+  analytical passes over the corpus, driven by deep_reader output (pdf_sections +
+  pdf_quotes), not just metadata:
+  1. `cluster_papers_by_theme()` — thematic clustering from section text + keywords
+  2. `build_citation_network()` — detects cites / extends / supports / contradicts
+     by scanning full text for title + author mentions + methodological inheritance
+  3. `detect_convergence()` — clusters Results/Discussion sentences, flags agreement
+     vs. contradiction
+  4. `map_methodological_lineage()` — extracts design + analysis + sample, orders
+     chronologically to show method evolution
+  5. `extract_thematic_quotes()` — verbatim quotes with (Author, Year, p. N) citations
+  6. `identify_research_gaps()` — data-driven gaps (geographic, temporal,
+     methodological, quartile, convergence, thematic), not templated
+  `synthesize(papers)` returns one bundle the DOCX generator consumes. Never raises.
+- `chapter_writer.py` — v0.2 STUB. Real implementation comes after MVP.
 
 ## REMOVED (do not resurrect)
 
@@ -88,9 +103,10 @@ pip install -r requirements.txt
 
 # 2. Fast offline checks (mirrors ci.yml)
 python -W error::SyntaxWarning -m compileall -q .
-python -c "import logger, error_handler, state_manager, wizard, scoring_prompts, pdf_parser, metadata_extractor, platform_registry, google_integration, precision_engine, research_hunter_v4, hunt_intake, hunt_pipeline, future_studies, report_pdf, chapter_writer, deep_reader, verify_refs, verify_refs.orchestrator, verify_refs.reports, verify_refs.input_parser" && echo OK
+python -c "import logger, error_handler, state_manager, wizard, scoring_prompts, pdf_parser, metadata_extractor, platform_registry, google_integration, precision_engine, research_hunter_v4, hunt_intake, hunt_pipeline, future_studies, report_pdf, chapter_writer, deep_reader, synthesis_engine, verify_refs, verify_refs.orchestrator, verify_refs.reports, verify_refs.input_parser" && echo OK
 python tests/test_verify_refs.py --no-e2e
 python tests/test_deep_reader.py
+python tests/test_synthesis_engine.py
 python tests/test_hunt_intake.py
 python tests/test_hunt_intake_e2e.py
 python tests/test_report_pdf.py
