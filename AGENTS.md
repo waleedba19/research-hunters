@@ -5,16 +5,17 @@ This file is loaded by AI coding assistants (like opencode) when working on this
 ## Architecture (post-stabilization, Aug 2026)
 
 The Telegram long-polling bot was **removed** (not required). The system is now a
-transport-agnostic research core: the 81-platform hunt engine + verify_refs pipeline
+transport-agnostic research core: the **94-platform** hunt engine + verify_refs pipeline
 run with **zero secrets**. Google Drive/Sheets and Telegram push are **optional
 transports** layered on top when configured.
 
-- `research_hunter_v4.py` — main entry. Re-exports the full v2-4 surface (81 platforms)
+- `research_hunter_v4.py` — main entry. Re-exports the full v2-4 surface (94 platforms)
   + 11 glue functions + `verify_one_reference` / `verify_chapter_upload` pipelines.
   Imports `google_integration` **lazily** (inside the 3 Drive wrapper functions) so the
   core loads even when Drive isn't configured. Same for `wizard` (already lazy).
 - `research_hunter_v2_4.py` — shim that loads `research_hunter_v2-4.py` (dash name) via
-  importlib. The dash file is the 378 KB v6 SUPER LOADED GOD MODE (81 platforms).
+  importlib. The dash file is the 378 KB v7 SUPER LOADED (94 platforms + 14-layer
+  download chain + deep Excel with clickable hyperlinks + DOCX synthesis).
 - `hunt_pipeline.py` — non-interactive wrapper around v2-4's pipeline. `run_hunt(params, progress_callback)`.
 - `gha_run_hunt.py` — called by hunt-run.yml on GHA. Telegram push is **env-gated**
   (`TG_ENABLED = bool(CHAT_ID and TELEGRAM_BOT_TOKEN)`); hunt + console + Drive always work.
@@ -54,6 +55,11 @@ transports** layered on top when configured.
   `pdf_full_text`, `pdf_sections`, `pdf_quotes`, `pdf_pages_read`, `pdf_reader`
   on each paper dict. Never raises — failures are no-ops so the pipeline
   continues. Imported lazily so the core loads without pdfplumber/PyMuPDF.
+- `generate_ultimate_excel_v10.py` — 40-sheet standalone Excel builder (v10).
+  `research_hunter_v2-4.py._write_master_xlsx()` is the live 48-sheet builder
+  used by hunts: dashboard + folder sheets + Master Metadata + Download Links
+  (clickable PDF/DOI/Source hyperlinks) + 6 Deep section sheets (page-by-page
+  extracted text, color-tinted) + Author Quotes + Source URL List + APA refs.
 - `future_studies.py` — v6.5 AI-powered research gap suggestions. Falls back to
   deterministic templates if ollama fails.
 

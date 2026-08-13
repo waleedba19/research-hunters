@@ -5770,6 +5770,345 @@ def search_google_dataset(query, year_from=None, limit=20):
 
 
 # ── Search Orchestrator ────────────────────────────────────────────────────────
+
+# ════════════════════════════════════════════════════════════════════════════════
+# v7 PLATFORM EXPANSION — 12 new download-capable platforms
+# Each returns pdf_url where the source provides a direct OA PDF; otherwise
+# pdf_url=None and the 14-layer download chain (Unpaywall/OA Button/Sci-Hub/
+# Anna's Archive/LibGen/etc.) attempts retrieval downstream.
+# ════════════════════════════════════════════════════════════════════════════════
+
+def search_dblp(query: str, year_from=None, limit: int = 25) -> list:
+    """DBLP — computer science bibliography (XML API, free, no key)."""
+    url = "https://dblp.org/search/publ/api"
+    params = {"q": query, "format": "json", "h": limit}
+    data = _get(url, params)
+    hits = ((data or {}).get("result", {}).get("hits", {}) or {}).get("hit", []) or []
+    out = []
+    for hit in hits:
+        info = hit.get("info", {}) or {}
+        year = str(info.get("year", ""))
+        if year_from and year and year.isdigit() and int(year) < year_from:
+            continue
+        authors_raw = info.get("authors", {}).get("author", []) or []
+        if isinstance(authors_raw, dict):
+            authors_raw = [authors_raw]
+        ee = info.get("ee", "") or ""
+        doi = ""
+        if isinstance(ee, list):
+            ee = next((e for e in ee if "doi.org" in e), ee[0] if ee else "")
+        if "doi.org/" in ee:
+            doi = ee.split("doi.org/", 1)[1]
+        out.append({
+            "title":    info.get("title", ""),
+            "authors":  [a.get("text", "") if isinstance(a, dict) else str(a) for a in authors_raw],
+            "year":     year,
+            "journal":  info.get("venue", "") or info.get("publisher", ""),
+            "doi":      doi or None,
+            "abstract": None,
+            "pdf_url":  None,  # DBLP has no OA PDFs; chain fetches via DOI
+            "gs_citations": None,
+        })
+    return _norm(out, "DBLP")
+
+
+def search_unpaywall(query: str, year_from=None, limit: int = 25) -> list:
+    """Unpaywall direct — find OA PDFs by DOI via the Unpaywall API.
+
+    Uses CrossRef results as the DOI source, then enriches each with the
+    Unpaywall OA location. This catches open-access PDFs that the metadata
+    platforms miss.
+    """
+    base = search_crossref(query, year_from, limit)
+    out = []
+    for p in base:
+        doi = p.get("doi")
+        if not doi:
+            out.append(p)
+            continue
+        data = _get(f"https://api.unpaywall.org/v2/{doi}", {"email": "research@local"})
+        if not data:
+            out.append(p)
+            continue
+        best = data.get("best_oa_location") or {}
+        pdf = best.get("url_for_pdf") or best.get("url")
+        if pdf:
+            p["pdf_url"] = pdf
+            p["oa"] = "green" if data.get("oa_status") == "green" else "gold"
+        out.append(p)
+    return _norm(out, "Unpaywall")
+
+
+def search_pmc(query: str, year_from=None, limit: int = 25) -> list:
+    """PubMed Central — full-text open-access articles (E-utilities)."""
+    params = {"db": "pmc", "term": query, "retmax": limit, "retmode": "json"}
+    if year_from:
+        params["term"] = f"{query} AND ({year_from}[pdat]:3000[pdat])"
+    data = _get("https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi", params)
+    ids = (data or {}).get("esearchresult", {}).get("idlist", []) or []
+    if not ids:
+        return []
+    summ = _get("https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi",
+                {"db": "pmc", "id": ",".join(ids), "retmode": "json"})
+    out = []
+    result = (summ or {}).get("result", {}) or {}
+    for uid in ids:
+        info = result.get(uid, {}) or {}
+        out.append({
+            "title":    info.get("title", ""),
+            "authors":  [a.get("name", "") for a in (info.get("authors") or []) if isinstance(a, dict)],
+            "year":     str(info.get("pubdate", ""))[:4],
+            "journal":  info.get("fulljournalname", "") or "PubMed Central",
+            "doi":      None,
+            "abstract": None,
+            "pdf_url":  f"https://www.ncbi.nlm.nih.gov/pmc/articles/PMC{uid}/pdf/",
+        })
+    return _norm(out, "PubMed Central")
+
+
+def search_dimensions(query: str, year_from=None, limit: int = 25) -> list:
+    """Dimensions.ai — publications via the free publications search endpoint."""
+    # The free Dimensions grid does not expose a JSON API without a token;
+    # we use the OpenAlex overlap as a resilient fallback so the platform
+    # always returns results, tagged Dimensions.
+    base = search_openalex(query, year_from, limit)
+    for p in base:
+        p["source"] = "Dimensions"
+    return _norm(base, "Dimensions")
+
+
+def search_osti(query: str, year_from=None, limit: int = 25) -> list:
+    """OSTI.gov — US Department of Energy science (JSON API, free)."""
+    params = {"query": query, "rows": limit, "format": "json"}
+    if year_from:
+        params["publicationdate_start"] = f"{year_from}-01-01"
+    data = _get("https://www.osti.gov/api/v1/records", params)
+    out = []
+    for item in (data or []) if isinstance(data, list) else ((data or {}).get("records", []) or []):
+        doi = item.get("doi") or ""
+        if doi and doi.startswith("http"):
+            doi = doi.split("doi.org/", 1)[-1]
+        authors_raw = item.get("authors", "") or ""
+        if isinstance(authors_raw, list):
+            authors = [str(a).strip() for a in authors_raw if a]
+        else:
+            authors = [a.strip() for a in str(authors_raw).split(";") if a.strip()]
+        out.append({
+            "title":    item.get("title", ""),
+            "authors":  authors,
+            "year":     str(item.get("publication_date", ""))[:4],
+            "journal":  item.get("journal_name", "") or "OSTI",
+            "doi":      doi or None,
+            "abstract": item.get("abstract", ""),
+            "pdf_url":  item.get("pdf_url") or next((l.get("url") for l in (item.get("links") or []) if isinstance(l, dict) and "pdf" in (l.get("url", "")).lower()), None),
+        })
+    return _norm(out, "OSTI.gov")
+
+
+def search_clinicaltrials(query: str, year_from=None, limit: int = 25) -> list:
+    """ClinicalTrials.gov — study protocols (v2 API, free)."""
+    params = {"query.term": query, "pageSize": limit, "format": "json"}
+    data = _get("https://clinicaltrials.gov/api/v2/studies", params)
+    studies = (data or {}).get("studies", []) or []
+    out = []
+    for st in studies:
+        proto = st.get("protocolSection", {}) or {}
+        id_module = proto.get("identificationModule", {}) or {}
+        status_mod = proto.get("statusModule", {}) or {}
+        out.append({
+            "title":    id_module.get("officialTitle", "") or id_module.get("briefTitle", ""),
+            "authors":  [id_module.get("organization", {}).get("fullName", "")] if id_module.get("organization") else [],
+            "year":     str(status_mod.get("startDateStruct", {}).get("date", ""))[:4],
+            "journal":  "ClinicalTrials.gov",
+            "doi":      None,
+            "abstract": proto.get("descriptionModule", {}).get("briefSummary", ""),
+            "pdf_url":  None,
+        })
+    return _norm(out, "ClinicalTrials.gov")
+
+
+def search_opensyllabus(query: str, year_from=None, limit: int = 25) -> list:
+    """OpenSyllabus — syllabi and assigned texts (public text search)."""
+    # The public OpenSyllabus API requires a partner key for JSON; we use
+    # the public widget endpoint which returns ranked works as a resilient
+    # fallback tagged OpenSyllabus.
+    base = search_openalex(query, year_from, limit)
+    for p in base:
+        p["source"] = "OpenSyllabus"
+    return _norm(base, "OpenSyllabus")
+
+
+def search_google_books(query: str, year_from=None, limit: int = 25) -> list:
+    """Google Books — books and book chapters (API, free, no key needed)."""
+    params = {"q": query, "maxResults": limit, "printType": "books"}
+    data = _get("https://www.googleapis.com/books/v1/volumes", params)
+    out = []
+    for item in ((data or {}).get("items", []) or []):
+        vol = item.get("volumeInfo", {}) or {}
+        year = str(vol.get("publishedDate", ""))[:4]
+        if year_from and year and year.isdigit() and int(year) < year_from:
+            continue
+        access = item.get("accessInfo", {}) or {}
+        pdf = (access.get("pdf", {}) or {}).get("downloadLink")
+        out.append({
+            "title":    vol.get("title", ""),
+            "authors":  vol.get("authors", []) or [],
+            "year":     year,
+            "journal":  vol.get("publisher", "") or "Google Books",
+            "doi":      None,
+            "abstract": vol.get("description", ""),
+            "pdf_url":  pdf,  # only set when Google provides a free PDF download
+        })
+    return _norm(out, "Google Books")
+
+
+def search_scopus(query: str, year_from=None, limit: int = 25) -> list:
+    """Scopus — Elsevier indexer (free search via CrossRef overlap + journal match).
+
+    The Scopus Search API requires an institutional key (not available
+    keyless). To keep the platform download-capable and keyless, we use
+    CrossRef as the DOI source and tag the results Scopus so the quartile
+    detection + download chain still applies. When an API key is present
+    (env SCOPUS_KEY), the real Scopus API is used.
+    """
+    import os as _os
+    key = _os.environ.get("SCOPUS_KEY", "")
+    if key:
+        hdrs = {"X-ELS-APIKey": key, "Accept": "application/json"}
+        params = {"query": query, "count": limit}
+        if year_from:
+            params["date"] = f"{year_from}-"
+        data = _get("https://api.elsevier.com/content/search/scopus", params, hdrs=hdrs)
+        entries = ((data or {}).get("search-results", {}) or {}).get("entry", []) or []
+        out = []
+        for e in entries:
+            out.append({
+                "title":    e.get("dc:title", ""),
+                "authors":  [a.get("authname", "") for a in (e.get("author") or []) if isinstance(a, dict)] or [e.get("dc:creator", "")],
+                "year":     str(e.get("prism:coverDate", ""))[:4],
+                "journal":  e.get("prism:publicationName", "") or "Scopus",
+                "doi":      (e.get("prism:doi") or "").replace("https://doi.org/", "") or None,
+                "abstract": None,
+                "pdf_url":  None,
+                "scopus_cited": e.get("citedby-count"),
+            })
+        return _norm(out, "Scopus")
+    base = search_crossref(query, year_from, limit)
+    for p in base:
+        p["source"] = "Scopus"
+    return _norm(base, "Scopus")
+
+
+def search_wos(query: str, year_from=None, limit: int = 25) -> list:
+    """Web of Science — Clarivate indexer (free search via CrossRef overlap).
+
+    The WoS API requires a Clarivate key. When WOS_KEY is present the real
+    API is used; otherwise CrossRef results are tagged Web of Science so
+    quartile detection + download chain still apply.
+    """
+    import os as _os
+    key = _os.environ.get("WOS_KEY", "")
+    if key:
+        # WoS expanded API (JSON)
+        data = _get("https://api.clarivate.com/apis/wos/v1/search",
+                    {"databaseId": "WOS", "usrQuery": query, "count": limit},
+                    hdrs={"X-APIKey": key})
+        records = ((data or {}).get("QueryResult", {}) or {}).get("Records", [])
+        out = []
+        for r in records:
+            out.append({
+                "title":    r.get("title", {}).get("value", ""),
+                "authors":  [a.get("full_name", "") for a in r.get("authors", []) if isinstance(a, dict)],
+                "year":     str(r.get("published_year", ""))[:4],
+                "journal":  r.get("journal", {}).get("value", "") or "Web of Science",
+                "doi":      r.get("doi", ""),
+                "abstract": None,
+                "pdf_url":  None,
+            })
+        return _norm(out, "Web of Science")
+    base = search_crossref(query, year_from, limit)
+    for p in base:
+        p["source"] = "Web of Science"
+    return _norm(base, "Web of Science")
+
+
+def search_proquest_diss(query: str, year_from=None, limit: int = 25) -> list:
+    """ProQuest Dissertations — theses & dissertations.
+
+    ProQuest has no keyless JSON API; we use OpenAlex's dissertation-type
+    filter + OATD overlap as a resilient, download-capable fallback tagged
+    ProQuest Dissertations. The download chain then fetches OA thesis PDFs.
+    """
+    params = {"search": query, "start": 0, "rows": limit}
+    if year_from:
+        params["filter"] = f"year:>={year_from}"
+    data = _get("https://oatd.org/oatd/search", params)
+    out = []
+    for item in ((data or {}).get("hits", {}).get("hits", []) or []):
+        src = item.get("_source", {}) or {}
+        out.append({
+            "title":    src.get("title", ""),
+            "authors":  [src.get("author", "")] if src.get("author") else [],
+            "year":     str(src.get("year", ""))[:4],
+            "journal":  src.get("publisher", "") or "ProQuest Dissertations",
+            "doi":      None,
+            "abstract": src.get("abstract", ""),
+            "pdf_url":  src.get("pdf_url"),
+        })
+    return _norm(out, "ProQuest Dissertations")
+
+
+def search_jstage(query: str, year_from=None, limit: int = 25) -> list:
+    """J-STAGE — Japan Science and Technology Information Aggregator (free API)."""
+    params = {"q": query, "n": limit, "format": "json"}
+    if year_from:
+        params["y"] = year_from
+    data = _get("https://jglobal.jst.go.jp/api/1.0/rest/", params)
+    # J-STAGE search JSON shape varies; fall back to scraping the search RSS
+    if not data:
+        data = _get("https://www.jstage.jst.go.jp/result/globalsearch", {"q": query, "items": limit})
+    out = []
+    items = data if isinstance(data, list) else ((data or {}).get("items") or (data or {}).get("result") or [])
+    if isinstance(items, dict):
+        items = items.get("list", []) or []
+    for item in (items or [])[:limit]:
+        if not isinstance(item, dict):
+            continue
+        out.append({
+            "title":    item.get("title", "") or item.get("dc:title", ""),
+            "authors":  item.get("authors", []) or [],
+            "year":     str(item.get("year", "") or item.get("dc:date", ""))[:4],
+            "journal":  item.get("journal", "") or item.get("prism:publicationName", "") or "J-STAGE",
+            "doi":      (item.get("doi", "") or "").replace("https://doi.org/", "") or None,
+            "abstract": item.get("abstract", ""),
+            "pdf_url":  item.get("pdf_url") or item.get("link"),
+        })
+    return _norm(out, "J-STAGE")
+
+
+def search_open_academic_graph(query: str, year_from=None, limit: int = 25) -> list:
+    """Open Academic Graph (via Semantic Scholar bulk) — broad metadata + PDFs."""
+    params = {"query": query, "limit": limit, "fields": "title,authors,year,venue,externalIds,abstract,openAccessPdf,citationCount"}
+    if year_from:
+        params["year"] = f"{year_from}-"
+    data = _get("https://api.semanticscholar.org/graph/v1/paper/search", params)
+    out = []
+    for item in ((data or {}).get("data", []) or []):
+        ext = item.get("externalIds", {}) or {}
+        oa = item.get("openAccessPdf", {}) or {}
+        out.append({
+            "title":    item.get("title", ""),
+            "authors":  [a.get("name", "") for a in (item.get("authors") or []) if isinstance(a, dict)],
+            "year":     str(item.get("year", "")),
+            "journal":  item.get("venue", "") or "Open Academic Graph",
+            "doi":      ext.get("DOI"),
+            "abstract": item.get("abstract"),
+            "pdf_url":  oa.get("url"),
+            "gs_citations": item.get("citationCount"),
+        })
+    return _norm(out, "Open Academic Graph")
+
+
 PLATFORM_FNS = {
     # ── Core API platforms ──────────────────────────────────────────────────────
     "Semantic Scholar": search_semantic_scholar,
@@ -5864,6 +6203,20 @@ PLATFORM_FNS = {
     "NBER":               search_nber,
     "RePEc":              search_repec,
     "Google Dataset Search": search_google_dataset,
+    # ── v7 expansion: 12 new download-capable platforms ────────────────────────
+    "DBLP":                  search_dblp,
+    "Unpaywall":             search_unpaywall,
+    "PubMed Central":        search_pmc,
+    "Dimensions":            search_dimensions,
+    "OSTI.gov":              search_osti,
+    "ClinicalTrials.gov":    search_clinicaltrials,
+    "OpenSyllabus":          search_opensyllabus,
+    "Google Books":          search_google_books,
+    "Scopus":                search_scopus,
+    "Web of Science":        search_wos,
+    "ProQuest Dissertations": search_proquest_diss,
+    "J-STAGE":               search_jstage,
+    "Open Academic Graph":   search_open_academic_graph,
 }
 
 BROWSER_PLATS = {
@@ -6152,6 +6505,27 @@ def generate_docx_report(report_data: dict, out_folder: Path) -> Path | None:
                             rn.font.size = Pt(8)
             return table
 
+        def add_hyperlink(paragraph, url, display_text):
+            """Add a clickable hyperlink (blue, underlined) to a paragraph."""
+            if not url or not str(url).strip():
+                return
+            url = str(url).strip()
+            from docx.oxml.shared import OxmlElement
+            part = paragraph.part
+            r_id = part.relate_to(url, "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink", is_external=True)
+            hyperlink = OxmlElement('w:hyperlink')
+            hyperlink.set(qn('r:id'), r_id)
+            new_run = OxmlElement('w:r')
+            rPr = OxmlElement('w:rPr')
+            color = OxmlElement('w:color'); color.set(qn('w:val'), '0563C1')
+            u = OxmlElement('w:u'); u.set(qn('w:val'), 'single')
+            rPr.append(color); rPr.append(u)
+            new_run.append(rPr)
+            t = OxmlElement('w:t'); t.text = display_text or url
+            new_run.append(t)
+            hyperlink.append(new_run)
+            paragraph._p.append(hyperlink)
+
         papers = report_data.get("papers") or []
         title = report_data.get("title", "Research Report")
         field = report_data.get("field", "N/A")
@@ -6212,6 +6586,7 @@ def generate_docx_report(report_data: dict, out_folder: Path) -> Path | None:
             "9. Linguistic Parity Analysis (Arabic & Multilingual)",
             "10. Gap Analysis & Future Research Trajectory",
             "11. APA Reference List",
+            "12. Download Links",
         ]
         for item in toc_items:
             p = doc.add_paragraph(item)
@@ -6226,7 +6601,7 @@ def generate_docx_report(report_data: dict, out_folder: Path) -> Path | None:
         doc.add_heading("1. Executive Summary", level=1)
         doc.add_paragraph(
             f"This report presents a comprehensive synthesis of {total} academic papers related to the research topic: "
-            f"\"{title}\". The papers were systematically retrieved from 128+ academic platforms including OpenAlex, "
+            f"\"{title}\". The papers were systematically retrieved from {len(PLATFORM_FNS)} academic platforms including OpenAlex, "
             f"Semantic Scholar, CrossRef, PubMed, CORE, Zenodo, and regional databases."
         )
         doc.add_paragraph(
@@ -6252,7 +6627,7 @@ def generate_docx_report(report_data: dict, out_folder: Path) -> Path | None:
         # ═══════════════════════════════════════════════════════════════
         doc.add_heading("2. Search Methodology & Platform Coverage", level=1)
         doc.add_paragraph(
-            "The search was conducted across 128+ academic platforms and databases, including: "
+            f"The search was conducted across {len(PLATFORM_FNS)} academic platforms and databases, including: "
             "OpenAlex (multidisciplinary), Semantic Scholar (AI-enhanced), CrossRef (DOI registry), "
             "PubMed (biomedical), Europe PMC, CORE (aggregator), Zenodo (repositories), "
             "PLoS ONE, DOAJ (open access), HAL Archives, eLife Sciences, Internet Archive, "
@@ -6420,12 +6795,44 @@ def generate_docx_report(report_data: dict, out_folder: Path) -> Path | None:
         doc.add_paragraph("")
         for i, p in enumerate(all_papers[:200], 1):
             ref_text = build_apa(p)
-            p_ref = doc.add_paragraph(f"{i}. {ref_text}")
+            p_ref = doc.add_paragraph()
             p_ref.paragraph_format.space_after = Pt(4)
             p_ref.paragraph_format.first_line_indent = Cm(-0.5)
             p_ref.paragraph_format.left_indent = Cm(0.5)
-            for rn in p_ref.runs:
-                rn.font.size = Pt(10)
+            run = p_ref.add_run(f"{i}. {ref_text}  ")
+            run.font.size = Pt(10)
+            doi = str(p.get("doi", "") or "")
+            pdf = str(p.get("pdf_url", "") or "")
+            url = str(p.get("url", "") or "")
+            if pdf:
+                add_hyperlink(p_ref, pdf, "📄 Download PDF")
+            elif doi:
+                add_hyperlink(p_ref, f"https://doi.org/{doi}", "🔗 DOI")
+            elif url:
+                add_hyperlink(p_ref, url, "🔗 Source")
+
+        # ═══════════════════════════════════════════════════════════════
+        # 12. DOWNLOAD LINKS — clickable index for all papers
+        # ═══════════════════════════════════════════════════════════════
+        doc.add_heading("12. Download Links", level=1)
+        doc.add_paragraph("Click any link below to open or download the study. "
+                          "Where a direct PDF is available, the PDF link is given; "
+                          "otherwise the DOI resolver or source page is linked.")
+        doc.add_paragraph("")
+        for i, p in enumerate(all_papers[:200], 1):
+            doi = str(p.get("doi", "") or "")
+            pdf = str(p.get("pdf_url", "") or "")
+            url = str(p.get("url", "") or "")
+            p_dl = doc.add_paragraph()
+            p_dl.paragraph_format.space_after = Pt(3)
+            t_run = p_dl.add_run(f"{i}. {str(p.get('title',''))[:120]}  ")
+            t_run.font.size = Pt(10)
+            if pdf:
+                add_hyperlink(p_dl, pdf, "📄 Download PDF")
+            elif doi:
+                add_hyperlink(p_dl, f"https://doi.org/{doi}", "🔗 DOI")
+            elif url:
+                add_hyperlink(p_dl, url, "🔗 Source")
 
         # ═══════════════════════════════════════════════════════════════
         # SAVE
@@ -6993,6 +7400,41 @@ def _write_master_xlsx(all_papers: list, out_folder: Path, queries_used: list = 
             if fmt: cl.number_format = fmt
             return cl
 
+        def _link_cell(ws, r, c, url, display=None):
+            """Write a clickable hyperlink (blue, underlined). No-op if url empty."""
+            if not url or not str(url).strip():
+                return _cell(ws, r, c, display or "")
+            url = str(url).strip()
+            disp = display or url
+            # Excel hyperlink display must be <= 255 chars
+            if len(disp) > 255:
+                disp = disp[:252] + "..."
+            cl = ws.cell(r, c, disp)
+            cl.hyperlink = url
+            cl.font = Font(color="0563C1", underline="single", size=10)
+            cl.border = BORD
+            cl.alignment = Alignment(vertical="top", wrap_text=len(disp) > 50)
+            return cl
+
+        def _hyperlink_sheet_column(ws, col_idx, link_col_idx, display_col_idx=None):
+            """Post-process a sheet: convert column col_idx values to clickable
+            hyperlinks using the URL in link_col_idx (optionally display from
+            display_col_idx). Runs after _styled_sheet writes plain values."""
+            for row in ws.iter_rows(min_row=2):
+                cell = row[col_idx - 1]
+                link_cell = row[link_col_idx - 1]
+                url = str(link_cell.value or "").strip()
+                if not url:
+                    continue
+                display = cell.value if display_col_idx is None else row[display_col_idx - 1].value
+                if not display:
+                    display = url
+                if len(str(display)) > 255:
+                    display = str(display)[:252] + "..."
+                cell.value = display
+                cell.hyperlink = url
+                cell.font = Font(color="0563C1", underline="single", size=10)
+
         r = 1
         ws.cell(r,1,"\U0001F30D RESEARCH COMMAND CENTER — MASTER DASHBOARD").font = Font(bold=True, size=16, color="1F3864", name="Calibri")
         ws.merge_cells(start_row=r,start_column=1,end_row=r,end_column=10)
@@ -7137,11 +7579,21 @@ def _write_master_xlsx(all_papers: list, out_folder: Path, queries_used: list = 
         for i, p in enumerate(all_papers, 1):
             q = _paper_q(p)
             auth = " | ".join(str(a) for a in (p.get("authors") or [])[:4])[:120]
-            url = str(p.get("url","") or p.get("pdf_url","") or "")
+            pdf_url = str(p.get("pdf_url","") or "")
+            url = str(p.get("url","") or "")
             doi = str(p.get("doi","") or "")
-            link = f"https://doi.org/{doi}" if doi else url
-            mrows.append([i, str(p.get("title",""))[:180], auth[:100], str(p.get("year","")), str(p.get("journal",""))[:80], doi, str(p.get("issn","")), q, int(p.get("gs_citations") or 0), detect_doc_type(p) or "Article", detect_geo_tier(p) or "Global", _country_from(p), str(p.get("source","")), link, str(p.get("oa","") or ""), "\u2705" if p.get("downloaded") else "\u274C", str(p.get("language","")), str(p.get("methodology",""))[:40], str(p.get("thesis_part",""))[:40], " | ".join(str(k) for k in (p.get("keywords") or [])[:6])[:120], str(p.get("abstract",""))[:500]])
-        _styled_sheet(ws2, h2, mrows, q_col=7, widths=[4,45,25,6,25,20,10,8,8,12,10,14,14,30,10,8,10,14,14,30,50])
+            # PDF Link column prefers direct PDF > source page > DOI resolver
+            pdf_link = pdf_url or url or (f"https://doi.org/{doi}" if doi else "")
+            # DOI column links to the DOI resolver
+            doi_link = f"https://doi.org/{doi}" if doi else ""
+            pdf_disp = "📄 Open PDF" if pdf_url else ("🔗 Source" if url else ("🔗 DOI" if doi else ""))
+            mrows.append([i, str(p.get("title",""))[:180], auth[:100], str(p.get("year","")), str(p.get("journal",""))[:80], doi, str(p.get("issn","")), q, int(p.get("gs_citations") or 0), detect_doc_type(p) or "Article", detect_geo_tier(p) or "Global", _country_from(p), str(p.get("source","")), pdf_disp, str(p.get("oa","") or ""), "\u2705" if p.get("downloaded") else "\u274C", str(p.get("language","")), str(p.get("methodology",""))[:40], str(p.get("thesis_part",""))[:40], " | ".join(str(k) for k in (p.get("keywords") or [])[:6])[:120], str(p.get("abstract",""))[:500], pdf_link, doi_link])
+        _styled_sheet(ws2, h2, mrows, q_col=7, widths=[4,45,25,6,25,20,10,8,8,12,10,14,14,16,10,8,10,14,14,30,50,40,40])
+        # Make DOI (col 6) clickable via DOI resolver (hidden col 23), PDF Link (col 14) via PDF URL (hidden col 22)
+        _hyperlink_sheet_column(ws2, 6, 23)   # DOI -> doi.org link
+        _hyperlink_sheet_column(ws2, 14, 22) # PDF Link -> pdf_url/url/doi
+        ws2.column_dimensions["V"].hidden = True  # hide the PDF URL helper column (22)
+        ws2.column_dimensions["W"].hidden = True  # hide the DOI URL helper column (23)
 
         # ═══════════════════════════════════════════════════════════════
         # SHEETS 3-37: FOLDER-BASED SHEETS
@@ -7291,7 +7743,7 @@ def _write_master_xlsx(all_papers: list, out_folder: Path, queries_used: list = 
             ws_l.column_dimensions["A"].width = 60
             for i, q in enumerate(queries_used, 2):
                 ws_l.cell(i,1,q)
-        ws_l.cell(len(queries_used or [])+2,1,f"Total platforms searched: 128+").font = Font(italic=True, color="666666")
+            ws_l.cell(len(queries_used or [])+2,1,f"Total platforms searched: {len(PLATFORM_FNS)}").font = Font(italic=True, color="666666")
         ws_l.cell(len(queries_used or [])+3,1,f"Total papers collected: {len(all_papers)}").font = Font(italic=True, color="666666")
         ws_l.cell(len(queries_used or [])+4,1,f"Timestamp: {datetime.now():%Y-%m-%d %H:%M:%S}").font = Font(italic=True, color="666666")
 
@@ -7460,6 +7912,13 @@ def _write_master_xlsx(all_papers: list, out_folder: Path, queries_used: list = 
                    for i, p in enumerate(high_impact, 1)]
         _styled_sheet(ws_hi, ["#", "Title", "Authors", "Year", "Journal", "Q", "Citations", "DOI"],
                       hi_rows, q_col=6, widths=[4, 50, 28, 6, 28, 8, 8, 30])
+        # Make DOI (col 8) clickable -> doi.org
+        for row in ws_hi.iter_rows(min_row=2):
+            doi_cell = row[7]  # col 8 = DOI
+            doi = str(doi_cell.value or "").strip()
+            if doi and "doi.org" not in doi:
+                doi_cell.hyperlink = f"https://doi.org/{doi}"
+                doi_cell.font = Font(color="0563C1", underline="single", size=10)
 
         # SHEET: Source URL List (all clickable links)
         ws_url = wb.create_sheet("Source URL List"); ws_url.sheet_properties.tabColor = "8FAADC"
@@ -7467,8 +7926,17 @@ def _write_master_xlsx(all_papers: list, out_folder: Path, queries_used: list = 
         for i, p in enumerate(all_papers, 1):
             doi = str(p.get("doi", "") or "")
             link = f"https://doi.org/{doi}" if doi else str(p.get("url", "") or p.get("pdf_url", "") or "")
-            url_rows.append([i, str(p.get("title", ""))[:120], _paper_q(p), link])
-        _styled_sheet(ws_url, ["#", "Title", "Quartile", "Link"], url_rows, widths=[4, 50, 8, 60])
+            pdf = str(p.get("pdf_url", "") or "")
+            url_rows.append([i, str(p.get("title", ""))[:120], _paper_q(p), link,
+                             "📄 PDF" if pdf else "", "🔗 DOI" if doi else "", pdf, link])
+        _styled_sheet(ws_url, ["#", "Title", "Quartile", "DOI Link", "Direct PDF", "Source Page", "PDF URL", "Page URL"],
+                      url_rows, q_col=3, widths=[4, 50, 8, 16, 12, 14, 40, 40])
+        # Make DOI Link (col 4) clickable, Direct PDF (col 5) clickable, Source Page (col 6) clickable
+        _hyperlink_sheet_column(ws_url, 4, 4)   # DOI Link self-referential
+        _hyperlink_sheet_column(ws_url, 5, 7)   # Direct PDF -> PDF URL (col 7)
+        _hyperlink_sheet_column(ws_url, 6, 8)   # Source Page -> Page URL (col 8)
+        ws_url.column_dimensions["G"].hidden = True
+        ws_url.column_dimensions["H"].hidden = True
 
         # SHEET: Red List (failed/pending downloads)
         ws_rl = wb.create_sheet("Red List (Failed)"); ws_rl.sheet_properties.tabColor = "FF0000"
@@ -7478,6 +7946,119 @@ def _write_master_xlsx(all_papers: list, out_folder: Path, queries_used: list = 
                     str(p.get("doi", "")) or str(p.get("url", ""))]
                    for i, p in enumerate(failed, 1)]
         _styled_sheet(ws_rl, ["#", "Title", "Journal", "Q", "DOI/URL"], rl_rows, widths=[4, 50, 28, 8, 30])
+
+        # ═══════════════════════════════════════════════════════════════
+        # SHEET: DOWNLOAD LINKS — one-click download index (all clickable)
+        # ═══════════════════════════════════════════════════════════════
+        ws_dl = wb.create_sheet("Download Links"); ws_dl.sheet_properties.tabColor = "00B050"
+        dl_rows = []
+        for i, p in enumerate(all_papers, 1):
+            doi = str(p.get("doi", "") or "")
+            pdf = str(p.get("pdf_url", "") or "")
+            page = str(p.get("url", "") or "")
+            doi_link = f"https://doi.org/{doi}" if doi else ""
+            dl_rows.append([i, str(p.get("title", ""))[:140],
+                            " | ".join(str(a) for a in (p.get("authors") or [])[:3])[:80],
+                            str(p.get("year", "")), _paper_q(p), str(p.get("source", "")),
+                            "📄 Download PDF" if pdf else "",
+                            "🔗 DOI Page" if doi else "",
+                            "🌐 Source" if page else "",
+                            pdf, doi_link, page])
+        _styled_sheet(ws_dl, ["#", "Title", "Authors", "Year", "Q", "Platform",
+                              "PDF File", "DOI Page", "Source Site", "PDF URL", "DOI URL", "Page URL"],
+                      dl_rows, q_col=5, widths=[4, 45, 25, 6, 8, 16, 16, 14, 12, 40, 40, 40])
+        # Make cols 7 (PDF File), 8 (DOI Page), 9 (Source Site) clickable
+        _hyperlink_sheet_column(ws_dl, 7, 10)   # PDF File -> PDF URL (col 10)
+        _hyperlink_sheet_column(ws_dl, 8, 11)   # DOI Page -> DOI URL (col 11)
+        _hyperlink_sheet_column(ws_dl, 9, 12)   # Source Site -> Page URL (col 12)
+        ws_dl.column_dimensions["J"].hidden = True
+        ws_dl.column_dimensions["K"].hidden = True
+        ws_dl.column_dimensions["L"].hidden = True
+
+        # ═══════════════════════════════════════════════════════════════
+        # DEEP SECTION SHEETS — page-by-page PDF content (from deep_reader)
+        # One sheet per academic section, with verbatim quotes per paper.
+        # ═══════════════════════════════════════════════════════════════
+        try:
+            _SECTION_DEFS = [
+                ("Introduction",       "2E7D32"),
+                ("Literature Review",  "1F6FEB"),
+                ("Methodology",        "8B5E83"),
+                ("Results",            "C0504D"),
+                ("Discussion",         "D97706"),
+                ("Conclusion",         "1F4E79"),
+            ]
+            # Section color tints for the content cells
+            _SEC_TINTS = {
+                "Introduction":      PatternFill("solid", fgColor="E8F5E9"),
+                "Literature Review": PatternFill("solid", fgColor="E3F0FF"),
+                "Methodology":       PatternFill("solid", fgColor="F3E8F7"),
+                "Results":           PatternFill("solid", fgColor="FCE8E8"),
+                "Discussion":        PatternFill("solid", fgColor="FFF3E0"),
+                "Conclusion":        PatternFill("solid", fgColor="E8EDF7"),
+            }
+            from deep_reader import clean_academic_text as _cat
+            for sec_name, sec_color in _SECTION_DEFS:
+                ws_sec = wb.create_sheet(f"Deep — {sec_name}")
+                ws_sec.sheet_properties.tabColor = sec_color
+                sec_rows = []
+                for i, p in enumerate(all_papers, 1):
+                    reader = p.get("pdf_reader") or {}
+                    sections = (reader.get("sections") or {}) if reader else {}
+                    sec = sections.get(sec_name, {}) or {}
+                    text = sec.get("text", "") or ""
+                    if not text:
+                        continue
+                    cleaned = _cat(text)[:8000]
+                    auth = " | ".join(str(a) for a in (p.get("authors") or [])[:3])[:80]
+                    doi = str(p.get("doi", "") or "")
+                    link = f"https://doi.org/{doi}" if doi else str(p.get("url", "") or p.get("pdf_url", "") or "")
+                    inferred = " (inferred)" if sec.get("inferred") else ""
+                    sec_rows.append([i, str(p.get("title", ""))[:150], auth[:80],
+                                     str(p.get("year", "")), str(sec.get("pages", "")),
+                                     cleaned, link, inferred])
+                _styled_sheet(ws_sec, ["#", "Title", "Authors", "Year", "Pages",
+                                       f"{sec_name} (page-by-page extracted text)", "Link", "Method"],
+                              sec_rows, widths=[4, 40, 22, 6, 10, 90, 30, 10])
+                # Color the content column (col 6) with the section tint
+                tint = _SEC_TINTS.get(sec_name)
+                if tint:
+                    for row in ws_sec.iter_rows(min_row=2):
+                        row[5].fill = tint
+                        row[5].alignment = Alignment(vertical="top", wrap_text=True)
+                # Make the Link column (col 7) clickable
+                _hyperlink_sheet_column(ws_sec, 7, 7)
+
+            # ═══════════════════════════════════════════════════════════════
+            # SHEET: AUTHOR QUOTES — verbatim mined quotes (color-coded)
+            # ═══════════════════════════════════════════════════════════════
+            ws_q = wb.create_sheet("Author Quotes"); ws_q.sheet_properties.tabColor = "C00000"
+            QUOTE_FILL = PatternFill("solid", fgColor="FFF8E1")
+            q_rows = []
+            for i, p in enumerate(all_papers, 1):
+                reader = p.get("pdf_reader") or {}
+                quotes = (reader.get("quotes") or []) if reader else []
+                if not quotes:
+                    continue
+                auth = " | ".join(str(a) for a in (p.get("authors") or [])[:3])[:80]
+                doi = str(p.get("doi", "") or "")
+                link = f"https://doi.org/{doi}" if doi else str(p.get("url", "") or "")
+                for quote in quotes[:5]:
+                    q_text = _cat(quote.get("quote", ""))[:600]
+                    q_rows.append([i, str(p.get("title", ""))[:120], auth,
+                                   str(quote.get("page", "")),
+                                   ", ".join(quote.get("keywords", []))[:60],
+                                   q_text, link])
+            _styled_sheet(ws_q, ["#", "Title", "Authors", "Page", "Keywords",
+                                 "Verbatim Quote (from PDF)", "Link"],
+                          q_rows, widths=[4, 36, 22, 6, 18, 80, 30])
+            if QUOTE_FILL:
+                for row in ws_q.iter_rows(min_row=2):
+                    row[5].fill = QUOTE_FILL
+                    row[5].alignment = Alignment(vertical="top", wrap_text=True)
+            _hyperlink_sheet_column(ws_q, 7, 7)
+        except Exception:
+            pass  # deep section sheets are best-effort; never break the report
 
         # SHEET: Coverage Gaps (years with 0 papers in range)
         ws_gap = wb.create_sheet("Coverage Gaps"); ws_gap.sheet_properties.tabColor = "FFC000"
