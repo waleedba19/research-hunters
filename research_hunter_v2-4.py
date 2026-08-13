@@ -134,6 +134,12 @@ except ImportError:
 
 from scopus_checker import bulk_check, quartile_badge
 from search_cache   import SearchCache
+
+try:
+    from fulltext_reader import fetch_oa_fulltext as _fetch_oa_fulltext
+    _HAS_FULLTEXT_READER = True
+except Exception as _e:  # optional — degraded gracefully if missing
+    _HAS_FULLTEXT_READER = False
 try:
     from learning_integration import learn_from_search, generate_paper as li_generate_paper
     HAS_LEARNING = True
@@ -7571,6 +7577,30 @@ def main():
             q = q.get("quartile","Not Found") if isinstance(q, dict) else str(q)
             q_cnt[q if q in q_cnt else "Not Found"] += 1
         ok(f"Q1={q_cnt['Q1']} Q2={q_cnt['Q2']} Q3={q_cnt['Q3']} Q4={q_cnt['Q4']} Not Indexed={q_cnt['Not Found']}")
+
+    # ═══════ OA FULL-TEXT ENRICHMENT (no-download mode) ══════════════
+    # In no-download mode we cannot open PDF files, but we CAN read the
+    # full text of open-access papers directly from Europe PMC (JATS XML)
+    # and CORE — without downloading any file. This fills the
+    # introduction/methodology/results/discussion report fields with REAL
+    # text for the OA subset; paywalled papers keep the abstract only.
+    # (In download mode, full text comes from the downloaded PDFs instead.)
+    if skip_downloads and new_papers and _HAS_FULLTEXT_READER:
+        info(f"Enriching {len(new_papers)} papers with open-access full text "
+             f"(Europe PMC + CORE, no download)…")
+        oa_hits = 0
+        for p in new_papers:
+            try:
+                r = _fetch_oa_fulltext(p)
+                if r.get("has_fulltext"):
+                    oa_hits += 1
+            except Exception:
+                pass
+        if oa_hits:
+            ok(f"Open-access full text retrieved for {oa_hits}/{len(new_papers)} papers")
+        else:
+            info("No open-access full text found (paywalled set); "
+                 "reports use abstracts")
 
     # ═══════ DOWNLOAD PHASE — only when PDFs requested ═══════
     if not _gen_only and not skip_downloads and new_papers:

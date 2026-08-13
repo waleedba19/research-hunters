@@ -17,6 +17,16 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 
+# Open-access full-text quote/paraphrase helpers (no download required).
+# Falls back to local stubs if fulltext_reader isn't importable.
+try:
+    from fulltext_reader import extract_quotes_from_text, paraphrase_quote
+except Exception:  # pragma: no cover - degraded offline
+    def extract_quotes_from_text(text, keywords, max_quotes=12):
+        return []
+    def paraphrase_quote(quote, strategy="semantic"):
+        return quote
+
 # Color scheme
 C = {
     "header_dark": "1F4E79", "header_accent": "2E75B6",
@@ -137,6 +147,15 @@ def _load_real_papers(results_json_path: str) -> list:
         # strip XML-ish tags from some platform abstracts
         abstract = re.sub(r"<[^>]+>", "", abstract)
         doi = p.get("doi") or ""
+        # Open-access full-text sections (populated in no-download mode by
+        # fulltext_reader.fetch_oa_fulltext, or from downloaded PDFs in
+        # download mode). Empty when the paper is paywalled -> fall back to
+        # the abstract so the sheet still shows real content.
+        intro_txt = (p.get("introduction") or "").strip()
+        method_txt = (p.get("methodology") or "").strip()
+        results_txt = (p.get("results") or "").strip()
+        discussion_txt = (p.get("discussion") or "").strip()
+        ft_src = (p.get("fulltext_source") or "").strip()
         # year may arrive as a string ("2024") from some platforms; coerce.
         try:
             yv = p.get("year")
@@ -167,10 +186,19 @@ def _load_real_papers(results_json_path: str) -> list:
             "downloaded": bool(p.get("downloaded")),
             "funding": p.get("funding", ""),
             "keywords": p.get("keywords", ""),
-            "introduction": abstract or "No abstract available (full-text not analyzed).",
-            "methodology": "N/A (full-text not analyzed in no-download mode).",
-            "results": "N/A (full-text not analyzed in no-download mode).",
-            "discussion": "N/A (full-text not analyzed in no-download mode).",
+            "introduction": intro_txt or abstract or
+                            "No abstract or open-access full text available.",
+            "methodology": method_txt or
+                           ("Abstract used (no OA full text): " + abstract)
+                           if abstract else "N/A (paywalled — no OA full text).",
+            "results": results_txt or
+                       ("Abstract used (no OA full text): " + abstract)
+                       if abstract else "N/A (paywalled — no OA full text).",
+            "discussion": discussion_txt or
+                          ("Abstract used (no OA full text): " + abstract)
+                          if abstract else "N/A (paywalled — no OA full text).",
+            "fulltext_source": ft_src,
+            "has_fulltext": bool(p.get("has_fulltext")),
         })
     return mapped
 
@@ -1030,6 +1058,100 @@ for row, (label, value) in enumerate(summary_data, 3):
     ws40.merge_cells(f'B{row}:H{row}')
 
 print("✅ Executive Summary created")
+
+# ════════════════════════════════════════════════════════════════════════════
+# SHEET 41: EXACT QUOTES — keyword-relevant verbatim sentences per paper
+# (drawn from abstracts + open-access full text; no PDF download needed)
+# ════════════════════════════════════════════════════════════════════════════
+ws_q = wb.create_sheet("Exact Quotes")
+ws_q.merge_cells('A1:F1')
+c = ws_q['A1']
+c.value = "📑 EXACT QUOTES — Verbatim Sentences from Abstracts & Open-Access Full Text"
+c.font = Font(size=14, bold=True, color="FFFFFF")
+c.fill = PatternFill(start_color=C["header_dark"], end_color=C["header_dark"], fill_type="solid")
+c.alignment = Alignment(horizontal='center', vertical='center')
+mh(ws_q, 3, ["#", "Paper Title", "Quote", "Matched Keyword", "Source",
+              "DOI / Link"], bg=C["header_accent"])
+# Collect study keywords from the loaded papers.
+_study_kws = set()
+for p in PAPERS:
+    for kw in (p.get("keywords") or "").split(","):
+        kw = kw.strip()
+        if len(kw) >= 3:
+            _study_kws.add(kw)
+_study_kws = list(_study_kws)[:40] or ["research", "study", "analysis"]
+_qrow = 4
+for p in PAPERS:
+    # Build the text pool: OA full-text sections first, then abstract fallback.
+    _pool_parts = []
+    for _k in ("introduction", "methodology", "results", "discussion"):
+        _v = (p.get(_k) or "")
+        if _v and not _v.startswith("N/A") and not _v.startswith("Abstract used"):
+            _pool_parts.append(_v)
+    if not _pool_parts:
+        _pool_parts = [p.get("introduction") or ""]
+    _pool = " ".join(_pool_parts)
+    _src = p.get("fulltext_source") or ("abstract" if not p.get("has_fulltext") else "oa_fulltext")
+    _quotes = extract_quotes_from_text(_pool, _study_kws, max_quotes=6)
+    for qi, qd in enumerate(_quotes, 1):
+        ws_q.cell(row=_qrow, column=1, value=f"{p['id']}-{qi}")
+        ws_q.cell(row=_qrow, column=2, value=p["title"][:90])
+        ws_q.cell(row=_qrow, column=3, value=qd["quote"])
+        ws_q.cell(row=_qrow, column=4, value=qd["keyword"])
+        ws_q.cell(row=_qrow, column=5, value=_src)
+        ws_q.cell(row=_qrow, column=6, value=p.get("doi") or "")
+        _qrow += 1
+ws_q.column_dimensions['C'].width = 90
+ws_q.column_dimensions['B'].width = 40
+for _r in range(4, _qrow):
+    ws_q.cell(row=_r, column=3).alignment = Alignment(wrap_text=True, vertical='top')
+print(f"✅ Exact Quotes sheet created ({_qrow - 4} quotes)")
+
+# ════════════════════════════════════════════════════════════════════════════
+# SHEETS 42-44: THREE PARAPHRASING STRATEGIES (semantic / summary / structure)
+# ════════════════════════════════════════════════════════════════════════════
+_STRATEGIES = [
+    ("Paraphrase - Semantic", "semantic",
+     "🔤 STRATEGY 1: SEMANTIC — synonym swaps preserving meaning"),
+    ("Paraphrase - Summary", "summary",
+     "✂️ STRATEGY 2: SUMMARY — condense to the core claim"),
+    ("Paraphrase - Structure", "structure",
+     "🔄 STRATEGY 3: STRUCTURE — reframe with hedged attribution"),
+]
+for _sname, _skey, _stitle in _STRATEGIES:
+    ws_p = wb.create_sheet(_sname)
+    ws_p.merge_cells('A1:E1')
+    c = ws_p['A1']
+    c.value = _stitle
+    c.font = Font(size=14, bold=True, color="FFFFFF")
+    c.fill = PatternFill(start_color=C["header_dark"], end_color=C["header_dark"], fill_type="solid")
+    c.alignment = Alignment(horizontal='center', vertical='center')
+    mh(ws_p, 3, ["#", "Paper Title", "Exact Quote", "Paraphrase", "Source"], bg=C["header_accent"])
+    _prow = 4
+    for p in PAPERS:
+        _pool_parts = []
+        for _k in ("introduction", "methodology", "results", "discussion"):
+            _v = (p.get(_k) or "")
+            if _v and not _v.startswith("N/A") and not _v.startswith("Abstract used"):
+                _pool_parts.append(_v)
+        if not _pool_parts:
+            _pool_parts = [p.get("introduction") or ""]
+        _pool = " ".join(_pool_parts)
+        _src = p.get("fulltext_source") or ("abstract" if not p.get("has_fulltext") else "oa_fulltext")
+        _quotes = extract_quotes_from_text(_pool, _study_kws, max_quotes=4)
+        for qi, qd in enumerate(_quotes, 1):
+            ws_p.cell(row=_prow, column=1, value=f"{p['id']}-{qi}")
+            ws_p.cell(row=_prow, column=2, value=p["title"][:90])
+            ws_p.cell(row=_prow, column=3, value=qd["quote"])
+            ws_p.cell(row=_prow, column=4, value=paraphrase_quote(qd["quote"], _skey))
+            ws_p.cell(row=_prow, column=5, value=_src)
+            _prow += 1
+    ws_p.column_dimensions['C'].width = 70
+    ws_p.column_dimensions['D'].width = 70
+    for _r in range(4, _prow):
+        ws_p.cell(row=_r, column=3).alignment = Alignment(wrap_text=True, vertical='top')
+        ws_p.cell(row=_r, column=4).alignment = Alignment(wrap_text=True, vertical='top')
+    print(f"✅ {_sname} sheet created ({_prow - 4} paraphrases)")
 
 # ════════════════════════════════════════════════════════════════════════════
 # SAVE EXCEL FILE
