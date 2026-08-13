@@ -7631,8 +7631,7 @@ def main():
         ok(f"Downloaded {dl_count} / {len(new_papers)} PDFs")
         if red_list.entries:
             warn(red_list.summary())
-        if cache.stats().get("queries_exhausted"):
-            (out_folder / ".search_complete").write_text("done", encoding="utf-8")
+        # queries_exhausted is now determined centrally after results merge
     elif skip_downloads and new_papers:
         info(f"Download PDFs OFF — reports generated with all clickable links")
 
@@ -7768,6 +7767,42 @@ def main():
     ok(f"Saved results.json ({len(all_papers)} total papers)")
     cache.record_run(len(new_papers), dl_count, skipped)
     cache.save()
+
+    # ── Chain progress file (read by the GHA auto-chain step) ───────
+    # The workflow's "Auto-trigger next run" step needs a reliable signal of
+    # cumulative progress to decide whether more chunks are needed. The
+    # SearchCache keys differ from what that step historically read, so we
+    # emit a single authoritative file here. `queries_exhausted` is True
+    # when this run discovered NO new papers — i.e. every generated query
+    # has already been explored across all platforms and only duplicates
+    # remain. That is the natural completion signal for the chain (works
+    # in BOTH no-download and download modes).
+    try:
+        st = cache.stats()
+        progress = {
+            "total_found": len(all_papers),           # cumulative unique papers
+            "total_downloaded": st.get("total_downloaded", dl_count),
+            "new_this_run": len(new_papers),
+            "downloaded_this_run": dl_count,
+            "queries_used": len(cache.queries_used()),
+            "queries_exhausted": bool(len(new_papers) == 0),
+            "paper_limit": paper_limit_override or 0,
+            "limit_reached": bool(paper_limit_override and
+                                  len(all_papers) >= paper_limit_override),
+            "download_mode": "off" if skip_downloads else "on",
+            "updated_at": datetime.now().isoformat(),
+        }
+        (out_folder / "_chain_progress.json").write_text(
+            json.dumps(progress, ensure_ascii=False, indent=2), encoding="utf-8")
+        if progress["queries_exhausted"]:
+            ok("Chain progress: queries EXHAUSTED (no new papers) — "
+               "chain will stop after this chunk")
+            (out_folder / ".search_complete").write_text("done", encoding="utf-8")
+        else:
+            info(f"Chain progress: {len(new_papers)} new papers this run, "
+                 f"{len(all_papers)} cumulative unique")
+    except Exception as e:
+        warn(f"Could not write chain progress file: {e}")
 
     # Reports — controlled by output_format
     md_path = None; docx_path = None; xlsx_path = None

@@ -1540,6 +1540,22 @@ jobs:
           echo "  Operation: ${{ github.event.inputs.operation_mode }}"
           echo "========================================================"
           echo ""
+          # Safety guard: downloading 40,000+ PDFs exceeds GitHub's 10 GB
+          # artifact cap and the runner's ~14 GB disk. If the user picked a
+          # huge paper_limit WITH download_pdfs ON, force no-download mode
+          # (reports-only) so the run can still succeed — the Excel still
+          # contains every paper's DOI/URL link, and download can be done
+          # later via the cloud-storage path.
+          PL_KEY=$(echo "${{ github.event.inputs.paper_limit }}" | cut -d' ' -f1)
+          DL_ON=$(echo "${{ github.event.inputs.download_pdfs }}" | tr '[:upper:]' '[:lower:]')
+          if [ "$DL_ON" = "true" ] && [ "$PL_KEY" -ge 9 ] 2>/dev/null; then
+            echo "⚠️  WARNING: paper_limit '$PL_KEY' (≥10,000) + DOWNLOAD PDFs ON exceeds"
+            echo "    GitHub storage limits (10 GB artifact cap). Forcing DOWNLOAD PDFs OFF"
+            echo "    so this run succeeds. The 40-sheet Excel still contains every paper's"
+            echo "    DOI/URL link. To get the actual PDFs, split by year-range or use"
+            echo "    the cloud-storage download path (coming soon)."
+            export CI_DOWNLOAD_PDFS="false"
+          fi
           python research_hunter_v2-4.py; echo "EXIT CODE: $?"
 
       - name: Check results
@@ -1632,16 +1648,23 @@ jobs:
         shell: bash
         run: |
           STATE_FILE="pdf_files/${{ steps.folder.outputs.folder_name }}/chunk_state.json"
-          CACHE_FILE="pdf_files/${{ steps.folder.outputs.folder_name }}/search_cache.json"
+          OUT_DIR="pdf_files/${{ steps.folder.outputs.folder_name }}"
+          CACHE_FILE="$OUT_DIR/search_cache.json"
           if [ ! -f "$CACHE_FILE" ]; then
-            CACHE_FILE="pdf_files/${{ steps.folder.outputs.folder_name }}/.search_cache.json"
+            CACHE_FILE="$OUT_DIR/.search_cache.json"
           fi
           echo "============================================"
           echo "  CHUNK ${{ steps.chunk.outputs.current_chunk }} OF ~${{ steps.chunk.outputs.total_chunks }}"
           echo "  Depth: ${{ steps.chunk.outputs.depth }}"
-          if [ -f "$CACHE_FILE" ]; then
-            FOUND=$(python3 -c "import json; d=json.load(open('$CACHE_FILE')); print(len(d.get('papers_found',{})))" 2>/dev/null || echo "?")
-            DL=$(python3 -c "import json; d=json.load(open('$CACHE_FILE')); print(len(d.get('papers_downloaded',{})))" 2>/dev/null || echo "?")
+          PROG_FILE="$OUT_DIR/_chain_progress.json"
+          if [ -f "$PROG_FILE" ]; then
+            FOUND=$(python3 -c "import json; d=json.load(open('$PROG_FILE')); print(d.get('total_found',0))" 2>/dev/null || echo "?")
+            DL=$(python3 -c "import json; d=json.load(open('$PROG_FILE')); print(d.get('total_downloaded',0))" 2>/dev/null || echo "?")
+            NEW=$(python3 -c "import json; d=json.load(open('$PROG_FILE')); print(d.get('new_this_run',0))" 2>/dev/null || echo "?")
+            echo "  Papers found: $FOUND  |  Downloaded: $DL  |  New this run: $NEW"
+          elif [ -f "$CACHE_FILE" ]; then
+            FOUND=$(python3 -c "import json; d=json.load(open('$CACHE_FILE')); print(d.get('found_count',0))" 2>/dev/null || echo "?")
+            DL=$(python3 -c "import json; d=json.load(open('$CACHE_FILE')); print(d.get('downloaded_count',0))" 2>/dev/null || echo "?")
             echo "  Papers found: $FOUND  |  Downloaded: $DL"
           fi
           echo "============================================"
@@ -1686,38 +1709,70 @@ jobs:
             echo "============================================"
             exit 0
           fi
-          echo "Chunk ${{ steps.chunk.outputs.current_chunk }} of ~${{ steps.chunk.outputs.total_chunks }} — continuing chain"
+          echo "Chunk ${{ steps.chunk.outputs.current_chunk }} of ~${{ steps.chunk.outputs.total_chunks }} — checking chain progress"
+          # Prefer the authoritative _chain_progress.json emitted by the
+          # Python pipeline (keys: total_found, total_downloaded, new_this_run,
+          # queries_exhausted, limit_reached, download_mode). Fall back to the
+          # SearchCache JSON (.search_cache.json) if the progress file is
+          # missing (older runs), reading its real keys found_count /
+          # downloaded_count.
+          PROG_FILE="$OUT_DIR/_chain_progress.json"
           CACHE_FILE="$OUT_DIR/search_cache.json"
-          if [ ! -f "$CACHE_FILE" ]; then
-            CACHE_FILE="$OUT_DIR/.search_cache.json"
-          fi
-          if [ ! -f "$CACHE_FILE" ]; then
-            echo "No cache file found - cannot determine remaining work"
+          if [ ! -f "$CACHE_FILE" ]; then CACHE_FILE="$OUT_DIR/.search_cache.json"; fi
+          if [ -f "$PROG_FILE" ]; then
+            TOTAL_FOUND=$(python3 -c "import json; d=json.load(open('$PROG_FILE')); print(d.get('total_found',0))" 2>/dev/null || echo "0")
+            TOTAL_DL=$(python3 -c "import json; d=json.load(open('$PROG_FILE')); print(d.get('total_downloaded',0))" 2>/dev/null || echo "0")
+            NEW_THIS=$(python3 -c "import json; d=json.load(open('$PROG_FILE')); print(d.get('new_this_run',0))" 2>/dev/null || echo "0")
+            EXHAUSTED=$(python3 -c "import json; d=json.load(open('$PROG_FILE')); print(str(d.get('queries_exhausted',False)))" 2>/dev/null || echo "False")
+            LIMIT_REACHED=$(python3 -c "import json; d=json.load(open('$PROG_FILE')); print(str(d.get('limit_reached',False)))" 2>/dev/null || echo "False")
+            DL_MODE=$(python3 -c "import json; d=json.load(open('$PROG_FILE')); print(d.get('download_mode','off'))" 2>/dev/null || echo "off")
+          elif [ -f "$CACHE_FILE" ]; then
+            TOTAL_FOUND=$(python3 -c "import json; d=json.load(open('$CACHE_FILE')); print(d.get('found_count',0))" 2>/dev/null || echo "0")
+            TOTAL_DL=$(python3 -c "import json; d=json.load(open('$CACHE_FILE')); print(d.get('downloaded_count',0))" 2>/dev/null || echo "0")
+            NEW_THIS="?"; EXHAUSTED="False"; LIMIT_REACHED="False"; DL_MODE="off"
+          else
+            echo "No progress/cache file found — cannot determine remaining work; stopping chain to be safe"
             exit 0
           fi
-          TOTAL_FOUND=$(python3 -c "import json; d=json.load(open('$CACHE_FILE')); print(len(d.get('papers_found',{})))" 2>/dev/null || echo "0")
-          TOTAL_DL=$(python3 -c "import json; d=json.load(open('$CACHE_FILE')); print(len(d.get('papers_downloaded',{})))" 2>/dev/null || echo "0")
-          EXHAUSTED=$(python3 -c "import json; d=json.load(open('$CACHE_FILE')); print(str(d.get('queries_exhausted',False)))" 2>/dev/null || echo "False")
-          echo "Progress: $TOTAL_DL downloaded / $TOTAL_FOUND found / exhausted=$EXHAUSTED"
-          if [ "$EXHAUSTED" = "True" ] && [ "$TOTAL_FOUND" -le "$TOTAL_DL" ]; then
+          echo "Progress: found=$TOTAL_FOUND downloaded=$TOTAL_DL new_this_run=$NEW_THIS exhausted=$EXHAUSTED limit_reached=$LIMIT_REACHED mode=$DL_MODE"
+
+          # STOP condition 1: queries exhausted (no new papers found this run).
+          # This is the natural completion signal and works in BOTH modes —
+          # once every query has been explored, re-running only rediscovers
+          # duplicates, so the chain should stop.
+          if [ "$EXHAUSTED" = "True" ]; then
             echo "============================================"
-            echo "  ALL RESEARCH COMPLETE!"
-            echo "  Chunk ${{ steps.chunk.outputs.current_chunk }} of ~${{ steps.chunk.outputs.total_chunks }}"
+            echo "  ALL RESEARCH COMPLETE — queries exhausted"
             echo "  Total papers found: $TOTAL_FOUND"
-            echo "  Total downloaded: $TOTAL_DL"
+            echo "  Total downloaded:   $TOTAL_DL"
             echo "============================================"
             exit 0
           fi
-          REMAINING=$(( (TOTAL_FOUND - TOTAL_DL + 49) / 50 ))
-          echo "Approximately $REMAINING batches remaining"
-          if [ "$REMAINING" -le 0 ]; then
-            echo "All papers downloaded - no need to trigger another run"
+
+          # STOP condition 2: paper limit reached. The user set a paper_limit
+          # and we've collected that many unique papers — stop.
+          if [ "$LIMIT_REACHED" = "True" ]; then
             echo "============================================"
-            echo "  ALL RESEARCH COMPLETE!"
+            echo "  PAPER LIMIT REACHED — stopping chain"
+            echo "  Total papers found: $TOTAL_FOUND"
             echo "============================================"
             exit 0
           fi
-          echo "Triggering next run via GitHub API..."
+
+          # STOP condition 3 (download mode only): every found paper has
+          # been downloaded. In no-download mode this never applies (downloads
+          # stay 0) — we rely on queries_exhausted + limit_reached instead.
+          if [ "$DL_MODE" = "on" ] && [ "$TOTAL_FOUND" -gt 0 ] && [ "$TOTAL_DL" -ge "$TOTAL_FOUND" ]; then
+            echo "============================================"
+            echo "  ALL RESEARCH COMPLETE — all found papers downloaded"
+            echo "  Total papers found: $TOTAL_FOUND"
+            echo "  Total downloaded:   $TOTAL_DL"
+            echo "============================================"
+            exit 0
+          fi
+
+          # Otherwise: more work remains — trigger the next chunk.
+          echo "More work remains — triggering next chunk…"
           python3 -c "import json, os; payload = {'ref': os.environ.get('GITHUB_REF_NAME', 'main'), 'inputs': {}}; [payload['inputs'].update({k.replace('TRIGGER_', '').lower(): v}) for k, v in os.environ.items() if k.startswith('TRIGGER_')]; open('/tmp/payload.json', 'w').write(json.dumps(payload)); print('=== PAYLOAD (all inputs preserved) ==='); print(json.dumps(payload, indent=2)); print('======================================')"
           curl -s -X POST \
             -H "Accept: application/vnd.github+json" \
