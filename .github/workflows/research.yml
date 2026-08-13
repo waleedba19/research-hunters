@@ -1772,6 +1772,19 @@ jobs:
             exit 0
           fi
 
+          # STOP condition 4 (safety cap): never loop forever. At ~80 chunks
+          # (≈ 10 days at 3h/chunk) we stop even if work technically remains,
+          # so a bug can't run the workflow indefinitely. Override via
+          # CI_MAX_CHUNKS if a longer run is explicitly intended.
+          MAX_CHUNKS="${CI_MAX_CHUNKS:-80}"
+          if [ "${{ steps.chunk.outputs.current_chunk }}" -ge "$MAX_CHUNKS" ]; then
+            echo "============================================"
+            echo "  SAFETY CAP REACHED — chunk ${{ steps.chunk.outputs.current_chunk }} >= $MAX_CHUNKS"
+            echo "  Stopping chain to prevent infinite loop. Set CI_MAX_CHUNKS to extend."
+            echo "============================================"
+            exit 0
+          fi
+
           # Otherwise: more work remains — trigger the next chunk.
           echo "More work remains — triggering next chunk…"
           python3 -c "import json, os; payload = {'ref': os.environ.get('GITHUB_REF_NAME', 'main'), 'inputs': {}}; [payload['inputs'].update({k.replace('TRIGGER_', '').lower(): v}) for k, v in os.environ.items() if k.startswith('TRIGGER_')]; open('/tmp/payload.json', 'w').write(json.dumps(payload)); print('=== PAYLOAD (all inputs preserved) ==='); print(json.dumps(payload, indent=2)); print('======================================')"

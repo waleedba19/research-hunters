@@ -94,5 +94,11 @@ jobs:
       - name: "Test Excel generation system (v10.0)"
         run: python3 generate_ultimate_excel_v10.py
 
+      - name: "Unit test: paper_db (SQLite store — dedup, stress, recovery)"
+        run: python3 tests/test_paper_db.py
+
+      - name: "Integration test: pipeline + DB (multi-chunk accumulation)"
+        run: python3 tests/test_pipeline_db.py
+
       - name: "Health check: platforms, helpers, structure, verify_refs"
         run: python3 tests/test_health.py

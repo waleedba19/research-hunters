@@ -145,6 +145,12 @@ except ImportError:
 
 from scopus_checker import bulk_check, quartile_badge
 from search_cache   import SearchCache
+try:
+    from paper_db import PaperDB
+    _HAS_PAPER_DB = True
+except Exception as _e:
+    _HAS_PAPER_DB = False
+    PaperDB = None  # type: ignore
 
 try:
     from fulltext_reader import fetch_oa_fulltext as _fetch_oa_fulltext
@@ -7592,7 +7598,17 @@ def main():
     # ── v6: Scan existing PDFs for duplicate avoidance ──────────────────────────
     existing_titles = scan_existing_pdfs(out_folder)
 
-    cache = SearchCache(out_folder)
+    # Use the SQLite-backed PaperDB (single source of truth) when available —
+    # it scales to 100k papers across many chunks/days without the giant
+    # load→merge→write cycle of the old JSON cache. Falls back to SearchCache
+    # if paper_db is unavailable. PaperDB is a drop-in replacement for the
+    # SearchCache surface used here.
+    if _HAS_PAPER_DB:
+        cache = PaperDB(out_folder)
+        ok("Storage: SQLite PaperDB (incremental, crash-safe)")
+    else:
+        cache = SearchCache(out_folder)
+        warn("Storage: JSON SearchCache fallback (paper_db unavailable)")
     stats = cache.stats()
     if stats["total_found"] > 0:
         warn(f"Resuming previous search — {stats['total_found']} papers cached "
@@ -7799,17 +7815,26 @@ def main():
     elif skip_downloads and new_papers:
         info(f"Download PDFs OFF — reports generated with all clickable links")
 
-    # Load & merge previous results
-    existing: list = []
+    # ── Merge with previous results ──────────────────────────────────
+    # PaperDB path: new papers were inserted incrementally during the search
+    # (filter_new), so the DB already holds every unique paper — we read all
+    # of them from there. No giant results.json load/merge needed.
+    # SearchCache path (fallback): load previous results.json + merge in memory.
     results_path = out_folder / "results.json"
-    if results_path.exists():
-        try:
-            prev = json.loads(results_path.read_text(encoding="utf-8"))
-            existing = prev.get("papers") or []
-        except Exception:
-            pass
-
-    all_papers = cache.deduplicate(new_papers + existing)
+    _db_total = 0
+    if isinstance(cache, PaperDB):
+        all_papers = cache.get_all_papers()
+        _db_total = len(all_papers)
+        info(f"Loaded {len(all_papers)} papers from SQLite DB (cumulative)")
+    else:
+        existing: list = []
+        if results_path.exists():
+            try:
+                prev = json.loads(results_path.read_text(encoding="utf-8"))
+                existing = prev.get("papers") or []
+            except Exception:
+                pass
+        all_papers = cache.deduplicate(new_papers + existing)
 
     # ── Apply user-selected filters ─────────────────────────────────
     before = len(all_papers)
@@ -7924,23 +7949,32 @@ def main():
     }
     report_data["executive_summary"] = generate_executive_summary(report_data)
 
-    # Save results.json
-    results_path.write_text(
-        json.dumps(report_data, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
-    ok(f"Saved results.json ({len(all_papers)} total papers)")
-    cache.record_run(len(new_papers), dl_count, skipped)
+    # Save results.json — atomic (.tmp + os.replace) so a crash mid-write
+    # never leaves a truncated file. PaperDB path generates from the DB.
+    try:
+        _tmp = results_path.with_suffix(results_path.suffix + ".tmp")
+        _tmp.write_text(
+            json.dumps(report_data, ensure_ascii=False, indent=2),
+            encoding="utf-8")
+        os.replace(_tmp, results_path)
+        ok(f"Saved results.json ({len(all_papers)} total papers)")
+    except Exception as _e:
+        warn(f"Could not save results.json: {_e}")
+    cache.record_run(len(new_papers), dl_count, skipped,
+                     queries_exhausted=bool(len(new_papers) == 0),
+                     limit_reached=bool(paper_limit_override and
+                                        len(all_papers) >= paper_limit_override),
+                     download_mode="off" if skip_downloads else "on")
     cache.save()
 
     # ── Chain progress file (read by the GHA auto-chain step) ───────
     # The workflow's "Auto-trigger next run" step needs a reliable signal of
-    # cumulative progress to decide whether more chunks are needed. The
-    # SearchCache keys differ from what that step historically read, so we
-    # emit a single authoritative file here. `queries_exhausted` is True
-    # when this run discovered NO new papers — i.e. every generated query
-    # has already been explored across all platforms and only duplicates
-    # remain. That is the natural completion signal for the chain (works
-    # in BOTH no-download and download modes).
+    # cumulative progress to decide whether more chunks are needed. We emit
+    # a single authoritative file here, written atomically.
+    # `queries_exhausted` is True when this run discovered NO new papers —
+    # i.e. every generated query has already been explored across all
+    # platforms and only duplicates remain. That is the natural completion
+    # signal for the chain (works in BOTH no-download and download modes).
     try:
         st = cache.stats()
         progress = {
@@ -7956,8 +7990,11 @@ def main():
             "download_mode": "off" if skip_downloads else "on",
             "updated_at": datetime.now().isoformat(),
         }
-        (out_folder / "_chain_progress.json").write_text(
-            json.dumps(progress, ensure_ascii=False, indent=2), encoding="utf-8")
+        _prog_tmp = (out_folder / "_chain_progress.json.tmp")
+        _prog_tmp.write_text(
+            json.dumps(progress, ensure_ascii=False, indent=2),
+            encoding="utf-8")
+        os.replace(_prog_tmp, out_folder / "_chain_progress.json")
         if progress["queries_exhausted"]:
             ok("Chain progress: queries EXHAUSTED (no new papers) — "
                "chain will stop after this chunk")
@@ -8059,5 +8096,47 @@ def main():
         print(f"{'='*65}")
 
 
+def _emit_emergency_progress(reason: str):
+    """Emit a minimal _chain_progress.json so the auto-chain step can decide
+    even when the run crashed. Without this, the workflow sees no progress
+    file and stops the chain — losing the run. Writes to the default folder.
+    """
+    try:
+        folder_name = os.environ.get("CI_FOLDER_NAME", "run")
+        out = Path("pdf_files") / folder_name
+        out.mkdir(parents=True, exist_ok=True)
+        import json as _j
+        from datetime import datetime as _dt
+        progress = {
+            "total_found": 0, "total_downloaded": 0, "new_this_run": 0,
+            "queries_exhausted": False, "limit_reached": False,
+            "download_mode": "off" if os.environ.get(
+                "CI_DOWNLOAD_PDFS", "").lower() not in ("true", "1", "yes") else "on",
+            "error": reason,
+            "updated_at": _dt.now().isoformat(),
+        }
+        tmp = out / "_chain_progress.json.tmp"
+        tmp.write_text(_j.dumps(progress, ensure_ascii=False, indent=2),
+                       encoding="utf-8")
+        os.replace(tmp, out / "_chain_progress.json")
+        print(f"[GUARD] emitted emergency chain progress: {reason}",
+              file=sys.stderr)
+    except Exception:
+        pass  # best-effort; don't mask the original error
+
+
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\n[GUARD] interrupted by user (KeyboardInterrupt)")
+        _emit_emergency_progress("KeyboardInterrupt")
+        sys.exit(130)
+    except Exception as _fatal:
+        import traceback
+        traceback.print_exc()
+        _emit_emergency_progress(f"fatal: {type(_fatal).__name__}: {_fatal}")
+        # Exit 0 so the GHA step doesn't fail the whole workflow — the
+        # auto-chain step reads _chain_progress.json and decides. The real
+        # failure is visible in the traceback above.
+        sys.exit(0)

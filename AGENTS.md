@@ -29,8 +29,43 @@ The system previously used `ghcr.io/wo312092-creator/runner-base:latest` but now
 - `report_pdf.py` — v6.4 DOCX→PDF via LibreOffice (6 paths) or docx2pdf. Heavy report for Telegram delivery.
 - `future_studies.py` — v6.5 AI-powered research gap suggestions. Uses `precision_engine._call_ollama` to generate 3-5 (configurable) gap-filling study proposals. Falls back to 5 deterministic templates if ollama fails. `to_markdown()` renders suggestions for the report section.
 - `hunt_intake.py` — /hunt2 intake state machine (`HUNT_STEPS`, 14 steps: research_type, title, field, rq_angle, research_questions, year_range, language, country, paper_type, quartile_filter, open_access, platforms, max_papers, download_pdfs). Only `title` is required; every other step is skippable. Wired into `telegram_bot._run_v2_hunt_from_intake` with heartbeat every 5 min.
+- `fulltext_reader.py` — no-download full-text reader. Reads the *content* of open-access papers from Europe PMC (JATS XML) and CORE APIs WITHOUT downloading any PDF, filling introduction/methodology/results/discussion with real text. Also provides `extract_quotes_from_text()` and `paraphrase_quote()` (3 deterministic strategies: semantic/summary/structure). The no-download counterpart to the PDF extraction in `research_hunter_v2-4.py`.
+- `paper_db.py` — SQLite-backed paper store (the single source of truth). Replaces the JSON-based SearchCache for large (10k–100k paper) multi-day runs. WAL mode, incremental crash-safe transactions, indexed O(log n) dedup, no giant results.json load/merge at the end (generates results.json from the DB only for report compat). Drop-in compatible with SearchCache for the pipeline surface (`mark_found`, `mark_downloaded`, `filter_new`, `deduplicate`, `add_queries`, `queries_used`, `record_run`, `stats`, `save`). Extra: `upsert_paper`, `bulk_upsert`, `get_all_papers`, `iter_papers`, `export_results_json`, `vacuum`. Tests in `tests/test_paper_db.py` (46 tests incl. 10k stress + concurrency + corruption recovery) and `tests/test_pipeline_db.py` (25 tests incl. multi-chunk accumulation simulation).
+
+## Stability hardening (6-10 day continuous runs)
+
+Key risks for 100k-paper / multi-day runs and how they're handled:
+
+- **JSON corruption / memory** — the old SearchCache loaded+merged+wrote the whole results.json (100s of MB at 100k papers) at the end of every chunk; one write failure = total loss, and holding 100k dicts in memory risks OOM. PaperDB fixes this: papers persist incrementally in SQLite transactions (a mid-chunk crash never loses found papers), dedup is an indexed lookup, and results.json is generated atomically (`.tmp` + `os.replace`) from the DB only when a report is needed.
+- **Lost chain signal on crash** — previously, if `run_hunt` crashed, no `_chain_progress.json` was emitted, so the workflow stopped the chain (losing the run). Now a top-level `__main__` guard catches any fatal exception, prints the traceback, and emits an emergency `_chain_progress.json` so the auto-chain step can decide. The process exits 0 so the workflow step doesn't fail the whole run.
+- **Infinite loop** — a bug could make the chain never exhaust queries and re-run forever. A hard safety cap stops the chain at ~80 chunks (≈ 10 days at 3h/chunk) even if work technically remains; override with `CI_MAX_CHUNKS` for longer runs.
+- **Atomic writes** — both `results.json` and `_chain_progress.json` are written via `.tmp` + `os.replace` so a crash mid-write never leaves a truncated file.
+
+## No-download vs Download modes (symmetric design)
+
+The pipeline now has two symmetric full-text paths that populate the SAME report fields (introduction/methodology/results/discussion + exact quotes), so the 40+ Excel sheets, DOCX, and PDF reports carry genuine content in either mode:
+
+| Mode | How full text is obtained | OCR? | Storage |
+|---|---|---|---|
+| **No-download** (DOWNLOAD PDFs OFF) | Europe PMC `fullTextXML` + CORE API — no file saved | n/a (XML is selectable text) | reports only (Excel + DOCX + PDF) |
+| **Download** (DOWNLOAD PDFs ON) | reads each downloaded PDF page-by-page via pdfplumber/PyMuPDF (ALL pages, no cap) | Tesseract fallback for scanned/image PDFs | reports + PDF files |
+
+Paywalled papers in no-download mode fall back to the abstract only. The Excel `_load_real_papers` shows "Abstract used (no OA full text)" for those.
+
+## Auto-chain (multi-version runs over many days)
+
+`research.yml`'s `research` job runs in 3-hour chunks (GitHub's job limit). After each chunk, "Auto-trigger next run" checks `_chain_progress.json` (emitted by the Python pipeline) and either stops or dispatches the same workflow again, preserving ALL inputs. Completion signals (work in BOTH modes):
+- `queries_exhausted` = True → a chunk found no new papers (all queries explored); stop.
+- `limit_reached` = True → cumulative unique papers >= the selected `paper_limit`; stop.
+- (download mode only) all found papers downloaded; stop.
+
+Each chunk downloads the previous run's artifact (`research-data-<folder>`) and merges (`cache.deduplicate(new + existing)`), so the final ZIP is cumulative. The `_chain_progress.json` file replaces the old broken logic that read non-existent `papers_found`/`queries_exhausted` keys from the SearchCache JSON.
+
+Safety guard: if `paper_limit` >= 10,000 (keys 9–12) AND `download_pdfs` ON, the workflow forces no-download (the Excel still has every DOI/URL link) because downloading 10k+ PDFs exceeds GitHub's 10 GB artifact cap and the runner disk.
+
+
 - `run_no_download.py` — NEW. Run the hunt WITHOUT downloading PDFs. Searches all platforms, checks quartiles, dedupes, then produces the 40-sheet Excel (from REAL results) + full DOCX report + PDF report + master XLSX + markdown. Usage: `python3 run_no_download.py "<topic>" [field] --platforms crossref,openalex --max-papers N`. The `skip_download=True` param on `run_hunt` powers it (PDF fetch is skipped; quartile + doctype + geo detection still run).
-- `generate_ultimate_excel_v10.py` — 40-sheet Excel generator. Default mode uses built-in sample data (40 sheets). Real-data mode: pass a `results.json` path as the first CLI arg and it maps real hunt papers into the 40-sheet layout (narrative sections filled with "N/A (full-text not analyzed in no-download mode)" since no PDFs are read).
+- `generate_ultimate_excel_v10.py` — 40+ sheet Excel generator. Default mode uses built-in sample data. Real-data mode: pass a `results.json` path as the first CLI arg and it maps real hunt papers into the 40-sheet layout. Narrative sections (introduction/methodology/results/discussion) are filled with REAL text from Europe PMC/CORE (no-download mode) or the downloaded PDF (download mode), falling back to the abstract for paywalled papers. Also produces dedicated "Exact Quotes", "Paraphrase - Semantic", "Paraphrase - Summary", and "Paraphrase - Structure" sheets.
 - `report_pdf.py` — DOCX→PDF via LibreOffice (6 paths + `/usr/lib/libreoffice/program/soffice`) or docx2pdf. Sets `LD_LIBRARY_PATH` to the resolved soffice program dir because some Linux wrappers don't export it (libreglo.so not found otherwise).
 
 ## Conventions
