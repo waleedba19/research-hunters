@@ -1993,13 +1993,18 @@ def _download_with_ghost_login(paper: dict,
 # ════════════════════════════════════════════════════════════════════════════════
 #  PDF TEXT EXTRACTION — extract quotes and content from downloaded PDFs
 # ════════════════════════════════════════════════════════════════════════════════
-def extract_pdf_text(pdf_path: Path, max_pages: int = 10) -> str:
-    """Extract text from PDF using pdfplumber or PyMuPDF."""
+def extract_pdf_text(pdf_path: Path, max_pages: int = 0) -> str:
+    """Extract text from PDF using pdfplumber or PyMuPDF.
+
+    max_pages=0 (default) reads the ENTIRE document page-by-page, which is
+    what we want for deep analysis. Pass a positive value to cap (legacy).
+    """
     text = ""
     if HAS_PDFPLUMBER:
         try:
             with pdfplumber.open(pdf_path) as pdf:
-                for i, page in enumerate(pdf.pages[:max_pages]):
+                pages = pdf.pages if max_pages <= 0 else pdf.pages[:max_pages]
+                for i, page in enumerate(pages):
                     page_text = page.extract_text()
                     if page_text:
                         text += page_text + "\n"
@@ -2008,7 +2013,8 @@ def extract_pdf_text(pdf_path: Path, max_pages: int = 10) -> str:
     if not text and HAS_PYMUPDF:
         try:
             doc = fitz.open(str(pdf_path))
-            for i, page in enumerate(doc[:max_pages]):
+            pages = doc if max_pages <= 0 else doc[:max_pages]
+            for i, page in enumerate(pages):
                 text += page.get_text() + "\n"
             doc.close()
         except Exception:
@@ -2036,8 +2042,58 @@ def extract_quotes_from_text(text: str, keywords: list, max_quotes: int = 10) ->
     return [s[1] for s in scored[:max_quotes]]
 
 
+# Section-heading patterns for splitting downloaded-PDF full text.
+_PDF_INTRO_RE  = re.compile(r"^\s*(introduc)", re.I | re.M)
+_PDF_METHOD_RE = re.compile(r"^\s*(method|material)", re.I | re.M)
+_PDF_RESULT_RE = re.compile(r"^\s*(result|finding)", re.I | re.M)
+_PDF_DISC_RE   = re.compile(r"^\s*(discuss|conclusion)", re.I | re.M)
+
+
+def _split_pdf_sections(text: str) -> dict:
+    """Best-effort split of flat PDF-extracted text into report sections.
+
+    Looks for heading-like lines (short lines matching section keywords) and
+    returns the text between headings. Falls back to dumping the opening
+    chunk into 'introduction' if no headings are found. Mirrors the logic in
+    fulltext_reader._naive_split_sections so download + no-download modes
+    populate the same Excel fields.
+    """
+    out = {"introduction": "", "methodology": "", "results": "", "discussion": ""}
+    if not text:
+        return out
+    markers = [("introduction", _PDF_INTRO_RE), ("methodology", _PDF_METHOD_RE),
+               ("results", _PDF_RESULT_RE), ("discussion", _PDF_DISC_RE)]
+    lines = text.split("\n")
+    positions = []
+    for idx, line in enumerate(lines):
+        low = line.strip().lower().strip(":.")
+        if len(low) < 40:  # headings are short
+            for key, rx in markers:
+                if rx.search(low) and not any(idx == p for p, _ in positions):
+                    positions.append((idx, key))
+                    break
+    if not positions:
+        out["introduction"] = text[:8000]
+        return out
+    positions.sort()
+    for i, (start, key) in enumerate(positions):
+        end = positions[i + 1][0] if i + 1 < len(positions) else len(lines)
+        chunk = " ".join(lines[start + 1:end])
+        chunk = re.sub(r"\s+", " ", chunk).strip()
+        if chunk:
+            out[key] = chunk[:6000]
+    return out
+
+
 def enrich_paper_with_pdf_content(paper: dict, pdf_path: Path, keywords: list):
-    """Extract text and quotes from PDF and add to paper metadata."""
+    """Extract text and quotes from PDF and add to paper metadata.
+
+    In download mode this reads the downloaded PDF page-by-page (ALL pages)
+    and populates the paper dict with the same section fields the no-download
+    OA reader sets (introduction/methodology/results/discussion) plus exact
+    quotes, so the Excel/DOCX/PDF reports carry genuine content from the
+    file. If OA sections were already set, the PDF text augments them.
+    """
     if not (HAS_PDFPLUMBER or HAS_PYMUPDF):
         return
 
@@ -2045,6 +2101,14 @@ def enrich_paper_with_pdf_content(paper: dict, pdf_path: Path, keywords: list):
     if text:
         paper["pdf_text_length"] = len(text)
         paper["pdf_quotes"] = extract_quotes_from_text(text, keywords)
+        paper.setdefault("fulltext_source", "pdf")
+        paper["has_fulltext"] = True
+        # Naive section split for downloaded PDFs: look for heading-like
+        # lines, otherwise dump the opening chunk into 'introduction'.
+        secs = _split_pdf_sections(text)
+        for key in ("introduction", "methodology", "results", "discussion"):
+            if secs.get(key) and not paper.get(key):
+                paper[key] = secs[key]
 
 
 # ════════════════════════════════════════════════════════════════════════════════
@@ -5340,6 +5404,16 @@ def smart_file_paper(paper: dict, base_folder: Path,
         cache.mark_downloaded(paper, dest_path.name)
         paper["file_path"] = str(dest_path)
 
+        # Read the full PDF text page-by-page and extract keyword-relevant
+        # quotes + section text, so the Excel/DOCX/PDF reports carry genuine
+        # content from the downloaded file (download mode). Reads ALL pages
+        # (no cap) via enrich_paper_with_pdf_content.
+        try:
+            enrich_paper_with_pdf_content(paper, dest_path,
+                                           paper.get("_study_keywords") or [])
+        except Exception:
+            pass
+
         # Mirror into LOCAL_Libya if applicable
         if geo_tier == "Libya" and folder_key != "Libya":
             ly = base_folder / "LOCAL_Libya"
@@ -7607,6 +7681,11 @@ def main():
         print()
         dl_mode_str = "single folder" if single_folder else "smart folders"
         info(f"Downloading {len(new_papers)} PDFs (10 parallel workers) into {dl_mode_str}…")
+        # Attach study keywords to each paper so the per-paper PDF enrichment
+        # (smart_file_paper -> enrich_paper_with_pdf_content) can extract
+        # keyword-relevant quotes/sections from the full text.
+        for _p in new_papers:
+            _p["_study_keywords"] = study_keywords
         BATCH_SIZE = 50
         total_batches = (len(new_papers) + BATCH_SIZE - 1) // BATCH_SIZE
         _dl_lock = threading.Lock()
