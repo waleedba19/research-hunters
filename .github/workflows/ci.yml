@@ -97,6 +97,9 @@ jobs:
       - name: "Unit test: paper_db (SQLite store — dedup, stress, recovery)"
         run: python3 tests/test_paper_db.py
 
+      - name: "Unit test: run_guard (disk/circuit-breaker/DB-maintenance)"
+        run: python3 tests/test_run_guard.py
+
       - name: "Integration test: pipeline + DB (multi-chunk accumulation)"
         run: python3 tests/test_pipeline_db.py
 

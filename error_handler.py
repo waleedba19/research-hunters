@@ -8,10 +8,20 @@ from logger import get_logger
 
 log = get_logger("error_handler")
 
+class TransientHTTPError(Exception):
+    """Raised by API helpers for HTTP 429 / 5xx — treated as retryable."""
+
+    def __init__(self, status: int, message: str = ""):
+        self.status = status
+        self.message = message or f"HTTP {status}"
+        super().__init__(self.message)
+
+
 RETRYABLE_EXCEPTIONS: Tuple[Type[BaseException], ...] = (
     ConnectionError,
     TimeoutError,
     OSError,
+    TransientHTTPError,
 )
 
 
@@ -21,7 +31,11 @@ def retry(
     backoff: float = 2.0,
     exceptions: Tuple[Type[BaseException], ...] = RETRYABLE_EXCEPTIONS,
 ) -> Callable:
-    """Decorator: retry on transient errors with exponential backoff."""
+    """Decorator: retry on transient errors with exponential backoff.
+
+    Retries ConnectionError, TimeoutError, OSError, and TransientHTTPError
+    (HTTP 429 / 5xx). Set ``exceptions`` to customize.
+    """
 
     def deco(fn: Callable) -> Callable:
         @functools.wraps(fn)

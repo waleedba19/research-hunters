@@ -158,6 +158,24 @@ try:
 except Exception as _e:  # optional — degraded gracefully if missing
     _HAS_FULLTEXT_READER = False
 try:
+    from run_guard import disk_guard, DBMaintenance, CircuitBreaker
+    _HAS_RUN_GUARD = True
+except Exception:
+    _HAS_RUN_GUARD = False
+    def disk_guard(out_folder=None):  # type: ignore
+        return True
+    class DBMaintenance:  # type: ignore
+        def __init__(self, db, vacuum_every=15000):
+            self.db = db
+        def maybe_maintain(self, new_papers=0):
+            pass
+    class CircuitBreaker:  # type: ignore
+        def __init__(self, threshold=5, window_s=600.0):
+            pass
+        def record_failure(self, key): pass
+        def allow(self, key): return True
+        def reset(self, key=None): pass
+try:
     from learning_integration import learn_from_search, generate_paper as li_generate_paper
     HAS_LEARNING = True
 except Exception:
@@ -6081,11 +6099,19 @@ def search_all(queries: list, platforms: list, year_from=None,
     cache_hits = 0
     cache_misses = 0
 
+    # Per-platform circuit breaker: if a platform fails >= 5 times in 10 min,
+    # skip its remaining queries this chunk so one flaky source can't burn
+    # the whole 3-hour budget. Shared across the thread pool.
+    _cb = CircuitBreaker(threshold=5, window_s=600.0)
+    _plat_failures = 0
+
     # 16 workers (was 8) for 2x throughput on API + browser + Libyan in one pool
     with ThreadPoolExecutor(max_workers=16) as ex:
         # ── Phase 1: API platforms (parallel) ──────────────────────────────
         api_jobs = {}
         for plat in api_plats:
+            if not _cb.allow(plat):
+                continue  # platform tripped this chunk — skip remaining queries
             for q in queries:
                 key = _search_cache_key(plat, q, year_from, field)
                 if key in cache:
@@ -6100,6 +6126,8 @@ def search_all(queries: list, platforms: list, year_from=None,
         # ── Phase 2: Browser platforms (parallel) ──────────────────────────
         browser_jobs = {}
         for plat in browser_plats:
+            if not _cb.allow(plat):
+                continue
             for q in queries[:2]:
                 key = _search_cache_key(plat, q, year_from, field)
                 if key in cache:
@@ -6121,6 +6149,8 @@ def search_all(queries: list, platforms: list, year_from=None,
             libyan_queries = queries[:3]
             info(f"  Geographic context → scraping {len(LIBYAN_PLATS)} regional platforms")
             for plat in LIBYAN_PLATS:
+                if not _cb.allow(f"libyan:{plat}"):
+                    continue
                 for q in libyan_queries[:2]:
                     key = _search_cache_key(f"libyan:{plat}", q, year_from, field)
                     if key in cache:
@@ -6147,11 +6177,19 @@ def search_all(queries: list, platforms: list, year_from=None,
                 if topic_slug and key not in cache:
                     _save_search_cache_entry(topic_slug, key, results)
                 completed += 1
-            except Exception:
-                pass
+            except Exception as _e:
+                # Record the failure on the per-platform circuit breaker so a
+                # chronically-failing source gets skipped for the rest of this
+                # chunk (prevents one bad platform from burning the budget).
+                _cb_key = plat if not key.startswith("libyan:") else f"libyan:{plat}"
+                _cb.record_failure(_cb_key)
+                _plat_failures += 1
 
     if cache_hits or cache_misses:
         info(f"  Search cache: {cache_hits} hits, {cache_misses} fresh searches")
+    if _plat_failures:
+        warn(f"  Platform failures this chunk: {_plat_failures} "
+             f"(circuit breaker may have skipped flaky sources)")
 
     return all_papers
 
@@ -7614,6 +7652,18 @@ def main():
         warn(f"Resuming previous search — {stats['total_found']} papers cached "
              f"({stats['total_downloaded']} downloaded, {stats['queries_used']} queries used)")
 
+    # Disk-space guard: abort this chunk gracefully if the runner is nearly
+    # full (ENOSPC mid-run is the #1 killer of long chains). Best-effort.
+    if not disk_guard(out_folder):
+        warn("Disk space critically low — aborting chunk before search. "
+             "The artifact upload between chunks usually frees space.")
+        (out_folder / ".search_complete").write_text("disk_low", encoding="utf-8")
+        return
+
+    # DB maintenance (VACUUM every ~15k new papers) bounds growth across a
+    # long run; harmless no-op for the JSON SearchCache fallback.
+    _db_maint = DBMaintenance(cache) if isinstance(cache, PaperDB) else None
+
     ok(f"Output: {out_folder}")
     start_g4f_proxy()
 
@@ -7662,6 +7712,10 @@ def main():
         new_papers, skipped = cache.filter_new(relevant)
         if skipped:
             info(f"Skipped {skipped} already-found papers from previous runs")
+
+        # Periodic DB VACUUM to bound growth across a long run.
+        if _db_maint:
+            _db_maint.maybe_maintain(new_papers=len(new_papers))
 
         if existing_titles:
             truly_new = []
