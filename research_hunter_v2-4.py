@@ -35,7 +35,7 @@ from pathlib  import Path
 from datetime import datetime
 from dataclasses import dataclass, field as dc_field, asdict
 from typing   import Optional, Union
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, as_completed, TimeoutError as FuturesTimeoutError
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -5827,7 +5827,7 @@ def search_dblp(query: str, year_from=None, limit: int = 25) -> list:
     for hit in hits:
         info = hit.get("info", {}) or {}
         year = str(info.get("year", ""))
-        if year_from and year and year.isdigit() and int(year) < year_from:
+        if year_from and year and year.isdigit() and int(year) < int(year_from):
             continue
         authors_raw = info.get("authors", {}).get("author", []) or []
         if isinstance(authors_raw, dict):
@@ -5985,7 +5985,7 @@ def search_google_books(query: str, year_from=None, limit: int = 25) -> list:
     for item in (_safe_get(data, "items", default=[]) or []):
         vol = item.get("volumeInfo", {}) or {}
         year = str(vol.get("publishedDate", ""))[:4]
-        if year_from and year and year.isdigit() and int(year) < year_from:
+        if year_from and year and year.isdigit() and int(year) < int(year_from):
             continue
         access = item.get("accessInfo", {}) or {}
         pdf = (access.get("pdf", {}) or {}).get("downloadLink")
@@ -6356,7 +6356,9 @@ def _save_search_cache_entry(topic_slug: str, key: str, results: list) -> None:
 
 def search_all(queries: list, platforms: list, year_from=None,
                year_to=None, field="", country_context=None,
-               topic_slug: str = "") -> list:
+               topic_slug: str = "", search_timeout: int = 0) -> list:
+    """Search all platforms. If search_timeout > 0 (seconds), return partial
+    results after that deadline so a CI 3h job-timeout can't lose all progress."""
     api_plats     = [p for p in platforms if p not in BROWSER_PLATS]
     browser_plats = [p for p in platforms if p in BROWSER_PLATS]
     all_papers    = []
@@ -6421,21 +6423,29 @@ def search_all(queries: list, platforms: list, year_from=None,
         # ── Collect all results as they complete, save cache per completion ──
         all_jobs = {**api_jobs, **browser_jobs, **libyan_jobs}
         completed = 0
-        for fut in as_completed(all_jobs):
-            plat, q, key = all_jobs[fut]
-            try:
-                results = fut.result() or []
-                if results:
-                    all_papers.extend(results)
-                    if not key.startswith("libyan:"):
-                        info(f"  {plat}: +{len(results)} for '{q[:50]}'")
-                    else:
-                        info(f"  {plat}: +{len(results)}")
-                if topic_slug and key not in cache:
-                    _save_search_cache_entry(topic_slug, key, results)
-                completed += 1
-            except Exception:
-                pass
+        try:
+            for fut in as_completed(all_jobs, timeout=search_timeout if search_timeout > 0 else None):
+                plat, q, key = all_jobs[fut]
+                try:
+                    results = fut.result() or []
+                    if results:
+                        all_papers.extend(results)
+                        if not key.startswith("libyan:"):
+                            info(f"  {plat}: +{len(results)} for '{q[:50]}'")
+                        else:
+                            info(f"  {plat}: +{len(results)}")
+                    if topic_slug and key not in cache:
+                        _save_search_cache_entry(topic_slug, key, results)
+                    completed += 1
+                except Exception:
+                    pass
+        except FuturesTimeoutError:
+            remaining = len(all_jobs) - completed
+            warn(f"Search deadline reached — {completed}/{len(all_jobs)} jobs done, "
+                 f"{remaining} still running. Returning {len(all_papers)} partial results.")
+            for fut in all_jobs:
+                if not fut.done():
+                    fut.cancel()
 
     if cache_hits or cache_misses:
         info(f"  Search cache: {cache_hits} hits, {cache_misses} fresh searches")
@@ -8792,8 +8802,12 @@ def main():
 
             print()
             info(f"Searching {len(platforms)} platforms ({mode} mode)…")
+            # In CI mode, cap the search at 2.5h so results.json can be saved
+            # before the 3h GitHub Actions job timeout kills the process.
+            _search_timeout = 9000 if os.environ.get("CI_MODE", "").lower() in ("true", "1", "yes") else 0
             raw = search_all(queries, platforms, year_from=year_from, year_to=year_to,
-                             field=field, country_context=country_context)
+                             field=field, country_context=country_context,
+                             search_timeout=_search_timeout)
 
             deduped = cache.deduplicate(raw)
             info(f"Raw: {len(raw)} → deduplicated: {len(deduped)}")

@@ -1699,7 +1699,7 @@ jobs:
           TRIGGER_PAPER_LIMIT: ${{ github.event.inputs.paper_limit }}
           TRIGGER_FOLDER_MODE: ${{ github.event.inputs.folder_mode }}
           TRIGGER_DOWNLOAD_PDFS: ${{ github.event.inputs.download_pdfs }}
-          TRIGGER_SCI_HUB: ${{ github.event.inputs.scihub }}
+          TRIGGER_SCIHUB: ${{ github.event.inputs.scihub }}
           TRIGGER_PROXY: ${{ github.event.inputs.proxy }}
           TRIGGER_LEARN: ${{ github.event.inputs.learn }}
           TRIGGER_GENERATE_PAPER: ${{ github.event.inputs.generate_paper }}
