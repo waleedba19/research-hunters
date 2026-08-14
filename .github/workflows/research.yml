@@ -1072,52 +1072,6 @@ on:
         required: true
         default: false
         type: boolean
-      paper_type:
-        description: '📄 PAPER TYPE TO GENERATE (45+ types available)'
-        required: true
-        default: 'empirical - 📊 Empirical Research (Quantitative)'
-        type: choice
-        options:
-          - empirical - 📊 Empirical Research (Quantitative)
-          - qualitative - 📝 Qualitative Study
-          - mixed_methods - 🔄 Mixed Methods Research
-          - systematic_review - 📚 Systematic Review
-          - meta_analysis - 📈 Meta-Analysis
-          - scoping_review - 🔍 Scoping Review
-          - narrative_review - 📖 Narrative Review
-          - integrative_review - 🔗 Integrative Review
-          - rapid_review - ⚡ Rapid Review
-          - experimental - 🧪 Experimental Study
-          - quasi_experimental - ⚗️ Quasi-Experimental
-          - longitudinal - 📈 Longitudinal Study
-          - cross_sectional - 📊 Cross-sectional Study
-          - cohort - 👥 Cohort Study
-          - case_study - 📋 Case Study
-          - phenomenological - 🎭 Phenomenological Study
-          - ethnographic - 🌍 Ethnographic Study
-          - grounded_theory - 🏗️ Grounded Theory
-          - action_research - 🔄 Action Research
-          - Delphi - 🎯 Delphi Study
-          - correlational - 📊 Correlational Study
-          - descriptive - 📝 Descriptive Study
-          - exploratory - 🔎 Exploratory Study
-          - historical - 📜 Historical Research
-          - comparative - ⚖️ Comparative Study
-          - evaluation - 📊 Program Evaluation
-          - policy_analysis - 📋 Policy Analysis
-          - feasibility - ✅ Feasibility Study
-          - pilot - 🚀 Pilot Study
-          - validation - ✔️ Validation Study
-          - thesis_phd - 🎓 PhD Dissertation
-          - thesis_master - 📚 Master's Thesis
-          - thesis_bachelor - 📖 Bachelor's Thesis
-          - conference_paper - 🎤 Conference Paper
-          - book_chapter - 📖 Book Chapter
-          - technical_report - 📝 Technical Report
-          - white_paper - 📄 White Paper
-          - protocol - 📋 Research Protocol
-          - proposal - 📝 Research Proposal
-
       output_format:
         description: '📋 OUTPUT FORMATS — Controls report formats. PDF download is a SEPARATE toggle above. "both_docx_xlsx" always produces Excel (40+ sheets) + DOCX + clickable links — guaranteed every run.'
         required: true
@@ -1590,7 +1544,7 @@ jobs:
           CI_YEAR_TO: "${{ github.event.inputs.year_to }}"
           CI_LEARN: "${{ github.event.inputs.learn }}"
           CI_GENERATE_PAPER: "${{ github.event.inputs.generate_paper }}"
-          CI_PAPER_TYPE: "${{ github.event.inputs.paper_type }}"
+          CI_PAPER_TYPE: "empirical - 📊 Empirical Research (Quantitative)"
           CI_OUTPUT_FORMAT: "${{ github.event.inputs.output_format }}"
           CI_FOLDER_NAME: "${{ steps.folder.outputs.folder_name }}"
           CI_GEOGRAPHIC_AREA: "${{ github.event.inputs.geographic_area }}"
@@ -1749,7 +1703,6 @@ jobs:
           TRIGGER_PROXY: ${{ github.event.inputs.proxy }}
           TRIGGER_LEARN: ${{ github.event.inputs.learn }}
           TRIGGER_GENERATE_PAPER: ${{ github.event.inputs.generate_paper }}
-          TRIGGER_PAPER_TYPE: ${{ github.event.inputs.paper_type }}
           TRIGGER_OUTPUT_FORMAT: ${{ github.event.inputs.output_format }}
           TRIGGER_GEOGRAPHIC_AREA: ${{ github.event.inputs.geographic_area }}
           TRIGGER_RESEARCH_DEPTH: ${{ github.event.inputs.research_depth }}
