@@ -6370,8 +6370,16 @@ def search_all(queries: list, platforms: list, year_from=None,
     cache_hits = 0
     cache_misses = 0
 
-    # 16 workers (was 8) for 2x throughput on API + browser + Libyan in one pool
-    with ThreadPoolExecutor(max_workers=16) as ex:
+    # 16 workers for API + browser + Libyan in one pool.
+    # NOTE: do NOT use a `with ThreadPoolExecutor(...)` block here. Python's
+    # context-manager __exit__ ALWAYS calls shutdown(wait=True), which re-blocks
+    # for 20-30 min on hung browser/scraping threads even after we explicitly
+    # shutdown(wait=False) on the deadline path. That hang outlasts the 3h GHA
+    # job cap and means results.json is never saved — every run loses ~6500
+    # papers. Managing the executor manually lets the deadline path escape
+    # immediately so the post-search checkpoint (results.json) can be written.
+    ex = ThreadPoolExecutor(max_workers=16)
+    try:
         # ── Phase 1: API platforms (parallel) ──────────────────────────────
         api_jobs = {}
         for plat in api_plats:
@@ -6446,9 +6454,13 @@ def search_all(queries: list, platforms: list, year_from=None,
             for fut in all_jobs:
                 if not fut.done():
                     fut.cancel()
-            # Don't let the `with` block's __exit__ block for 20+ minutes
-            # waiting for 193 hung threads to drain. Force non-blocking shutdown.
-            ex.shutdown(wait=False, cancel_futures=True)
+    finally:
+        # Non-blocking shutdown in BOTH paths. The deadline path must NOT wait
+        # for hung threads (that's the 3h-timeout kill bug: the `with` block's
+        # __exit__ re-blocks on shutdown(wait=True) and outlasts the job cap, so
+        # results.json is never written). The normal path also benefits: cancelled
+        # /straggler threads are abandoned immediately instead of draining.
+        ex.shutdown(wait=False, cancel_futures=True)
 
     if cache_hits or cache_misses:
         info(f"  Search cache: {cache_hits} hits, {cache_misses} fresh searches")
@@ -8841,8 +8853,10 @@ def main():
                 warn("No new papers found. Try Deep search mode, more RQs, or broader topic.")
                 (out_folder / ".search_complete").write_text("no_papers", encoding="utf-8")
 
-            for p in new_papers:
-                cache.mark_found(p)
+            # Mark all found papers in ONE atomic cache write (mark_found saves
+            # per paper → thousands of full-JSON rewrites that risk the disk cache
+            # lagging the in-memory set if the job is killed mid-loop).
+            cache.mark_found_batch(new_papers)
 
     # ═══════ QUARTILE CHECK — always runs (even when downloads OFF) ═══════
     dl_count = 0

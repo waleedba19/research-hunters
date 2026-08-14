@@ -121,6 +121,25 @@ class SearchCache:
             self._found_count += 1
             self.save()
 
+    def mark_found_batch(self, papers: List[dict]):
+        """Mark many papers found with a SINGLE save() call.
+
+        Calling mark_found() per paper triggered save() (a full JSON rewrite)
+        on every one of thousands of papers, which is slow and — critically —
+        if the job is killed mid-loop, the cache on disk lags far behind the
+        in-memory set. Batching makes one atomic write after the loop.
+        """
+        added = 0
+        for p in papers:
+            k = self._key(p)
+            if k and k not in self._seen_keys:
+                self._seen_keys.add(k)
+                added += 1
+        self._found_count += added
+        if added:
+            self.save()
+        return added
+
     def stats(self) -> dict:
         return {
             "mode": "persistent",

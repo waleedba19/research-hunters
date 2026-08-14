@@ -1404,24 +1404,54 @@ jobs:
         run: |
           # actions/download-artifact@v4 can only download artifacts from the
           # CURRENT run unless we pass run-id. Find the most recent completed
-          # run of this workflow (excluding this one) so we can pull its
-          # cumulative research-data + cache artifacts.
+          # run of this workflow (excluding this one) that uploaded artifacts we
+          # can resume from.
+          #
+          # IMPORTANT: chained research runs are almost always 'cancelled'
+          # (the 3h job cap kills the long-running search/download step), NOT
+          # 'success'. Filtering for conclusion=='success' therefore finds
+          # NOTHING and every run starts fresh — the chunk counter resets and
+          # the same ~6500 papers are re-searched and lost forever. We must
+          # accept 'cancelled' runs too: their `if: always()` upload steps
+          # still produced research-data + cache artifacts as long as the
+          # python step ran long enough to write them. We verify the run
+          # actually has the matching artifact before using it.
           CURRENT_RUN="${{ github.run_id }}"
           REPO="${{ github.repository }}"
-          echo "Current run: $CURRENT_RUN"
+          WANT_FOLDER="${{ steps.folder.outputs.folder_name }}"
+          echo "Current run: $CURRENT_RUN | want artifact: research-data-${WANT_FOLDER}"
           PREV_ID=$(curl -s \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer $GITHUB_TOKEN" \
-            "https://api.github.com/repos/$REPO/actions/workflows/research.yml/runs?per_page=10&status=completed" \
+            "https://api.github.com/repos/$REPO/actions/workflows/research.yml/runs?per_page=30&status=completed" \
             | python3 -c "
-          import json, sys
+          import json, sys, urllib.request
           runs = json.load(sys.stdin).get('workflow_runs', [])
           for r in runs:
-              if str(r['id']) != '$CURRENT_RUN' and r.get('conclusion') == 'success':
-                  print(r['id'])
+              rid = str(r['id'])
+              if rid == '$CURRENT_RUN':
+                  continue
+              # Only resume from runs that actually produced the cumulative
+              # research-data artifact for THIS folder. cancelled runs still
+              # upload artifacts (upload steps are `if: always()`), so accept
+              # both 'success' and 'cancelled' conclusions.
+              if r.get('conclusion') not in ('success', 'cancelled'):
+                  continue
+              try:
+                  url = f\"https://api.github.com/repos/$REPO/actions/runs/{rid}/artifacts?per_page=100\"
+                  req = urllib.request.Request(url, headers={
+                      'Accept': 'application/vnd.github+json',
+                      'Authorization': 'Bearer $GITHUB_TOKEN',
+                  })
+                  arts = json.load(urllib.request.urlopen(req, timeout=15)).get('artifacts', [])
+              except Exception:
+                  continue
+              want = f'research-data-${WANT_FOLDER}'
+              if any(a.get('name') == want and a.get('size_in_bytes', 0) > 0 for a in arts):
+                  print(rid)
                   break
           " 2>/dev/null || echo "")
-          echo "Previous successful run: ${PREV_ID:-none}"
+          echo "Previous resumable run: ${PREV_ID:-none}"
           echo "prev_run_id=$PREV_ID" >> "$GITHUB_OUTPUT"
       - name: Download previous research data (cumulative)
         if: always() && steps.prev_run.outputs.prev_run_id != ''
@@ -1576,14 +1606,23 @@ jobs:
           echo "Results JSON: $JSON_COUNT"
           echo "Search cache: $CACHE_COUNT"
           echo "pdf_count=$PDF_COUNT" >> $GITHUB_OUTPUT
-          # Treat as success if ANY progress was made — results.json (search
-          # checkpoint) OR search_cache.json OR downloaded PDFs. This ensures
-          # the chain continues even when the 3h timeout killed downloads
-          # mid-run (search results are checkpointed before downloads start).
-          if [ "$PDF_COUNT" -gt 0 ] || [ "$JSON_COUNT" -gt 0 ] || [ "$CACHE_COUNT" -gt 0 ]; then
+          # Treat as success if REAL progress was made: results.json (search
+          # checkpoint) OR downloaded PDFs OR a search_cache that actually FOUND
+          # papers. A bare query-only .search_cache.json (written before the
+          # search even starts, with queries but 0 papers) must NOT count as
+          # success — otherwise every cancelled run that found nothing would
+          # re-trigger the chain (cancel-spawns-another loop).
+          FOUND_PAPERS=0
+          if [ "$CACHE_COUNT" -gt 0 ]; then
+            CF=$(find "$OUT_DIR" -name "*search_cache*.json" 2>/dev/null | head -1)
+            FOUND_PAPERS=$(python3 -c "import json; d=json.load(open('$CF')); v=d.get('papers_found', d.get('found_count',0)); print(v if isinstance(v,int) else len(v))" 2>/dev/null || echo "0")
+          fi
+          echo "Papers found in cache: $FOUND_PAPERS"
+          if [ "$PDF_COUNT" -gt 0 ] || [ "$JSON_COUNT" -gt 0 ] || [ "$FOUND_PAPERS" -gt 0 ]; then
             echo "status=success" >> $GITHUB_OUTPUT
           else
             echo "status=no_results" >> $GITHUB_OUTPUT
+            echo "No real progress (no results.json, no PDFs, 0 papers found) — NOT re-triggering chain"
           fi
 
       - name: Generate 40-sheet Excel from results
@@ -1675,7 +1714,16 @@ jobs:
         # Fire whenever progress was made, even if the 3h timeout cancelled
         # the python step mid-download. The step body guards against triggering
         # when no work remains (.search_complete / exhausted / max_chunks).
-        if: always() && steps.check_results.outputs.status == 'success'
+        #
+        # KILL SWITCH: vars.STOP_RESEARCH_CHAIN == 'true' (a repo variable you
+        # can set any time with:  gh variable set STOP_RESEARCH_CHAIN true
+        # and clear with:          gh variable delete STOP_RESEARCH_CHAIN).
+        # The `if:` catches a variable set BEFORE this run was dispatched; the
+        # in-body API check catches a variable set DURING the run (e.g. while a
+        # runaway chain is mid-flight), so cancelling a run no longer spawns the
+        # next one. This is the only reliable way to stop a self-perpetuating
+        # chain — GitHub cancel just lets `if: always()` run and re-dispatch.
+        if: always() && steps.check_results.outputs.status == 'success' && vars.STOP_RESEARCH_CHAIN != 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REF_NAME: ${{ github.ref_name }}
@@ -1713,6 +1761,23 @@ jobs:
           OUT_DIR="pdf_files/${{ steps.folder.outputs.folder_name }}"
           CURRENT_CHUNK=${{ steps.chunk.outputs.current_chunk }}
           MAX_CHUNKS=${{ steps.chunk.outputs.max_chunks }}
+
+          # KILL SWITCH (runtime check): honor STOP_RESEARCH_CHAIN even if it was
+          # set AFTER this run started. The `if:` above only catches a variable
+          # set before dispatch; this API check catches a mid-run kill signal so
+          # a runaway chain can be stopped without spawning the next run.
+          STOP_NOW=$(curl -s \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/variables/STOP_RESEARCH_CHAIN" \
+            2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin).get('value',''))" 2>/dev/null || echo "")
+          if [ "$STOP_NOW" = "true" ]; then
+            echo "============================================"
+            echo "  🛑 STOP_RESEARCH_CHAIN == true — chain stopped by operator"
+            echo "  To resume: gh variable delete STOP_RESEARCH_CHAIN"
+            echo "============================================"
+            exit 0
+          fi
 
           # Stop condition 1: the python wrote .search_complete (exhausted or no papers)
           if [ -f "$OUT_DIR/.search_complete" ]; then
