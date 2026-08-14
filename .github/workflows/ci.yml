@@ -85,6 +85,9 @@ jobs:
       - name: "Unit test: fanout_merge (dedup, stat aggregation, no network)"
         run: python3 tests/test_fanout_merge.py
 
+      - name: "Unit test: search deadline escape (no post-hunt freeze)"
+        run: python3 tests/test_search_deadline.py
+
       - name: "Unit test: diagnostics scanner (error/warning detection, never crashes)"
         run: python3 tests/test_diagnostics.py
 

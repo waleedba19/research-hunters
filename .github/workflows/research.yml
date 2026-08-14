@@ -1018,13 +1018,10 @@ on:
           - 'ultra - ULTRA — Ultra-deep search with multiple query rounds'
           - 'maximum - MAXIMUM — Exhaustive search, every possible query'
       fanout_mode:
-        description: '🔀 FAN-OUT → MERGE — Split research into parallel sub-hunts (one per research question), then merge into one unified report with deduplication. Best with 2+ research questions.'
+        description: "🔀 FAN-OUT → MERGE — Split research into parallel sub-hunts (one per research question), then merge into one unified report with deduplication. Best with 2+ research questions. Allowed values: 'off - Single unified hunt (no fan-out)' | 'on - Fan-out: parallel sub-hunts → merged report [NEW]'. (A string input, not a dropdown, because the chain-continuation auto-trigger sets this to 'continue:LABEL|||SUBHUNT_TITLE' — GitHub rejects arbitrary values for choice inputs with HTTP 422, which silently broke the multi-chunk chain. Manual users: type one of the two allowed values above.)"
         required: true
         default: 'off - Single unified hunt (no fan-out)'
-        type: choice
-        options:
-          - 'off - Single unified hunt (no fan-out)'
-          - 'on - Fan-out: parallel sub-hunts → merged report [NEW]'
+        type: string
       research_depth:
         description: '🎯 RESEARCH DEPTH — Auto-splits work into 3h chunks. Each chunk resumes where the last stopped.'
         required: true
@@ -2007,15 +2004,25 @@ jobs:
           echo "Approximately $REMAINING download batches remaining — triggering next chunk"
           echo "Triggering next run via GitHub API..."
           python3 -c "import json, os; payload = {'ref': os.environ.get('TRIGGER_BRANCH', os.environ.get('GITHUB_REF_NAME', 'main')), 'inputs': {}}; [payload['inputs'].update({k.replace('TRIGGER_', '').lower(): v}) for k, v in os.environ.items() if k.startswith('TRIGGER_') and k != 'TRIGGER_BRANCH']; open('/tmp/payload.json', 'w').write(json.dumps(payload)); print('=== PAYLOAD (all inputs preserved) ==='); print(json.dumps(payload, indent=2)); print('======================================')"
-          curl -s -X POST \
+          HTTP_CODE=$(curl -s -o /tmp/resp.json -X POST \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer $GITHUB_TOKEN" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             "https://api.github.com/repos/${{ github.repository }}/actions/workflows/research.yml/dispatches" \
             -d @/tmp/payload.json \
-            -w "\nHTTP Status: %{http_code}"
-          echo ""
-          echo "Next run triggered!"
+            -w "%{http_code}")
+          echo "HTTP Status: $HTTP_CODE"
+          if [ "$HTTP_CODE" = "204" ]; then
+            echo "✅ Next run triggered successfully!"
+          else
+            echo "❌ Chain dispatch FAILED (HTTP $HTTP_CODE). Response:"
+            cat /tmp/resp.json 2>/dev/null || echo "(no response body)"
+            echo ""
+            echo "This breaks the multi-chunk chain — the next chunk will NOT run."
+            echo "If this repeats, check that every workflow_dispatch input value is valid"
+            echo "(choice inputs must match a declared option; GitHub rejects others with 422)."
+            exit 1
+          fi
           echo "https://github.com/${{ github.repository }}/actions"
 
       - name: Upload per-leg research data

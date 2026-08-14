@@ -8981,7 +8981,14 @@ def main():
             # hang (ghost/scraping) are abandoned so the batch can't stall the
             # whole run past the 3h GitHub timeout.
             from concurrent.futures import wait as _fwait, FIRST_COMPLETED as _FC
-            with ThreadPoolExecutor(max_workers=10) as ex:
+            # Manual executor management (NOT a `with` block). The `with` block's
+            # __exit__ calls shutdown(wait=True), which re-blocks on hung download
+            # workers (ghost/scraping) even after we abandon a batch at the 120s
+            # cap — burning the remaining 3h job budget. shutdown(wait=False) in
+            # finally abandons stragglers immediately. (The hard os._exit(0) at
+            # the end of main() is the backstop; this keeps mid-run batches fast.)
+            ex = ThreadPoolExecutor(max_workers=10)
+            try:
                 futs = {ex.submit(smart_file_paper, p, out_folder, use_scihub, ts_red_list, ts_cache, single_folder): p for p in batch}
                 dl_this_batch = 0
                 done_in_batch = 0
@@ -9029,6 +9036,8 @@ def main():
                     }, ensure_ascii=False, indent=2), encoding="utf-8")
                 except Exception:
                     pass
+            finally:
+                ex.shutdown(wait=False, cancel_futures=True)
         # Re-enable immediate saves and force a final flush so the last batch's
         # in-memory download set hits disk (deferred saves were on during the loop).
         ts_cache.set_defer(False)
@@ -9263,6 +9272,26 @@ def main():
         print(f"   Red List pending: {rl_cnt}")
         print(f"   Folder: {out_folder}")
         print(f"{'='*65}")
+
+    # ── Hard exit: abandon hung background threads ────────────────────────────
+    # search_all() runs up to 1614 platform jobs in a ThreadPoolExecutor. On the
+    # CI deadline path it calls shutdown(wait=False, cancel_futures=True), which
+    # prevents the *with-block* re-block — but the still-RUNNING worker threads
+    # (the ~277 hung browser/scraping jobs that didn't finish before the search
+    # deadline) are NON-DAEMON, so Python's atexit handler joins every one of
+    # them at interpreter shutdown. That join blocked for ~26 minutes after the
+    # "Hunt Complete!" banner (until the 3h GitHub job cap killed the process),
+    # turning a successful hunt into a "cancelled" run and breaking the chain.
+    #
+    # Everything that must persist (results.json, search_cache.json, the DOCX /
+    # XLSX / MD reports) is written to disk BEFORE the banner above, so a hard
+    # exit here is safe. Flush stdout/stderr first so the banner is not lost.
+    try:
+        sys.stdout.flush()
+        sys.stderr.flush()
+    except Exception:
+        pass
+    os._exit(0)
 
 
 if __name__ == "__main__":
