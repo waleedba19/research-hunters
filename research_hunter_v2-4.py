@@ -6446,6 +6446,9 @@ def search_all(queries: list, platforms: list, year_from=None,
             for fut in all_jobs:
                 if not fut.done():
                     fut.cancel()
+            # Don't let the `with` block's __exit__ block for 20+ minutes
+            # waiting for 193 hung threads to drain. Force non-blocking shutdown.
+            ex.shutdown(wait=False, cancel_futures=True)
 
     if cache_hits or cache_misses:
         info(f"  Search cache: {cache_hits} hits, {cache_misses} fresh searches")
