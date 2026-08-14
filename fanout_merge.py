@@ -406,13 +406,79 @@ def fanout_and_merge(
     return merged
 
 
+# ── Matrix planning (for GitHub Actions parallel sub-hunts) ─────────────────
+
+def build_matrix(params: Dict[str, Any]) -> List[Dict[str, str]]:
+    """Return a GitHub-Actions matrix list for the sub-hunts of `params`.
+
+    Each entry is a flat dict of strings (matrix values must be strings):
+      {"label": "RQ1", "index": "0", "title": "<topic> — RQ1: ..."}
+
+    The matrix is used by the workflow's `research` job so that each research
+    question / aspect runs as its OWN parallel job (a separate "research box"),
+    each writing to its own sub-topic folder, and the `merge` job later
+    combines them into one final report. If the topic cannot be split, a
+    single-entry matrix is returned (back-compat with the old single-job run).
+
+    Args:
+        params: hunt params (title, field, research_questions, study_keywords).
+
+    Returns:
+        List of matrix entries (each a dict of string→string).
+    """
+    subhunts = split_into_subhunts(params)
+    matrix: List[Dict[str, str]] = []
+    for i, sub in enumerate(subhunts):
+        label = sub.get("_subhunt_label") or f"Sub{i+1}"
+        matrix.append({
+            "label": str(label),
+            "index": str(i),
+            "subhunt_title": str(sub.get("title", params.get("title", "Research"))),
+        })
+    if not matrix:
+        matrix.append({"label": "single", "index": "0",
+                        "subhunt_title": str(params.get("title", "Research"))})
+    return matrix
+
+
 if __name__ == "__main__":
     import json, sys
     # CLI: python fanout_merge.py --params params.json
     if len(sys.argv) < 2:
         print("Usage: python fanout_merge.py --params <params.json> [--out <dir>]")
+        print("       python fanout_merge.py --matrix --title T [--rq1 ...] [--rq2 ...] "
+              "[--field F] [--keywords k1,k2]")
         sys.exit(1)
     args = sys.argv[1:]
+
+    # ── Matrix mode: print a JSON matrix (consumed by the workflow plan job) ──
+    if args and args[0] == "--matrix":
+        title = field = rq1 = rq2 = keywords = ""
+        i = 1
+        while i < len(args):
+            if args[i] == "--title" and i + 1 < len(args):
+                title = args[i + 1]; i += 2
+            elif args[i] == "--rq1" and i + 1 < len(args):
+                rq1 = args[i + 1]; i += 2
+            elif args[i] == "--rq2" and i + 1 < len(args):
+                rq2 = args[i + 1]; i += 2
+            elif args[i] == "--field" and i + 1 < len(args):
+                field = args[i + 1]; i += 2
+            elif args[i] == "--keywords" and i + 1 < len(args):
+                keywords = args[i + 1]; i += 2
+            else:
+                i += 1
+        rqs = [q for q in (rq1, rq2) if q.strip()]
+        kws = [k.strip() for k in keywords.split(",") if k.strip()] if keywords else []
+        params = {
+            "title": title or "Research",
+            "field": field or "general",
+            "research_questions": rqs,
+            "study_keywords": kws,
+        }
+        print(json.dumps(build_matrix(params)))
+        sys.exit(0)
+
     params_file = None
     out_dir = None
     i = 0
