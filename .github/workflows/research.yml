@@ -1304,6 +1304,11 @@ jobs:
         run: |
           python scripts/daily_learner.py --model qwen2.5vl:3b --stats || echo "No brain data yet"
       - name: Run daily autonomous learning (1 hour deep search + read)
+        # Non-fatal: a transient ollama/network error must NOT fail the whole
+        # daily_learn job (which would mask the status report below). Capture
+        # the outcome so we report it, but keep going.
+        continue-on-error: true
+        id: learn
         run: |
           echo " Starting daily learning cycle..."
           echo " Date: $(date -u)"
@@ -1312,36 +1317,89 @@ jobs:
           echo ""
           python scripts/daily_learner.py --model qwen2.5vl:3b --new-only --topics 5
       - name: Show updated brain stats
+        if: always()
         run: |
-          python scripts/daily_learner.py --model qwen2.5vl:3b --stats
+          python scripts/daily_learner.py --model qwen2.5vl:3b --stats || echo "No brain data yet"
       - name: Generate brain report artifact
+        if: always()
         run: |
-          python scripts/daily_learner.py --model qwen2.5vl:3b --report --report-path brain_report.md
+          python scripts/daily_learner.py --model qwen2.5vl:3b --report --report-path brain_report.md || echo "Brain report generation failed"
       - name: Upload brain report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: brain-report-daily
           path: brain_report.md
+          if-no-files-found: ignore
           retention-days: 90
 
       - name: Deep PDF reading (learn from papers page-by-page)
+        # Non-fatal: the deep reader needs PDFs + ollama; without either it
+        # should report that, not fail the job.
+        continue-on-error: true
+        id: deep_read
         run: |
           echo " Starting deep PDF reading..."
           echo " Reading up to 3 papers page-by-page..."
           echo ""
           python scripts/deep_reader.py --model qwen2.5vl:3b --max-papers 3
       - name: Generate deep reading report
+        if: always()
         run: |
-          python scripts/deep_reader.py --model qwen2.5vl:3b --report --report-path deep_report.md
+          python scripts/deep_reader.py --model qwen2.5vl:3b --report --report-path deep_report.md || echo "Deep report generation failed"
       - name: Send daily Telegram notification
+        if: always()
         run: |
           python scripts/deep_reader.py --model qwen2.5vl:3b --notify --max-papers 3 || echo "Notification skipped"
       - name: Upload deep reading report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: deep-reading-report-daily
           path: deep_report.md
+          if-no-files-found: ignore
           retention-days: 90
+
+      - name: Generate system status & health report
+        # This is the "report to us what we might miss" step. Runs the system
+        # health entrypoint (run.py) + collects any errors from the learning
+        # steps above, so even when the workflow is off we get a snapshot of
+        # module health, platform count, transport status, and which learning
+        # steps errored. Always runs, even if every learning step failed.
+        if: always()
+        run: |
+          {
+            echo "# Daily Learn — System Status Report"
+            echo ""
+            echo "**Run:** ${{ github.run_id }}  "
+            echo "**Date:** $(date -u)  "
+            echo "**Learning step:** ${{ steps.learn.outcome }}  "
+            echo "**Deep read step:** ${{ steps.deep_read.outcome }}  "
+            echo ""
+            echo "## System Health (run.py)"
+            echo '```'
+            python run.py 2>&1 || echo "run.py exited $?"
+            echo '```'
+            echo ""
+            echo "## Brain Stats"
+            echo '```'
+            python scripts/daily_learner.py --model qwen2.5vl:3b --stats 2>&1 || echo "no brain data"
+            echo '```'
+            echo ""
+            echo "## Deep Reading Stats"
+            echo '```'
+            python scripts/deep_reader.py --model qwen2.5vl:3b --stats 2>&1 || echo "no deep reading data"
+            echo '```'
+          } > status_report.md
+          cat status_report.md
+      - name: Upload status report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-learn-status-report
+          path: status_report.md
+          retention-days: 90
+
 
   research:
     needs: [verify]
