@@ -162,7 +162,7 @@ python -m verify_refs.cli --input tests/sample_refs.txt --output-folder my_repor
 
 ## Chain workflow (multi-day runs) — critical design
 
-The `.github/workflows/research.yml` workflow chains multiple 6h-limited GitHub Actions runs into one logical multi-day run via `workflow_dispatch` self-retriggering. FOUR bugs (all fixed in commit 91efe42) defeated this; do not reintroduce them:
+The `.github/workflows/research.yml` workflow chains multiple 3h-limited GitHub Actions runs into one logical multi-day run via `workflow_dispatch` self-retriggering. SIX bugs defeated this (all fixed); do not reintroduce them:
 
 1. **Chain breaks on 3h timeout** — the python step must write `results.json` (and `cache.save()`) IMMEDIATELY after the search phase, BEFORE downloads. If results.json only exists at the end, a timeout cancel mid-download means `check_results` sees 0 results → `status=no_results` → the auto-trigger `if:` never fires → chunk 2 never runs → all search progress lost. The auto-trigger uses `if: always() && steps.check_results.outputs.status == 'success'` — `always()` is REQUIRED so it fires even when the research job is `cancelled` by the timeout. `check_results` must treat search_cache.json OR results.json OR PDFs as progress.
 
@@ -171,4 +171,10 @@ The `.github/workflows/research.yml` workflow chains multiple 6h-limited GitHub 
 3. **DOAB API returns bare lists** — `search_doab()` must handle `data` being a `list`, a `dict` with a `result` key, or `None`. `link` and `contributor` items may be strings, not dicts — guard with `isinstance(l, dict)`.
 
 4. **Downloads hang** — Wave C of `download_with_full_chain` (DrissionPage "Walter Ghost", Anna's Archive, LibGen scraping) has no per-layer timeout. The download batch must use `wait(timeout=120)` (not `as_completed` which blocks forever) so a hung batch is abandoned and stragglers cancelled. `socket.setdefaulttimeout(60)` at `main()` start is a global backstop. A 6-PDFs-in-3h run means workers are hanging — investigate ghost/scraping layers.
+
+5. **Chunk counter stuck at 1 (cross-run artifact download)** — `actions/download-artifact@v4` can ONLY download artifacts from the CURRENT run unless `run-id` is provided. Without `run-id`, every chained run starts fresh — `chunk_state.json` from the previous run is never restored → the chunk counter resets to 1 every time. FIX: a "Find previous run" step queries the GitHub API for the most recent completed run ID, then passes it as `run-id` to `download-artifact@v4`. The download+restore steps MUST run BEFORE the "Calculate chunk plan" step so `chunk_state.json` is available to increment. Also, `upload-artifact@v4` needs `overwrite: true` (otherwise it fails when an artifact with the same name from a previous run exists).
+
+6. **Chain dispatches on stale branch** — the auto-trigger must dispatch on `main` (default branch), not whatever branch the initial run was started from. Otherwise chained runs execute stale code. FIX: `TRIGGER_BRANCH: main` env var is passed and used as the `ref` in the dispatch payload.
+
+7. **Bare-list `.get()` crashes across ALL search platforms** — many APIs (DOAB, EuropePMC, Dataverse, etc.) return a bare JSON list instead of a dict at the top level. The old pattern `(data or {}).get("key", [])` crashes with `AttributeError: 'list' object has no attribute 'get'`. FIX: the `_safe_get(data, *keys, default=...)` helper in `research_hunter_v2-4.py` safely traverses nested dicts, returning `default` when `data` is a list/None. ALL 40+ search functions now use `_safe_get` instead of `(data or {}).get(...)`.
 

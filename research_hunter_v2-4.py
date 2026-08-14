@@ -1255,6 +1255,30 @@ def _safe_str(val) -> str:
     return str(val)
 
 
+def _safe_get(data, *keys, default=None):
+    """Safely traverse a nested dict/list response from an API.
+
+    Some APIs (DOAB, EuropePMC, Dataverse) return bare lists at the top
+    level instead of dicts.  This helper treats a list as having none of
+    the requested keys (returns *default*) so the caller never crashes
+    with ``AttributeError: 'list' object has no attribute 'get'``.
+
+    Example::
+
+        items = _safe_get(data, "response", "docs", default=[])
+        items = _safe_get(data, "result", default=[])
+    """
+    cur = data
+    for k in keys:
+        if isinstance(cur, dict):
+            cur = cur.get(k)
+        else:
+            return default
+        if cur is None:
+            return default
+    return cur if cur is not None else default
+
+
 def _norm(papers: list, source: str) -> list:
     req = ["title","authors","year","journal","publisher",
            "doi","abstract","pdf_url","source","volume","issue","pages",
@@ -1287,7 +1311,7 @@ def search_semantic_scholar(query, year_from=None, limit=30):
         params["year"] = f"{year_from}-2026"
     data = _get("https://api.semanticscholar.org/graph/v1/paper/search", params)
     out = []
-    for item in (data or {}).get("data", []):
+    for item in _safe_get(data, "data", default=[]):
         out.append({
             "title":       item.get("title"),
             "authors":     [a.get("name") for a in (item.get("authors") or [])],
@@ -1308,7 +1332,7 @@ def search_openalex(query, year_from=None, limit=30):
         params["filter"] = f"publication_year:{year_from}-2026"
     data = _get("https://api.openalex.org/works", params)
     out = []
-    for item in (data or {}).get("results", []):
+    for item in _safe_get(data, "results", default=[]):
         loc  = (item.get("primary_location") or {})
         src  = (loc.get("source") or {})
         oa   = (item.get("open_access") or {})
@@ -1343,7 +1367,7 @@ def search_core(query, year_from=None, limit=25):
         params["yearFrom"] = year_from
     data = _get("https://api.core.ac.uk/v3/search/works", params)
     out = []
-    for item in (data or {}).get("results", []):
+    for item in _safe_get(data, "results", default=[]):
         out.append({
             "title":    item.get("title"),
             "authors":  [a.get("name") for a in (item.get("authors") or [])],
@@ -1363,7 +1387,7 @@ def search_crossref(query, year_from=None, limit=25):
         params["filter"] = f"from-pub-date:{year_from}"
     data = _get("https://api.crossref.org/works", params)
     out = []
-    for item in (data or {}).get("message", {}).get("items", []):
+    for item in _safe_get(data, "message", "items", default=[]):
         title   = ((item.get("title") or [""])[0]) or ""
         journal = ((item.get("container-title") or [""])[0]) or ""
         pub     = item.get("published") or item.get("published-print") or {}
@@ -1395,7 +1419,7 @@ def search_eric(query, year_from=None, limit=25):
         params["dateFrom"] = year_from
     data = _get("https://api.ies.ed.gov/eric/", params)
     out = []
-    for doc in (data or {}).get("response", {}).get("docs", []):
+    for doc in _safe_get(data, "response", "docs", default=[]):
         doc_id = doc.get("id") or ""
         authors = doc.get("author") or []
         if isinstance(authors, str):
@@ -1416,7 +1440,7 @@ def search_doaj(query, year_from=None, limit=20):
     data = _get(f"https://doaj.org/api/search/articles/{requests.utils.quote(query)}",
                 {"pageSize": limit})
     out = []
-    for item in (data or {}).get("results", []):
+    for item in _safe_get(data, "results", default=[]):
         bib  = item.get("bibjson") or {}
         jour = bib.get("journal") or {}
         doi  = next((x.get("id") for x in (bib.get("identifier") or [])
@@ -1446,7 +1470,7 @@ def search_hal(query, year_from=None, limit=20):
         params["fq"] = f"publicationDateY_i:[{year_from} TO *]"
     data = _get("https://api.archives-ouvertes.fr/search/", params)
     out = []
-    for item in (data or {}).get("response", {}).get("docs", []):
+    for item in _safe_get(data, "response", "docs", default=[]):
         titles  = item.get("title_s") or []
         title   = (titles[0] if isinstance(titles, list) and titles else str(titles or ""))
         authors = item.get("authFullName_s") or []
@@ -1472,7 +1496,7 @@ def search_base(query, year_from=None, limit=20):
         params["daterange[]"] = f"{year_from},{datetime.now().year}"
     data = _get("https://api.base-search.net/cgi-bin/BaseHttpSearchInterface.fcgi", params)
     out = []
-    for item in (data or {}).get("response", {}).get("docs", []):
+    for item in _safe_get(data, "response", "docs", default=[]):
         authors = item.get("dccontributor") or item.get("dccreator") or []
         if isinstance(authors, str):
             authors = [authors]
@@ -1494,7 +1518,7 @@ def search_pubmed(query, year_from=None, limit=15):
     if year_from:
         params.update({"datetype": "pdat", "mindate": str(year_from)})
     data = _get("https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi", params)
-    ids  = (data or {}).get("esearchresult", {}).get("idlist", [])
+    ids  = _safe_get(data, "esearchresult", "idlist", default=[])
     if not ids:
         return []
     fetch = _get("https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi",
@@ -2555,7 +2579,7 @@ def search_zenodo(query, year_from=None, limit=25):
     data = _get("https://zenodo.org/api/records",
                 {"q": q, "type": "publication", "size": limit, "sort": "mostrecent"})
     out = []
-    for item in (data or {}).get("hits", {}).get("hits", []):
+    for item in _safe_get(data, "hits", "hits", default=[]):
         meta  = item.get("metadata", {})
         files = item.get("files", [])
         pdf_url = next(
@@ -2773,7 +2797,7 @@ def search_scielo(query: str, year_from=None, limit: int = 20) -> list:
         params["filter[year_cluster][]"] = str(year_from)
     data = _get("https://search.scielo.org/api/v2/search/", params)
     out: list = []
-    for item in (data or {}).get("hits", {}).get("hits", []):
+    for item in _safe_get(data, "hits", "hits", default=[]):
         src = item.get("_source", {})
         out.append({
             "title":    src.get("ti", {}).get("en") or src.get("ti", {}).get("es", ""),
@@ -2907,7 +2931,7 @@ def search_nature_linguistics(query: str, year_from=None, limit: int = 20) -> li
     data = _get(f"https://www.nature.com/search", params)
     out = []
     try:
-        items = (data or {}).get("results", [])
+        items = _safe_get(data, "results", default=[])
         for item in items[:limit]:
             title = item.get("title", "")
             if not title:
@@ -2966,7 +2990,7 @@ def search_elife_sciences(query: str, year_from=None, limit: int = 20) -> list:
     data = _get("https://api.elifesciences.org/search", params)
     out = []
     try:
-        items = (data or {}).get("items", [])
+        items = _safe_get(data, "items", default=[])
         for item in items[:limit]:
             title = item.get("title", "")
             if not title:
@@ -3026,7 +3050,7 @@ def search_core_api(query: str, year_from=None, limit: int = 25) -> list:
         params["yearFrom"] = year_from
     data = _get("https://api.core.ac.uk/v3/search/works", params)
     out = []
-    for item in (data or {}).get("results", []):
+    for item in _safe_get(data, "results", default=[]):
         out.append({
             "title":    item.get("title"),
             "authors":  [a.get("name") for a in (item.get("authors") or [])],
@@ -3078,7 +3102,7 @@ def search_zenodo_extended(query: str, year_from=None, limit: int = 25) -> list:
         params["years"] = f"{year_from}-{datetime.now().year}"
     data = _get("https://zenodo.org/api/records", params)
     out = []
-    for item in (data or {}).get("hits", {}).get("hits", []):
+    for item in _safe_get(data, "hits", "hits", default=[]):
         meta = item.get("metadata", {})
         title = meta.get("title", "")
         if not title:
@@ -3830,7 +3854,7 @@ def search_europepmc(query: str, year_from=None, limit: int = 25) -> list:
         params["query"] += f" AND (PUB_YEAR:[{year_from} TO 2026])"
     data = _get("https://www.ebi.ac.uk/europepmc/webservices/rest/search", params)
     out = []
-    for item in (data or {}).get("resultList", {}).get("result", []):
+    for item in _safe_get(data, "resultList", "result", default=[]):
         out.append({
             "title": item.get("title"),
             "authors": [item.get("authorString", "")],
@@ -3851,7 +3875,7 @@ def search_philpapers(query: str, year_from=None, limit: int = 20) -> list:
         params["yearFrom"] = year_from
     data = _get("https://philpapers.org/asearch.pl", {**params, "format": "json"})
     out = []
-    for item in (data or {}).get("items", []):
+    for item in _safe_get(data, "items", default=[]):
         out.append({
             "title": item.get("title"),
             "authors": [a.get("surname", "") for a in (item.get("authors") or [])],
@@ -3937,7 +3961,7 @@ def search_internet_archive(query: str, year_from=None, limit: int = 20) -> list
         params["q"] += f" AND year:[{year_from} TO 2026]"
     data = _get("https://archive.org/advancedsearch.php", params)
     out = []
-    for item in (data or {}).get("response", {}).get("docs", []):
+    for item in _safe_get(data, "response", "docs", default=[]):
         identifier = item.get("identifier", "")
         out.append({
             "title": item.get("title", [""])[0] if isinstance(item.get("title"), list) else item.get("title", ""),
@@ -3959,7 +3983,7 @@ def search_plos(query: str, year_from=None, limit: int = 20) -> list:
         params["q"] += f" AND publication_date:[{year_from}-01-01T00:00:00Z TO 2026-12-31T23:59:59Z]"
     data = _get("https://api.plos.org/search", params)
     out = []
-    for item in (data or {}).get("response", {}).get("docs", []):
+    for item in _safe_get(data, "response", "docs", default=[]):
         out.append({
             "title": item.get("title"),
             "authors": item.get("author", []) if isinstance(item.get("author"), list) else [item.get("author", "")],
@@ -4264,7 +4288,7 @@ def search_scieelo_bra(query: str, year_from=None, limit: int = 20) -> list:
     params = {"q": query, "count": limit, "from": 0, "output": "iso"}
     data = _get("https://search.scielo.org/api/v2/search/", params)
     out = []
-    for item in (data or {}).get("items", []):
+    for item in _safe_get(data, "items", default=[]):
         out.append({
             "title": item.get("ti", {}).get("en") or item.get("ti", {}).get("pt", ""),
             "authors": item.get("au", []),
@@ -5020,7 +5044,7 @@ def _core_fulltext(title: str) -> Optional[str]:
     try:
         data = _get("https://api.core.ac.uk/v3/search/works",
                     params={"q": f'title:"{title[:60]}"', "limit": 3}, timeout=14)
-        for item in (data or {}).get("results",[]):
+        for item in _safe_get(data, "results", default=[]):
             u = item.get("downloadUrl") or (item.get("sourceFulltextUrls") or [None])[0]
             if u and u.startswith("http"):
                 return u
@@ -5096,7 +5120,7 @@ def _europepmc_fulltext(doi: str) -> Optional[str]:
     try:
         data = _get(f"https://www.ebi.ac.uk/europepmc/webservices/rest/search",
                     params={"query": f"DOI:{doi}", "format": "json"}, timeout=12)
-        results = (data or {}).get("resultList", {}).get("result", [])
+        results = _safe_get(data, "resultList", "result", default=[])
         for r in results:
             ft = r.get("fullTextUrlList", {}).get("fullTextUrl", [])
             for f in ft:
@@ -5137,7 +5161,7 @@ def _zenodo_direct_pdf(doi: str) -> Optional[str]:
         # Try Zenodo API for DOI-based lookup
         data = _get(f"https://zenodo.org/api/records",
                     params={"q": f"doi:{doi}", "size": 1}, timeout=12)
-        hits = (data or {}).get("hits", {}).get("hits", [])
+        hits = _safe_get(data, "hits", "hits", default=[])
         for hit in hits:
             files = hit.get("files", [])
             for f in files:
@@ -5550,7 +5574,7 @@ def search_dataCite(query, year_from=None, limit=20):
             params["query"] = f"{query} AND publicationYear:>={year_from}"
         data = _get("https://api.datacite.org/dois", params)
         out = []
-        for d in (data or {}).get("data", []):
+        for d in _safe_get(data, "data", default=[]):
             attrs = d.get("attributes", {})
             out.append({
                 "title":    attrs.get("title"),
@@ -5598,7 +5622,7 @@ def search_dryad(query, year_from=None, limit=20):
             "q": query, "per_page": limit,
         })
         out = []
-        for hit in (data or {}).get("_embedded", {}).get("stash:datasets", []):
+        for hit in _safe_get(data, "_embedded", "stash:datasets", default=[]):
             ident = (hit.get("identifier") or "").replace("doi:", "")
             out.append({
                 "title":    hit.get("title"),
@@ -5739,7 +5763,7 @@ def search_repec(query, year_from=None, limit=20):
                 "select": "title,authorships,publication_year,doi,primary_location,open_access",
             })
         out = []
-        for w in (data or {}).get("results", []):
+        for w in _safe_get(data, "results", default=[]):
             loc = w.get("primary_location") or {}
             src = (loc.get("source") or {})
             if "repec" not in (src.get("display_name", "") or "").lower():
@@ -5768,7 +5792,7 @@ def search_google_dataset(query, year_from=None, limit=20):
             "select": "title,authorships,publication_year,doi,primary_location,open_access,abstract_inverted_index",
         })
         out = []
-        for w in (data or {}).get("results", []):
+        for w in _safe_get(data, "results", default=[]):
             loc = w.get("primary_location") or {}
             src = (loc.get("source") or {})
             out.append({
@@ -5798,7 +5822,7 @@ def search_dblp(query: str, year_from=None, limit: int = 25) -> list:
     url = "https://dblp.org/search/publ/api"
     params = {"q": query, "format": "json", "h": limit}
     data = _get(url, params)
-    hits = ((data or {}).get("result", {}).get("hits", {}) or {}).get("hit", []) or []
+    hits = _safe_get(data, "result", "hits", "hit", default=[]) or []
     out = []
     for hit in hits:
         info = hit.get("info", {}) or {}
@@ -5860,7 +5884,7 @@ def search_pmc(query: str, year_from=None, limit: int = 25) -> list:
     if year_from:
         params["term"] = f"{query} AND ({year_from}[pdat]:3000[pdat])"
     data = _get("https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi", params)
-    ids = (data or {}).get("esearchresult", {}).get("idlist", []) or []
+    ids = _safe_get(data, "esearchresult", "idlist", default=[]) or []
     if not ids:
         return []
     summ = _get("https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi",
@@ -5899,7 +5923,7 @@ def search_osti(query: str, year_from=None, limit: int = 25) -> list:
         params["publicationdate_start"] = f"{year_from}-01-01"
     data = _get("https://www.osti.gov/api/v1/records", params)
     out = []
-    for item in (data or []) if isinstance(data, list) else ((data or {}).get("records", []) or []):
+    for item in (data or []) if isinstance(data, list) else (_safe_get(data, "records", default=[]) or []):
         doi = item.get("doi") or ""
         if doi and doi.startswith("http"):
             doi = doi.split("doi.org/", 1)[-1]
@@ -5924,7 +5948,7 @@ def search_clinicaltrials(query: str, year_from=None, limit: int = 25) -> list:
     """ClinicalTrials.gov — study protocols (v2 API, free)."""
     params = {"query.term": query, "pageSize": limit, "format": "json"}
     data = _get("https://clinicaltrials.gov/api/v2/studies", params)
-    studies = (data or {}).get("studies", []) or []
+    studies = _safe_get(data, "studies", default=[]) or []
     out = []
     for st in studies:
         proto = st.get("protocolSection", {}) or {}
@@ -5958,7 +5982,7 @@ def search_google_books(query: str, year_from=None, limit: int = 25) -> list:
     params = {"q": query, "maxResults": limit, "printType": "books"}
     data = _get("https://www.googleapis.com/books/v1/volumes", params)
     out = []
-    for item in ((data or {}).get("items", []) or []):
+    for item in (_safe_get(data, "items", default=[]) or []):
         vol = item.get("volumeInfo", {}) or {}
         year = str(vol.get("publishedDate", ""))[:4]
         if year_from and year and year.isdigit() and int(year) < year_from:
@@ -5994,7 +6018,7 @@ def search_scopus(query: str, year_from=None, limit: int = 25) -> list:
         if year_from:
             params["date"] = f"{year_from}-"
         data = _get("https://api.elsevier.com/content/search/scopus", params, hdrs=hdrs)
-        entries = ((data or {}).get("search-results", {}) or {}).get("entry", []) or []
+        entries = _safe_get(data, "search-results", "entry", default=[])
         out = []
         for e in entries:
             out.append({
@@ -6028,7 +6052,7 @@ def search_wos(query: str, year_from=None, limit: int = 25) -> list:
         data = _get("https://api.clarivate.com/apis/wos/v1/search",
                     {"databaseId": "WOS", "usrQuery": query, "count": limit},
                     hdrs={"X-APIKey": key})
-        records = ((data or {}).get("QueryResult", {}) or {}).get("Records", [])
+        records = _safe_get(data, "QueryResult", "Records", default=[])
         out = []
         for r in records:
             out.append({
@@ -6059,7 +6083,7 @@ def search_proquest_diss(query: str, year_from=None, limit: int = 25) -> list:
         params["filter"] = f"year:>={year_from}"
     data = _get("https://oatd.org/oatd/search", params)
     out = []
-    for item in ((data or {}).get("hits", {}).get("hits", []) or []):
+    for item in (_safe_get(data, "hits", "hits", default=[]) or []):
         src = item.get("_source", {}) or {}
         out.append({
             "title":    src.get("title", ""),
@@ -6083,7 +6107,7 @@ def search_jstage(query: str, year_from=None, limit: int = 25) -> list:
     if not data:
         data = _get("https://www.jstage.jst.go.jp/result/globalsearch", {"q": query, "items": limit})
     out = []
-    items = data if isinstance(data, list) else ((data or {}).get("items") or (data or {}).get("result") or [])
+    items = data if isinstance(data, list) else (_safe_get(data, "items") or _safe_get(data, "result") or [])
     if isinstance(items, dict):
         items = items.get("list", []) or []
     for item in (items or [])[:limit]:
@@ -6108,7 +6132,7 @@ def search_open_academic_graph(query: str, year_from=None, limit: int = 25) -> l
         params["year"] = f"{year_from}-"
     data = _get("https://api.semanticscholar.org/graph/v1/paper/search", params)
     out = []
-    for item in ((data or {}).get("data", []) or []):
+    for item in (_safe_get(data, "data", default=[]) or []):
         ext = item.get("externalIds", {}) or {}
         oa = item.get("openAccessPdf", {}) or {}
         out.append({

@@ -1440,6 +1440,73 @@ jobs:
           SAFE=$(echo "$TITLE" | sed 's/[^a-zA-Z0-9_\-]/_/g' | sed 's/__*/_/g' | cut -c1-50)
           echo "folder_name=RESEARCH_${SAFE}" >> $GITHUB_OUTPUT
           echo "Using folder: RESEARCH_${SAFE}"
+      - name: Find previous run (for cross-run artifact download)
+        id: prev_run
+        if: always()
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # actions/download-artifact@v4 can only download artifacts from the
+          # CURRENT run unless we pass run-id. Find the most recent completed
+          # run of this workflow (excluding this one) so we can pull its
+          # cumulative research-data + cache artifacts.
+          CURRENT_RUN="${{ github.run_id }}"
+          REPO="${{ github.repository }}"
+          echo "Current run: $CURRENT_RUN"
+          PREV_ID=$(curl -s \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            "https://api.github.com/repos/$REPO/actions/workflows/research.yml/runs?per_page=10&status=completed" \
+            | python3 -c "
+          import json, sys
+          runs = json.load(sys.stdin).get('workflow_runs', [])
+          for r in runs:
+              if str(r['id']) != '$CURRENT_RUN' and r.get('conclusion') == 'success':
+                  print(r['id'])
+                  break
+          " 2>/dev/null || echo "")
+          echo "Previous successful run: ${PREV_ID:-none}"
+          echo "prev_run_id=$PREV_ID" >> "$GITHUB_OUTPUT"
+      - name: Download previous research data (cumulative)
+        if: always() && steps.prev_run.outputs.prev_run_id != ''
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: research-data-${{ steps.folder.outputs.folder_name }}
+          path: pdf_files_restore
+          run-id: ${{ steps.prev_run.outputs.prev_run_id }}
+      - name: Download previous cache (resume support)
+        if: always() && steps.prev_run.outputs.prev_run_id != ''
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: cache-data
+          path: download_cache
+          run-id: ${{ steps.prev_run.outputs.prev_run_id }}
+      - name: Restore cumulative data and cache
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: |
+          mkdir -p pdf_files
+          echo "Restoring previous data and cache..."
+          if [ -d "pdf_files_restore" ]; then
+            echo "Found previous research data"
+            cp -r pdf_files_restore/. pdf_files/
+            rm -rf pdf_files_restore
+          else
+            echo "No previous research data found - starting fresh"
+          fi
+          if [ -d "download_cache" ]; then
+            cp -f download_cache/*.json . 2>/dev/null || true
+            if [ -d "download_cache/pdf_files" ]; then
+              cp -rn download_cache/pdf_files/. pdf_files/ 2>/dev/null || true
+            fi
+            rm -rf download_cache
+          fi
+          echo "All data restored"
+          ls -la pdf_files/ 2>/dev/null | head -20
       - name: Calculate chunk plan
         id: chunk
         shell: bash
@@ -1497,43 +1564,6 @@ jobs:
           echo "  Estimated total: ~${HOURS}h ($DAYS days at 3h/chunk)"
           echo "  Each chunk runs up to 3 hours, then auto-chains to the next"
           echo "============================================"
-      - name: Download previous research data (cumulative)
-        if: always()
-        continue-on-error: true
-        uses: actions/download-artifact@v4
-        with:
-          name: research-data-${{ steps.folder.outputs.folder_name }}
-          path: pdf_files_restore
-      - name: Download previous cache (resume support)
-        if: always()
-        continue-on-error: true
-        uses: actions/download-artifact@v4
-        with:
-          name: cache-data
-          path: download_cache
-      - name: Restore cumulative data and cache
-        if: always()
-        continue-on-error: true
-        shell: bash
-        run: |
-          mkdir -p pdf_files
-          echo "Restoring previous data and cache..."
-          if [ -d "pdf_files_restore" ]; then
-            echo "Found previous research data"
-            cp -r pdf_files_restore/. pdf_files/
-            rm -rf pdf_files_restore
-          else
-            echo "No previous research data found - starting fresh"
-          fi
-          if [ -d "download_cache" ]; then
-            cp -f download_cache/*.json . 2>/dev/null || true
-            if [ -d "download_cache/pdf_files" ]; then
-              cp -rn download_cache/pdf_files/. pdf_files/ 2>/dev/null || true
-            fi
-            rm -rf download_cache
-          fi
-          echo "All data restored"
-          ls -la pdf_files/ 2>/dev/null | head -20
       - name: Run Research Hunter (cumulative mode)
         env:
           CI_MODE: "true"
@@ -1648,6 +1678,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REF_NAME: ${{ github.ref_name }}
+          # Chain continuation always dispatches on the repo default branch (main)
+          # so chained runs use the latest code, not a stale feature branch.
+          TRIGGER_BRANCH: main
           TRIGGER_TITLE: ${{ github.event.inputs.title }}
           TRIGGER_RQ1: ${{ github.event.inputs.rq1 }}
           TRIGGER_RQ2: ${{ github.event.inputs.rq2 }}
@@ -1730,7 +1763,7 @@ jobs:
           fi
           echo "Approximately $REMAINING download batches remaining — triggering next chunk"
           echo "Triggering next run via GitHub API..."
-          python3 -c "import json, os; payload = {'ref': os.environ.get('GITHUB_REF_NAME', 'main'), 'inputs': {}}; [payload['inputs'].update({k.replace('TRIGGER_', '').lower(): v}) for k, v in os.environ.items() if k.startswith('TRIGGER_')]; open('/tmp/payload.json', 'w').write(json.dumps(payload)); print('=== PAYLOAD (all inputs preserved) ==='); print(json.dumps(payload, indent=2)); print('======================================')"
+          python3 -c "import json, os; payload = {'ref': os.environ.get('TRIGGER_BRANCH', os.environ.get('GITHUB_REF_NAME', 'main')), 'inputs': {}}; [payload['inputs'].update({k.replace('TRIGGER_', '').lower(): v}) for k, v in os.environ.items() if k.startswith('TRIGGER_') and k != 'TRIGGER_BRANCH']; open('/tmp/payload.json', 'w').write(json.dumps(payload)); print('=== PAYLOAD (all inputs preserved) ==='); print(json.dumps(payload, indent=2)); print('======================================')"
           curl -s -X POST \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer $GITHUB_TOKEN" \
@@ -1750,6 +1783,7 @@ jobs:
           path: pdf_files/
           retention-days: 90
           compression-level: 1
+          overwrite: true
 
       - name: Upload cumulative ZIP
         if: always()
@@ -1759,6 +1793,7 @@ jobs:
           path: ${{ steps.zip_results.outputs.zip_name || '*.zip' }}
           retention-days: 90
           compression-level: 9
+          overwrite: true
 
       - name: Upload cache/logs (for resume capability)
         if: always()
@@ -1774,6 +1809,7 @@ jobs:
             ghost_credentials.json
             g4f_locked_config.json
           retention-days: 30
+          overwrite: true
 
   # ═══════════════════════════════════════════════════════════════════════════
   # MERGE JOB — Fan-out → Merge unified report
