@@ -1018,13 +1018,10 @@ on:
           - 'ultra - ULTRA — Ultra-deep search with multiple query rounds'
           - 'maximum - MAXIMUM — Exhaustive search, every possible query'
       fanout_mode:
-        description: '🔀 FAN-OUT → MERGE — Split research into parallel sub-hunts (one per research question), then merge into one unified report with deduplication. Best with 2+ research questions.'
+        description: "🔀 FAN-OUT → MERGE — Split research into parallel sub-hunts (one per research question), then merge into one unified report with deduplication. Best with 2+ research questions. Allowed values: 'off - Single unified hunt (no fan-out)' | 'on - Fan-out: parallel sub-hunts → merged report [NEW]'. (A string input, not a dropdown, because the chain-continuation auto-trigger sets this to 'continue:LABEL|||SUBHUNT_TITLE' — GitHub rejects arbitrary values for choice inputs with HTTP 422, which silently broke the multi-chunk chain. Manual users: type one of the two allowed values above.)"
         required: true
         default: 'off - Single unified hunt (no fan-out)'
-        type: choice
-        options:
-          - 'off - Single unified hunt (no fan-out)'
-          - 'on - Fan-out: parallel sub-hunts → merged report [NEW]'
+        type: string
       research_depth:
         description: '🎯 RESEARCH DEPTH — Auto-splits work into 3h chunks. Each chunk resumes where the last stopped.'
         required: true
@@ -1249,6 +1246,76 @@ jobs:
       - name: Run full stack verification
         run: python scripts/verify.py --model qwen2.5vl:3b --ci || echo "Verify had some failures (non-critical)"
 
+  # ═══════════════════════════════════════════════════════════════════════════
+  # PLAN — computes the sub-hunt matrix so the research job can run each
+  # research question / aspect as its OWN parallel "research box". With 2
+  # research questions you get 2 parallel research jobs; with no RQs you get a
+  # single job (back-compat with the old single-hunt path). When continue_label
+  # is set (by a leg's own auto-trigger) the matrix is a single leg resuming
+  # just that sub-topic, so completed legs are never re-run.
+  # ═══════════════════════════════════════════════════════════════════════════
+  plan:
+    needs: [verify]
+    if: always() && github.event_name == 'workflow_dispatch' && (contains(github.event.inputs.operation_mode, 'research-only') || contains(github.event.inputs.operation_mode, 'full-research') || contains(github.event.inputs.operation_mode, 'generate-only'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      matrix: ${{ steps.build.outputs.matrix }}
+      folder_name: ${{ steps.folder.outputs.folder_name }}
+      leg_count: ${{ steps.build.outputs.leg_count }}
+      continue_label: ${{ steps.build.outputs.continue_label }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Determine output folder (deterministic name from title)
+        id: folder
+        shell: bash
+        run: |
+          TITLE="${{ github.event.inputs.title }}"
+          SAFE=$(echo "$TITLE" | sed 's/[^a-zA-Z0-9_\-]/_/g' | sed 's/__*/_/g' | cut -c1-50)
+          echo "folder_name=RESEARCH_${SAFE}" >> "$GITHUB_OUTPUT"
+          echo "Using folder: RESEARCH_${SAFE}"
+      - name: Build sub-hunt matrix
+        id: build
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os, subprocess, sys
+          # The chain continuation signal is carried in the fanout_mode input as
+          # "continue:LABEL|||SUBHUNT_TITLE" (GitHub caps workflow_dispatch at 25
+          # inputs, so we reuse an existing one instead of a dedicated input).
+          FANOUT = "${{ github.event.inputs.fanout_mode }}"
+          TITLE = "${{ github.event.inputs.title }}" or "Research"
+          RQ1 = "${{ github.event.inputs.rq1 }}"
+          RQ2 = "${{ github.event.inputs.rq2 }}"
+          FIELD = "${{ github.event.inputs.field }}"
+          # Field choice is "N - Name"; strip the leading index for the planner.
+          field_val = FIELD.split(" - ", 1)[-1] if " - " in FIELD else FIELD
+          if FANOUT.startswith("continue:"):
+              payload = FANOUT[len("continue:"):]
+              if "|||" in payload:
+                  label, sub_title = payload.split("|||", 1)
+              else:
+                  label, sub_title = payload, TITLE
+              matrix = [{"label": label, "index": "0", "subhunt_title": sub_title}]
+              cont_out = label
+          else:
+              try:
+                  out = subprocess.check_output(
+                      [sys.executable, "fanout_merge.py", "--matrix",
+                       "--title", TITLE, "--rq1", RQ1, "--rq2", RQ2, "--field", field_val],
+                      text=True, stderr=subprocess.DEVNULL)
+                  matrix = json.loads(out.strip().splitlines()[-1])
+              except Exception:
+                  matrix = [{"label": "single", "index": "0", "subhunt_title": TITLE}]
+              cont_out = ""
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write(f"matrix={json.dumps(matrix)}\n")
+              f.write(f"leg_count={len(matrix)}\n")
+              f.write(f"continue_label={cont_out}\n")
+          print(f"::notice::Plan matrix: {len(matrix)} sub-hunt(s): "
+                f"{[m['label'] for m in matrix]}")
+          PY
+
   daily_learn:
     needs: [verify, research]
     if: always() && github.event_name == 'workflow_dispatch' && (contains(github.event.inputs.operation_mode, 'learn-only') || contains(github.event.inputs.operation_mode, 'full-research'))
@@ -1304,6 +1371,11 @@ jobs:
         run: |
           python scripts/daily_learner.py --model qwen2.5vl:3b --stats || echo "No brain data yet"
       - name: Run daily autonomous learning (1 hour deep search + read)
+        # Non-fatal: a transient ollama/network error must NOT fail the whole
+        # daily_learn job (which would mask the status report below). Capture
+        # the outcome so we report it, but keep going.
+        continue-on-error: true
+        id: learn
         run: |
           echo " Starting daily learning cycle..."
           echo " Date: $(date -u)"
@@ -1312,42 +1384,126 @@ jobs:
           echo ""
           python scripts/daily_learner.py --model qwen2.5vl:3b --new-only --topics 5
       - name: Show updated brain stats
+        if: always()
         run: |
-          python scripts/daily_learner.py --model qwen2.5vl:3b --stats
+          python scripts/daily_learner.py --model qwen2.5vl:3b --stats || echo "No brain data yet"
       - name: Generate brain report artifact
+        if: always()
         run: |
-          python scripts/daily_learner.py --model qwen2.5vl:3b --report --report-path brain_report.md
+          python scripts/daily_learner.py --model qwen2.5vl:3b --report --report-path brain_report.md || echo "Brain report generation failed"
       - name: Upload brain report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: brain-report-daily
           path: brain_report.md
+          if-no-files-found: ignore
           retention-days: 90
 
       - name: Deep PDF reading (learn from papers page-by-page)
+        # Non-fatal: the deep reader needs PDFs + ollama; without either it
+        # should report that, not fail the job.
+        continue-on-error: true
+        id: deep_read
         run: |
           echo " Starting deep PDF reading..."
           echo " Reading up to 3 papers page-by-page..."
           echo ""
           python scripts/deep_reader.py --model qwen2.5vl:3b --max-papers 3
       - name: Generate deep reading report
+        if: always()
         run: |
-          python scripts/deep_reader.py --model qwen2.5vl:3b --report --report-path deep_report.md
+          python scripts/deep_reader.py --model qwen2.5vl:3b --report --report-path deep_report.md || echo "Deep report generation failed"
       - name: Send daily Telegram notification
+        if: always()
         run: |
           python scripts/deep_reader.py --model qwen2.5vl:3b --notify --max-papers 3 || echo "Notification skipped"
       - name: Upload deep reading report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: deep-reading-report-daily
           path: deep_report.md
+          if-no-files-found: ignore
           retention-days: 90
 
+      - name: Download all research legs' logs (for diagnostics)
+        # Pull every leg's cache-data-* artifact so we can scan the research
+        # run's actual logs (data/logs/*.log) for errors/warnings/exceptions
+        # we might otherwise miss. This is the "report what we don't see when
+        # the workflow is off" step — it makes the research run's bugs visible.
+        if: always()
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          pattern: cache-data-*
+          path: legs_logs
+          merge-multiple: true
+
+      - name: Generate diagnostics & status report (bugs/errors we might miss)
+        # Scans every leg's logs for ERROR/WARNING/Exception/Traceback lines,
+        # dedupes + counts them, and appends the offline system-health snapshot
+        # (run.py). Works even when the research workflow is OFF — the offline
+        # health section reflects module/platform/transport status from the
+        # codebase. Never fails the job: a crash inside the scanner is captured
+        # into the report itself.
+        if: always()
+        run: |
+          mkdir -p all_logs
+          if [ -d "legs_logs" ]; then
+            find legs_logs -name "*.log" -exec cp --parents {} all_logs/ \; 2>/dev/null || true
+          fi
+          # Also include this job's own ollama/learner logs if present.
+          python scripts/collect_diagnostics.py \
+            --log-dirs all_logs data/logs \
+            --repo-root . \
+            --out diagnostics_report.md || echo "scanner errored (non-fatal)"
+          # Prepend a run-summary header with the learning-step outcomes.
+          {
+            echo "# Daily Learn — Run Summary"
+            echo ""
+            echo "**Run:** ${{ github.run_id }}  "
+            echo "**Date:** $(date -u)  "
+            echo "**Learning step:** ${{ steps.learn.outcome }}  "
+            echo "**Deep read step:** ${{ steps.deep_read.outcome }}  "
+            echo ""
+            echo "## Brain Stats"
+            echo '```'
+            python scripts/daily_learner.py --model qwen2.5vl:3b --stats 2>&1 || echo "no brain data"
+            echo '```'
+            echo ""
+            echo "---"
+            echo ""
+            cat diagnostics_report.md 2>/dev/null || echo "(no diagnostics produced)"
+          } > status_report.md
+          cat status_report.md
+      - name: Upload status report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-learn-status-report
+          path: |
+            status_report.md
+            diagnostics_report.md
+          if-no-files-found: ignore
+          retention-days: 90
+
+
   research:
-    needs: [verify]
-    if: github.event_name == 'workflow_dispatch' && (contains(github.event.inputs.operation_mode, 'research-only') || contains(github.event.inputs.operation_mode, 'full-research') || contains(github.event.inputs.operation_mode, 'generate-only'))
+    needs: [plan]
+    if: always() && needs.plan.result == 'success' && github.event_name == 'workflow_dispatch' && (contains(github.event.inputs.operation_mode, 'research-only') || contains(github.event.inputs.operation_mode, 'full-research') || contains(github.event.inputs.operation_mode, 'generate-only'))
     runs-on: ubuntu-latest
     timeout-minutes: 180
+    # Matrix: one parallel "research box" per research question / aspect. Each
+    # leg runs its own focused sub-hunt, writes to its own per-leg sub-folder
+    # (pdf_files/<folder>/<label>), and uploads its own artifact. The merge job
+    # later downloads every leg and combines them into one final report/zip.
+    # max-parallel is capped to avoid hitting GitHub's concurrent-runner limits.
+    strategy:
+      matrix:
+        config: ${{ fromJson(needs.plan.outputs.matrix) }}
+      max-parallel: 5
+      fail-fast: false
     env:
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       GOOGLE_OAUTH_REFRESH: ${{ secrets.GOOGLE_OAUTH_REFRESH }}
@@ -1387,14 +1543,17 @@ jobs:
           pip install -q requests rich openpyxl python-docx python-pptx pdfplumber pymupdf playwright pillow pytesseract reportlab ollama
           python -m playwright install chromium 2>&1 | tail -5
           npm install docx 2>&1 | tail -5
-      - name: Determine output folder (deterministic name from title)
+      - name: Determine per-leg output folder
         id: folder
         shell: bash
         run: |
-          TITLE="${{ github.event.inputs.title }}"
-          SAFE=$(echo "$TITLE" | sed 's/[^a-zA-Z0-9_\-]/_/g' | sed 's/__*/_/g' | cut -c1-50)
-          echo "folder_name=RESEARCH_${SAFE}" >> $GITHUB_OUTPUT
-          echo "Using folder: RESEARCH_${SAFE}"
+          BASE="${{ needs.plan.outputs.folder_name }}"
+          LABEL="${{ matrix.config.label }}"
+          echo "folder_name=$BASE" >> $GITHUB_OUTPUT
+          echo "leg_label=$LABEL" >> $GITHUB_OUTPUT
+          echo "leg_folder=${BASE}/${LABEL}" >> $GITHUB_OUTPUT
+          echo "subhunt_title=${{ matrix.config.subhunt_title }}" >> $GITHUB_OUTPUT
+          echo "Using base folder: $BASE  |  per-leg folder: ${BASE}/${LABEL}"
       - name: Find previous run (for cross-run artifact download)
         id: prev_run
         if: always()
@@ -1404,31 +1563,64 @@ jobs:
         run: |
           # actions/download-artifact@v4 can only download artifacts from the
           # CURRENT run unless we pass run-id. Find the most recent completed
-          # run of this workflow (excluding this one) so we can pull its
-          # cumulative research-data + cache artifacts.
+          # run of this workflow (excluding this one) that uploaded THIS LEG's
+          # artifact (research-data-<folder>-<label>) so we can resume just this
+          # sub-topic. Other legs' artifacts are left untouched.
+          #
+          # IMPORTANT: chained research runs are almost always 'cancelled'
+          # (the 3h job cap kills the long-running search/download step), NOT
+          # 'success'. Filtering for conclusion=='success' therefore finds
+          # NOTHING and every run starts fresh — the chunk counter resets and
+          # the same ~6500 papers are re-searched and lost forever. We must
+          # accept 'cancelled' runs too: their `if: always()` upload steps
+          # still produced research-data + cache artifacts as long as the
+          # python step ran long enough to write them. We verify the run
+          # actually has the matching artifact before using it.
           CURRENT_RUN="${{ github.run_id }}"
           REPO="${{ github.repository }}"
-          echo "Current run: $CURRENT_RUN"
+          WANT_FOLDER="${{ steps.folder.outputs.folder_name }}"
+          WANT_LABEL="${{ steps.folder.outputs.leg_label }}"
+          WANT_ARTIFACT="research-data-${WANT_FOLDER}-${WANT_LABEL}"
+          echo "Current run: $CURRENT_RUN | want artifact: ${WANT_ARTIFACT}"
           PREV_ID=$(curl -s \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer $GITHUB_TOKEN" \
-            "https://api.github.com/repos/$REPO/actions/workflows/research.yml/runs?per_page=10&status=completed" \
+            "https://api.github.com/repos/$REPO/actions/workflows/research.yml/runs?per_page=30&status=completed" \
             | python3 -c "
-          import json, sys
+          import json, sys, urllib.request
           runs = json.load(sys.stdin).get('workflow_runs', [])
           for r in runs:
-              if str(r['id']) != '$CURRENT_RUN' and r.get('conclusion') == 'success':
-                  print(r['id'])
+              rid = str(r['id'])
+              if rid == '$CURRENT_RUN':
+                  continue
+              # Only resume from runs that actually produced THIS LEG's
+              # research-data artifact. cancelled runs still upload artifacts
+              # (upload steps are \`if: always()\`), so accept both 'success'
+              # and 'cancelled' conclusions.
+              if r.get('conclusion') not in ('success', 'cancelled'):
+                  continue
+              try:
+                  url = f\"https://api.github.com/repos/$REPO/actions/runs/{rid}/artifacts?per_page=100\"
+                  req = urllib.request.Request(url, headers={
+                      'Accept': 'application/vnd.github+json',
+                      'Authorization': 'Bearer $GITHUB_TOKEN',
+                  })
+                  arts = json.load(urllib.request.urlopen(req, timeout=15)).get('artifacts', [])
+              except Exception:
+                  continue
+              want = '$WANT_ARTIFACT'
+              if any(a.get('name') == want and a.get('size_in_bytes', 0) > 0 for a in arts):
+                  print(rid)
                   break
           " 2>/dev/null || echo "")
-          echo "Previous successful run: ${PREV_ID:-none}"
+          echo "Previous resumable run: ${PREV_ID:-none}"
           echo "prev_run_id=$PREV_ID" >> "$GITHUB_OUTPUT"
-      - name: Download previous research data (cumulative)
+      - name: Download previous research data (this leg, cumulative)
         if: always() && steps.prev_run.outputs.prev_run_id != ''
         continue-on-error: true
         uses: actions/download-artifact@v4
         with:
-          name: research-data-${{ steps.folder.outputs.folder_name }}
+          name: research-data-${{ steps.folder.outputs.folder_name }}-${{ steps.folder.outputs.leg_label }}
           path: pdf_files_restore
           run-id: ${{ steps.prev_run.outputs.prev_run_id }}
       - name: Download previous cache (resume support)
@@ -1436,7 +1628,7 @@ jobs:
         continue-on-error: true
         uses: actions/download-artifact@v4
         with:
-          name: cache-data
+          name: cache-data-${{ steps.folder.outputs.leg_label }}
           path: download_cache
           run-id: ${{ steps.prev_run.outputs.prev_run_id }}
       - name: Restore cumulative data and cache
@@ -1444,29 +1636,31 @@ jobs:
         continue-on-error: true
         shell: bash
         run: |
-          mkdir -p pdf_files
-          echo "Restoring previous data and cache..."
+          LEG="${{ steps.folder.outputs.leg_folder }}"
+          mkdir -p "pdf_files/${LEG}"
+          echo "Restoring previous data and cache for leg: ${LEG}"
           if [ -d "pdf_files_restore" ]; then
-            echo "Found previous research data"
-            cp -r pdf_files_restore/. pdf_files/
+            echo "Found previous research data for this leg"
+            cp -r pdf_files_restore/. "pdf_files/${LEG}/" 2>/dev/null || true
             rm -rf pdf_files_restore
           else
             echo "No previous research data found - starting fresh"
           fi
           if [ -d "download_cache" ]; then
-            cp -f download_cache/*.json . 2>/dev/null || true
+            cp -f download_cache/*.json "pdf_files/${LEG}/" 2>/dev/null || true
             if [ -d "download_cache/pdf_files" ]; then
-              cp -rn download_cache/pdf_files/. pdf_files/ 2>/dev/null || true
+              cp -rn download_cache/pdf_files/. "pdf_files/${LEG}/" 2>/dev/null || true
             fi
             rm -rf download_cache
           fi
-          echo "All data restored"
-          ls -la pdf_files/ 2>/dev/null | head -20
+          echo "All data restored for leg ${LEG}"
+          ls -la "pdf_files/${LEG}/" 2>/dev/null | head -20
       - name: Calculate chunk plan
         id: chunk
         shell: bash
         run: |
-          FOLDER="pdf_files/${{ steps.folder.outputs.folder_name }}"
+          LEG="${{ steps.folder.outputs.leg_folder }}"
+          FOLDER="pdf_files/${LEG}"
           mkdir -p "$FOLDER"
           STATE_FILE="$FOLDER/chunk_state.json"
           DEPTH="${{ github.event.inputs.research_depth }}"
@@ -1500,8 +1694,11 @@ jobs:
             *)        MULT=2 ;;
           esac
           ESTIMATED=$(( BASE * MULT ))
-          # Hard ceiling so the chain can never loop forever (~8 days max).
-          MAX_CHUNKS=64
+          # Hard ceiling so the chain can never loop forever (~12 days max).
+          # 96 chunks × 3h = 288h = 12 days — comfortably above the "10+ days"
+          # multi-day target. Each matrix leg chains independently, so a run
+          # with N legs effectively runs N independent 12-day chains in parallel.
+          MAX_CHUNKS=96
           if [ "$ESTIMATED" -gt "$MAX_CHUNKS" ]; then
             ESTIMATED=$MAX_CHUNKS
           fi
@@ -1523,9 +1720,9 @@ jobs:
         env:
           CI_MODE: "true"
           CI_OPERATION_MODE: "${{ github.event.inputs.operation_mode }}"
-          CI_TITLE: "${{ github.event.inputs.title }}"
-          CI_RQ1: "${{ github.event.inputs.rq1 }}"
-          CI_RQ2: "${{ github.event.inputs.rq2 }}"
+          CI_TITLE: "${{ steps.folder.outputs.subhunt_title }}"
+          CI_RQ1: ""
+          CI_RQ2: ""
           CI_FIELD: "${{ github.event.inputs.field }}"
           CI_STUDY_TYPES: "${{ github.event.inputs.study_type }}"
           CI_STUDY_LEVEL: "${{ github.event.inputs.study_level }}"
@@ -1534,7 +1731,7 @@ jobs:
           CI_QUARTILE: "${{ github.event.inputs.quartile }}"
           CI_MODE_VAL: "${{ github.event.inputs.mode }}"
           CI_RESEARCH_DEPTH: "${{ github.event.inputs.research_depth }}"
-          CI_FANOUT_MODE: "${{ github.event.inputs.fanout_mode }}"
+          CI_FANOUT_MODE: "off"
           CI_PAPER_LIMIT: "${{ github.event.inputs.paper_limit }}"
           CI_LANGUAGE: "${{ github.event.inputs.language }}"
           CI_DOWNLOAD_PDFS: "${{ github.event.inputs.download_pdfs }}"
@@ -1546,15 +1743,16 @@ jobs:
           CI_GENERATE_PAPER: "${{ github.event.inputs.generate_paper }}"
           CI_PAPER_TYPE: "empirical - 📊 Empirical Research (Quantitative)"
           CI_OUTPUT_FORMAT: "${{ github.event.inputs.output_format }}"
-          CI_FOLDER_NAME: "${{ steps.folder.outputs.folder_name }}"
+          CI_FOLDER_NAME: "${{ steps.folder.outputs.leg_folder }}"
           CI_GEOGRAPHIC_AREA: "${{ github.event.inputs.geographic_area }}"
           CI_PROXY: "${{ github.event.inputs.proxy }}"
           FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
           PYTHONIOENCODING: utf-8
         run: |
           echo "========================================================"
-          echo "  Research Hunter - CUMULATIVE MODE (CI)"
-          echo "  Title: ${{ github.event.inputs.title }}"
+          echo "  Research Hunter - CUMULATIVE MODE (CI) — matrix leg"
+          echo "  Leg:   ${{ steps.folder.outputs.leg_label }}"
+          echo "  Title: ${{ steps.folder.outputs.subhunt_title }}"
           echo "  Mode:  ${{ github.event.inputs.mode }}"
           echo "  Depth: ${{ github.event.inputs.research_depth }}"
           echo "  Operation: ${{ github.event.inputs.operation_mode }}"
@@ -1568,29 +1766,38 @@ jobs:
         shell: bash
         run: |
           echo "=== Results Summary ==="
-          OUT_DIR="pdf_files/${{ steps.folder.outputs.folder_name }}"
+          OUT_DIR="pdf_files/${{ steps.folder.outputs.leg_folder }}"
           PDF_COUNT=$(find "$OUT_DIR" -name "*.pdf" 2>/dev/null | wc -l)
           JSON_COUNT=$(find "$OUT_DIR" -name "results.json" 2>/dev/null | wc -l)
           CACHE_COUNT=$(find "$OUT_DIR" -name "*search_cache*.json" 2>/dev/null | wc -l)
-          echo "PDFs in cumulative folder: $PDF_COUNT"
+          echo "PDFs in leg folder: $PDF_COUNT"
           echo "Results JSON: $JSON_COUNT"
           echo "Search cache: $CACHE_COUNT"
           echo "pdf_count=$PDF_COUNT" >> $GITHUB_OUTPUT
-          # Treat as success if ANY progress was made — results.json (search
-          # checkpoint) OR search_cache.json OR downloaded PDFs. This ensures
-          # the chain continues even when the 3h timeout killed downloads
-          # mid-run (search results are checkpointed before downloads start).
-          if [ "$PDF_COUNT" -gt 0 ] || [ "$JSON_COUNT" -gt 0 ] || [ "$CACHE_COUNT" -gt 0 ]; then
+          # Treat as success if REAL progress was made: results.json (search
+          # checkpoint) OR downloaded PDFs OR a search_cache that actually FOUND
+          # papers. A bare query-only .search_cache.json (written before the
+          # search even starts, with queries but 0 papers) must NOT count as
+          # success — otherwise every cancelled run that found nothing would
+          # re-trigger the chain (cancel-spawns-another loop).
+          FOUND_PAPERS=0
+          if [ "$CACHE_COUNT" -gt 0 ]; then
+            CF=$(find "$OUT_DIR" -name "*search_cache*.json" 2>/dev/null | head -1)
+            FOUND_PAPERS=$(python3 -c "import json; d=json.load(open('$CF')); v=d.get('papers_found', d.get('found_count',0)); print(v if isinstance(v,int) else len(v))" 2>/dev/null || echo "0")
+          fi
+          echo "Papers found in cache: $FOUND_PAPERS"
+          if [ "$PDF_COUNT" -gt 0 ] || [ "$JSON_COUNT" -gt 0 ] || [ "$FOUND_PAPERS" -gt 0 ]; then
             echo "status=success" >> $GITHUB_OUTPUT
           else
             echo "status=no_results" >> $GITHUB_OUTPUT
+            echo "No real progress (no results.json, no PDFs, 0 papers found) — NOT re-triggering chain"
           fi
 
       - name: Generate 40-sheet Excel from results
         if: always() && steps.check_results.outputs.status == 'success'
         shell: bash
         run: |
-          OUT_DIR="pdf_files/${{ steps.folder.outputs.folder_name }}"
+          OUT_DIR="pdf_files/${{ steps.folder.outputs.leg_folder }}"
           RESULTS="$OUT_DIR/results.json"
           echo "=== Building 40-sheet Excel workbook from real results ==="
           if [ ! -f "$RESULTS" ]; then
@@ -1610,7 +1817,7 @@ jobs:
         if: always() && steps.check_results.outputs.status == 'success'
         shell: bash
         run: |
-          OUT_DIR="pdf_files/${{ steps.folder.outputs.folder_name }}"
+          OUT_DIR="pdf_files/${{ steps.folder.outputs.leg_folder }}"
           DOCX="$OUT_DIR/research_report.docx"
           echo "=== Converting research_report.docx → PDF ==="
           if [ ! -f "$DOCX" ]; then
@@ -1637,11 +1844,12 @@ jobs:
         if: always()
         shell: bash
         run: |
-          OUT_DIR="pdf_files/${{ steps.folder.outputs.folder_name }}"
+          OUT_DIR="pdf_files/${{ steps.folder.outputs.leg_folder }}"
           TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+          LABEL="${{ steps.folder.outputs.leg_label }}"
           SAFE_TITLE=$(echo "${{ github.event.inputs.title }}" | sed 's/[^a-zA-Z0-9_\-]/_/g' | cut -c1-30)
-          ZIP_NAME="${SAFE_TITLE}_cumulative.zip"
-          echo "Creating cumulative ZIP: $ZIP_NAME"
+          ZIP_NAME="${SAFE_TITLE}_${LABEL}.zip"
+          echo "Creating per-leg ZIP: $ZIP_NAME"
           if [ -d "$OUT_DIR" ] && [ "$(find "$OUT_DIR" -type f 2>/dev/null | wc -l)" -gt 0 ]; then
             sudo apt-get update -qq && sudo apt-get install -y -qq zip unzip
             zip -r -9 "$ZIP_NAME" "$OUT_DIR"
@@ -1656,10 +1864,11 @@ jobs:
         if: always()
         shell: bash
         run: |
-          STATE_FILE="pdf_files/${{ steps.folder.outputs.folder_name }}/chunk_state.json"
-          CACHE_FILE="pdf_files/${{ steps.folder.outputs.folder_name }}/search_cache.json"
+          LEG="${{ steps.folder.outputs.leg_folder }}"
+          STATE_FILE="pdf_files/${LEG}/chunk_state.json"
+          CACHE_FILE="pdf_files/${LEG}/search_cache.json"
           if [ ! -f "$CACHE_FILE" ]; then
-            CACHE_FILE="pdf_files/${{ steps.folder.outputs.folder_name }}/.search_cache.json"
+            CACHE_FILE="pdf_files/${LEG}/.search_cache.json"
           fi
           echo "============================================"
           echo "  CHUNK ${{ steps.chunk.outputs.current_chunk }} OF ~${{ steps.chunk.outputs.total_chunks }}"
@@ -1675,7 +1884,16 @@ jobs:
         # Fire whenever progress was made, even if the 3h timeout cancelled
         # the python step mid-download. The step body guards against triggering
         # when no work remains (.search_complete / exhausted / max_chunks).
-        if: always() && steps.check_results.outputs.status == 'success'
+        #
+        # KILL SWITCH: vars.STOP_RESEARCH_CHAIN == 'true' (a repo variable you
+        # can set any time with:  gh variable set STOP_RESEARCH_CHAIN true
+        # and clear with:          gh variable delete STOP_RESEARCH_CHAIN).
+        # The `if:` catches a variable set BEFORE this run was dispatched; the
+        # in-body API check catches a variable set DURING the run (e.g. while a
+        # runaway chain is mid-flight), so cancelling a run no longer spawns the
+        # next one. This is the only reliable way to stop a self-perpetuating
+        # chain — GitHub cancel just lets `if: always()` run and re-dispatch.
+        if: always() && steps.check_results.outputs.status == 'success' && vars.STOP_RESEARCH_CHAIN != 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REF_NAME: ${{ github.ref_name }}
@@ -1695,7 +1913,12 @@ jobs:
           TRIGGER_YEAR_FROM: ${{ github.event.inputs.year_from }}
           TRIGGER_YEAR_TO: ${{ github.event.inputs.year_to }}
           TRIGGER_MODE: ${{ github.event.inputs.mode }}
-          TRIGGER_FANOUT_MODE: ${{ github.event.inputs.fanout_mode }}
+          # Single-leg continuation: dispatch the next run with fanout_mode set
+          # to "continue:LABEL|||SUBHUNT_TITLE". The next run's plan job sees
+          # this sentinel and emits a one-leg matrix for JUST this sub-topic,
+          # so completed legs are never re-run. (GitHub caps workflow_dispatch
+          # inputs at 25, so we reuse the fanout_mode field to carry the signal.)
+          TRIGGER_FANOUT_MODE: continue:${{ steps.folder.outputs.leg_label }}|||${{ steps.folder.outputs.subhunt_title }}
           TRIGGER_PAPER_LIMIT: ${{ github.event.inputs.paper_limit }}
           TRIGGER_FOLDER_MODE: ${{ github.event.inputs.folder_mode }}
           TRIGGER_DOWNLOAD_PDFS: ${{ github.event.inputs.download_pdfs }}
@@ -1709,10 +1932,27 @@ jobs:
           TRIGGER_OPERATION_MODE: ${{ github.event.inputs.operation_mode }}
         shell: bash
         run: |
-          echo "Checking if more work remains..."
-          OUT_DIR="pdf_files/${{ steps.folder.outputs.folder_name }}"
+          echo "Checking if more work remains for this leg..."
+          OUT_DIR="pdf_files/${{ steps.folder.outputs.leg_folder }}"
           CURRENT_CHUNK=${{ steps.chunk.outputs.current_chunk }}
           MAX_CHUNKS=${{ steps.chunk.outputs.max_chunks }}
+
+          # KILL SWITCH (runtime check): honor STOP_RESEARCH_CHAIN even if it was
+          # set AFTER this run started. The `if:` above only catches a variable
+          # set before dispatch; this API check catches a mid-run kill signal so
+          # a runaway chain can be stopped without spawning the next run.
+          STOP_NOW=$(curl -s \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/variables/STOP_RESEARCH_CHAIN" \
+            2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin).get('value',''))" 2>/dev/null || echo "")
+          if [ "$STOP_NOW" = "true" ]; then
+            echo "============================================"
+            echo "  🛑 STOP_RESEARCH_CHAIN == true — chain stopped by operator"
+            echo "  To resume: gh variable delete STOP_RESEARCH_CHAIN"
+            echo "============================================"
+            exit 0
+          fi
 
           # Stop condition 1: the python wrote .search_complete (exhausted or no papers)
           if [ -f "$OUT_DIR/.search_complete" ]; then
@@ -1764,133 +2004,283 @@ jobs:
           echo "Approximately $REMAINING download batches remaining — triggering next chunk"
           echo "Triggering next run via GitHub API..."
           python3 -c "import json, os; payload = {'ref': os.environ.get('TRIGGER_BRANCH', os.environ.get('GITHUB_REF_NAME', 'main')), 'inputs': {}}; [payload['inputs'].update({k.replace('TRIGGER_', '').lower(): v}) for k, v in os.environ.items() if k.startswith('TRIGGER_') and k != 'TRIGGER_BRANCH']; open('/tmp/payload.json', 'w').write(json.dumps(payload)); print('=== PAYLOAD (all inputs preserved) ==='); print(json.dumps(payload, indent=2)); print('======================================')"
-          curl -s -X POST \
+          HTTP_CODE=$(curl -s -o /tmp/resp.json -X POST \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer $GITHUB_TOKEN" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             "https://api.github.com/repos/${{ github.repository }}/actions/workflows/research.yml/dispatches" \
             -d @/tmp/payload.json \
-            -w "\nHTTP Status: %{http_code}"
-          echo ""
-          echo "Next run triggered!"
+            -w "%{http_code}")
+          echo "HTTP Status: $HTTP_CODE"
+          if [ "$HTTP_CODE" = "204" ]; then
+            echo "✅ Next run triggered successfully!"
+          else
+            echo "❌ Chain dispatch FAILED (HTTP $HTTP_CODE). Response:"
+            cat /tmp/resp.json 2>/dev/null || echo "(no response body)"
+            echo ""
+            echo "This breaks the multi-chunk chain — the next chunk will NOT run."
+            echo "If this repeats, check that every workflow_dispatch input value is valid"
+            echo "(choice inputs must match a declared option; GitHub rejects others with 422)."
+            exit 1
+          fi
           echo "https://github.com/${{ github.repository }}/actions"
 
-      - name: Upload cumulative research data
+      - name: Upload per-leg research data
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: research-data-${{ steps.folder.outputs.folder_name }}
-          path: pdf_files/
+          name: research-data-${{ steps.folder.outputs.folder_name }}-${{ steps.folder.outputs.leg_label }}
+          path: pdf_files/${{ steps.folder.outputs.leg_folder }}
           retention-days: 90
           compression-level: 1
           overwrite: true
 
-      - name: Upload cumulative ZIP
+      - name: Upload per-leg ZIP
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.folder.outputs.folder_name }}_ZIP
+          name: ${{ steps.folder.outputs.folder_name }}_ZIP_${{ steps.folder.outputs.leg_label }}
           path: ${{ steps.zip_results.outputs.zip_name || '*.zip' }}
           retention-days: 90
           compression-level: 9
           overwrite: true
 
-      - name: Upload cache/logs (for resume capability)
+      - name: Upload cache/logs for this leg (for resume + diagnostics)
         if: always()
         continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
-          name: cache-data
+          name: cache-data-${{ steps.folder.outputs.leg_label }}
           path: |
-            pdf_files/*/.search_cache.json
-            pdf_files/*/search_cache.json
+            pdf_files/${{ steps.folder.outputs.leg_folder }}/.search_cache.json
+            pdf_files/${{ steps.folder.outputs.leg_folder }}/search_cache.json
             .search_cache.json
             search_cache.json
             ghost_credentials.json
             g4f_locked_config.json
+            data/logs/
           retention-days: 30
           overwrite: true
 
   # ═══════════════════════════════════════════════════════════════════════════
-  # MERGE JOB — Fan-out → Merge unified report
-  # Runs after the research job completes (when fanout_mode is "on").
-  # Downloads the research artifact, merges all sub-hunt results into one
-  # unified report with deduplication, and generates DOCX + Excel + PDF.
+  # MERGE JOB — combines every parallel "research box" into ONE final report.
+  # Runs after ALL research matrix legs finish. Downloads every per-leg
+  # research-data-<folder>-<label> artifact (from this run AND, for legs that
+  # chained across runs, from the most recent previous run), merges them with
+  # fanout_merge.merge_reports (dedup by DOI→title→URL), generates the unified
+  # DOCX + Excel + PDF, and zips everything into one final .zip.
+  #
+  # Runs whenever there were ≥2 research legs (a real split) OR fanout_mode is
+  # explicitly on, so a single-leg run skips the redundant merge.
   # ═══════════════════════════════════════════════════════════════════════════
   merge:
-    needs: [research]
-    if: always() && github.event_name == 'workflow_dispatch' && startsWith(github.event.inputs.fanout_mode, 'on')
+    needs: [plan, research]
+    if: always() && needs.plan.result == 'success' && github.event_name == 'workflow_dispatch' && (startsWith(github.event.inputs.fanout_mode, 'on') || startsWith(github.event.inputs.fanout_mode, 'continue:') || needs.plan.outputs.leg_count != '1')
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install Python dependencies
+      - name: Install Python dependencies + zip
         run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq zip unzip
           pip install -q requests rich openpyxl python-docx pdfplumber pymupdf pillow reportlab
+          if ! command -v soffice >/dev/null 2>&1 && ! command -v libreoffice >/dev/null 2>&1; then
+            sudo apt-get install -y -qq libreoffice-writer libreoffice-core || true
+          fi
 
-      - name: Determine output folder (deterministic name from title)
+      - name: Determine output folder
         id: folder
         shell: bash
         run: |
-          TITLE="${{ github.event.inputs.title }}"
-          SAFE=$(python3 -c "import re; t=re.sub(r'[^\w\s\-\.]', '_', '''$TITLE'''); t=re.sub(r'\s+', '_', t).strip('_'); print(t[:80] if t else 'untitled')")
-          echo "folder_name=$SAFE" >> $GITHUB_OUTPUT
-          echo "Folder: $SAFE"
+          echo "folder_name=${{ needs.plan.outputs.folder_name }}" >> "$GITHUB_OUTPUT"
+          echo "leg_count=${{ needs.plan.outputs.leg_count }}" >> "$GITHUB_OUTPUT"
 
-      - name: Download research data
+      - name: Download ALL per-leg research data (current run)
         if: always()
         continue-on-error: true
         uses: actions/download-artifact@v4
         with:
-          name: research-data-${{ steps.folder.outputs.folder_name }}
-          path: pdf_files
+          pattern: research-data-${{ needs.plan.outputs.folder_name }}-*
+          path: legs_current
+          merge-multiple: true
 
-      - name: Merge sub-hunt results into unified report
+      - name: Download missing per-leg data cross-run (legs that chained)
+        if: always()
+        continue-on-error: true
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # A matrix leg that timed out dispatches a single-leg continuation run.
+          # Its per-leg artifact lives in THAT run, not this one. Download every
+          # research-data-<folder>-* artifact from the most recent previous
+          # completed run (cancelled runs upload too) so the merge has the
+          # latest copy of every leg. We only fetch labels we don't already have.
+          BASE="${{ needs.plan.outputs.folder_name }}"
+          REPO="${{ github.repository }}"
+          CURRENT="${{ github.run_id }}"
+          mkdir -p legs_prev
+          PREV_ID=$(curl -s \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            "https://api.github.com/repos/$REPO/actions/workflows/research.yml/runs?per_page=40&status=completed" \
+            | python3 -c "
+          import json, sys, urllib.request
+          base = '$BASE'
+          runs = json.load(sys.stdin).get('workflow_runs', [])
+          for r in runs:
+              rid = str(r['id'])
+              if rid == '$CURRENT' or r.get('conclusion') not in ('success','cancelled'):
+                  continue
+              try:
+                  url = f\"https://api.github.com/repos/$REPO/actions/runs/{rid}/artifacts?per_page=100\"
+                  req = urllib.request.Request(url, headers={'Accept':'application/vnd.github+json','Authorization':'Bearer $GITHUB_TOKEN'})
+                  arts = json.load(urllib.request.urlopen(req, timeout=15)).get('artifacts', [])
+              except Exception:
+                  continue
+              if any(a.get('name','').startswith(f'research-data-{base}-') and a.get('size_in_bytes',0)>0 for a in arts):
+                  print(rid); break
+          " 2>/dev/null || echo "")
+          if [ -z "$PREV_ID" ]; then echo "No previous run with leg artifacts"; exit 0; fi
+          echo "Previous run with leg artifacts: $PREV_ID"
+          # List this run's artifacts and pull only the missing labels cross-run.
+          HAVE=$(ls -d legs_current/*/ 2>/dev/null | xargs -n1 basename 2>/dev/null | tr '\n' ' ')
+          echo "Already have legs: ${HAVE:-none}"
+          curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
+            "https://api.github.com/repos/$REPO/actions/runs/$PREV_ID/artifacts?per_page=100" \
+            | python3 -c "
+          import json, sys, os, urllib.request
+          base='$BASE'; have=set('${HAVE}'.split())
+          arts=json.load(sys.stdin).get('artifacts',[])
+          for a in arts:
+              name=a.get('name','')
+              if not name.startswith(f'research-data-{base}-'): continue
+              label=name.split(f'research-data-{base}-',1)[1]
+              if label in have: continue
+              url=a.get('archive_download_url')
+              if not url: continue
+              req=urllib.request.Request(url, headers={'Authorization':'Bearer $GITHUB_TOKEN','Accept':'application/vnd.github+json'})
+              data=urllib.request.urlopen(req, timeout=60).read()
+              import zipfile, io
+              os.makedirs(f'legs_prev/{label}', exist_ok=True)
+              with zipfile.ZipFile(io.BytesIO(data)) as z: z.extractall(f'legs_prev/{label}')
+              print(f'  cross-run leg {label}: {a.get(\"size_in_bytes\",0)} bytes')
+          " 2>/dev/null || echo "cross-run download step had an error (non-fatal)"
+
+      - name: Assemble + merge all legs into one unified report
+        id: merge
         env:
           PYTHONIOENCODING: utf-8
+          BASE: ${{ needs.plan.outputs.folder_name }}
+          TITLE: ${{ github.event.inputs.title }}
         shell: bash
         run: |
+          BASE="${{ needs.plan.outputs.folder_name }}"
           echo "========================================================"
-          echo "  FAN-OUT → MERGE: Generating unified report"
+          echo "  MERGE: combining all research legs → unified report"
           echo "  Title: ${{ github.event.inputs.title }}"
+          echo "  Legs planned: ${{ needs.plan.outputs.leg_count }}"
           echo "========================================================"
-          python3 -c "
-          import json, os, sys
+          python3 - <<'PY'
+          import json, os, sys, shutil
           from pathlib import Path
-          # Load the research results (results.json written by v2-4)
-          folder = Path('pdf_files/${{ steps.folder.outputs.folder_name }}')
-          results_file = folder / 'results.json'
-          if not results_file.exists():
-              print('No results.json found — nothing to merge')
-              sys.exit(0)
-          with open(results_file) as f:
-              report_data = json.load(f)
-          # The research job already produces a unified report_data.
-          # When fanout_mode is on, the v2-4 pipeline splits into sub-hunts
-          # and merges internally via fanout_merge.merge_reports.
-          # This job re-generates the DOCX + Excel + PDF from the merged data.
+          import fanout_merge as fm
           import research_hunter_v2_4 as v
           from report_pdf import docx_to_pdf
-          docx_path = v.generate_docx_report(report_data, folder)
-          print(f'DOCX: {docx_path}')
-          if docx_path:
-              xlsx = v._write_master_xlsx(report_data.get('papers', []), folder, queries_used=report_data.get('ai_queries', []))
-              print(f'Excel: {xlsx}')
-              pdf = docx_to_pdf(docx_path, timeout=300)
-              print(f'PDF: {pdf}')
-          print('✅ Unified report generated')
-          "
 
-      - name: Upload merged report
+          base = os.environ.get("BASE", "")
+          out = Path("pdf_files") / base
+          out.mkdir(parents=True, exist_ok=True)
+
+          # Collect every leg's results.json from both legs_current and legs_prev.
+          # Artifacts are uploaded with path pdf_files/<base>/<label>, so after
+          # merge-multiple download the structure is <root>/pdf_files/<base>/<label>/results.json.
+          # We rglob every results.json so no leg is missed.
+          reports = []
+          legs_seen = set()
+          for root in ("legs_current", "legs_prev"):
+              rd = Path(root)
+              if not rd.exists():
+                  continue
+              for rj in sorted(rd.rglob("results.json")):
+                  if str(rj) in legs_seen:
+                      continue
+                  legs_seen.add(str(rj))
+                  try:
+                      d = json.loads(rj.read_text())
+                      if d.get("papers") or d.get("run_stats"):
+                          reports.append(d)
+                          print(f"  + {rj}: {len(d.get('papers', []))} papers")
+                  except Exception as e:
+                      print(f"  ! {rj} unreadable: {e}")
+
+          print(f"Collected {len(reports)} leg report(s).")
+          if not reports:
+              print("No leg results found — nothing to merge.")
+              (out / "MERGE_EMPTY.txt").write_text("No leg results were available to merge.\n")
+              sys.exit(0)
+
+          merged = fm.merge_reports(reports,
+                                    unified_title=os.environ.get("TITLE", base),
+                                    unified_field=reports[0].get("field", "general"))
+          (out / "results.json").write_text(json.dumps(merged, ensure_ascii=False, indent=2))
+          print(f"Merged: {len(merged.get('papers',[]))} unique papers, "
+                f"{merged.get('run_stats',{}).get('duplicates_removed',0)} duplicates removed")
+
+          docx_path = v.generate_docx_report(merged, out)
+          print(f"DOCX: {docx_path}")
+          if docx_path:
+              xlsx = v._write_master_xlsx(merged.get('papers', []), out,
+                                          queries_used=merged.get('ai_queries', []))
+              print(f"Excel: {xlsx}")
+              try:
+                  pdf = docx_to_pdf(docx_path, timeout=300)
+                  print(f"PDF: {pdf}")
+              except Exception as e:
+                  print(f"PDF conversion failed: {e}")
+          print("✅ Unified report generated")
+          PY
+
+      - name: Create final unified ZIP
+        if: always()
+        shell: bash
+        run: |
+          BASE="${{ needs.plan.outputs.folder_name }}"
+          SAFE_TITLE=$(echo "${{ github.event.inputs.title }}" | sed 's/[^a-zA-Z0-9_\-]/_/g' | cut -c1-30)
+          FINAL="${SAFE_TITLE}_FINAL_UNIFIED.zip"
+          OUT="pdf_files/${BASE}"
+          if [ -d "$OUT" ] && [ "$(find "$OUT" -type f 2>/dev/null | wc -l)" -gt 0 ]; then
+            zip -r -9 "$FINAL" "$OUT" >/dev/null 2>&1
+            echo "Final ZIP: $FINAL ($(du -h "$FINAL" | cut -f1))"
+          else
+            echo "No unified data to zip"
+            touch "$FINAL"
+          fi
+          echo "final_zip=$FINAL" >> "$GITHUB_OUTPUT"
+
+      - name: Upload merged report (DOCX/PDF/Excel)
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: merged-report-${{ steps.folder.outputs.folder_name }}
+          name: merged-report-${{ needs.plan.outputs.folder_name }}
           path: |
-            pdf_files/${{ steps.folder.outputs.folder_name }}/research_report.docx
-            pdf_files/${{ steps.folder.outputs.folder_name }}/research_report.pdf
-            pdf_files/${{ steps.folder.outputs.folder_name }}/master_papers.xlsx
+            pdf_files/${{ needs.plan.outputs.folder_name }}/research_report.docx
+            pdf_files/${{ needs.plan.outputs.folder_name }}/research_report.pdf
+            pdf_files/${{ needs.plan.outputs.folder_name }}/master_papers.xlsx
+            pdf_files/${{ needs.plan.outputs.folder_name }}/results.json
+          if-no-files-found: ignore
+          retention-days: 90
+
+      - name: Upload final unified ZIP
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ needs.plan.outputs.folder_name }}_FINAL_UNIFIED
+          path: ${{ steps.merge.outputs.final_zip || '*_FINAL_UNIFIED.zip' }}
+          if-no-files-found: ignore
           retention-days: 90
 

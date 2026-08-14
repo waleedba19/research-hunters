@@ -143,9 +143,27 @@ python -m verify_refs.cli --input tests/sample_refs.txt --output-folder my_repor
 - `hunt-run.yml` — `workflow_dispatch`. Runs gha_run_hunt.py (Telegram push optional).
 - `backup.yml` — weekly tar.gz of state + logs, uploaded as artifact.
 - `write-chapter.yml` — v0.2. Multi-job chapter writer via repository_dispatch.
-- `research.yml` — large workflow_dispatch research runner. Has a `fanout_mode`
-  input (off/on). When "on", the `merge` job runs after `research` to generate
-  the unified DOCX + Excel + PDF from the merged report_data.
+- `research.yml` — large workflow_dispatch research runner. **Multi-research-box
+  design (Aug 2026):** `verify → plan → research (matrix of N parallel legs) →
+  merge`. The `plan` job calls `fanout_merge.build_matrix()` to split the topic
+  into one sub-hunt per research question / aspect. `research` runs as a GitHub
+  matrix job (`max-parallel: 5`, `fail-fast: false`); each leg searches its own
+  focused sub-topic into its own folder `pdf_files/<base>/<label>` and uploads
+  its own `research-data-<base>-<label>` artifact. `merge` downloads ALL legs
+  (current run + cross-run for legs that chained past the 6h cap), dedupes via
+  `fanout_merge.merge_reports` (DOI→title→URL), and produces `<title>_FINAL_UNIFIED.zip`.
+  Chain continuation across the 6h cap dispatches a SINGLE-leg run carrying the
+  signal `continue:LABEL|||SUBHUNT_TITLE` inside the `fanout_mode` input
+  (GitHub caps workflow_dispatch at 25 inputs, so the signal reuses an existing
+  input). `MAX_CHUNKS=96` → 96×3h = 12 days per leg (each leg chains independently).
+- `daily_learn` job — runs after research. Now doubles as a full monitoring/
+  diagnostics system: downloads every leg's `cache-data-*` artifact (which
+  include `data/logs/*.log`), runs `scripts/collect_diagnostics.py` to surface
+  errors/warnings/exceptions we might miss when the workflow is off, and emits
+  `status_report.md` + `diagnostics_report.md`. Never fails the job.
+- `scripts/collect_diagnostics.py` — the "report what we don't see" engine.
+  Scans `*.log` files for ERROR/WARNING/Exception/Traceback, dedupes + counts,
+  appends offline `run.py` health. Pure-Python, no network, never raises.
 
 ## Common pitfalls
 
@@ -170,11 +188,15 @@ The `.github/workflows/research.yml` workflow chains multiple 3h-limited GitHub 
 
 3. **DOAB API returns bare lists** — `search_doab()` must handle `data` being a `list`, a `dict` with a `result` key, or `None`. `link` and `contributor` items may be strings, not dicts — guard with `isinstance(l, dict)`.
 
-4. **Downloads hang** — Wave C of `download_with_full_chain` (DrissionPage "Walter Ghost", Anna's Archive, LibGen scraping) has no per-layer timeout. The download batch must use `wait(timeout=120)` (not `as_completed` which blocks forever) so a hung batch is abandoned and stragglers cancelled. `socket.setdefaulttimeout(60)` at `main()` start is a global backstop. A 6-PDFs-in-3h run means workers are hanging — investigate ghost/scraping layers.
+4. **Downloads hang** — Wave C of `download_with_full_chain` (DrissionPage "Walter Ghost", Anna's Archive, LibGen scraping) has no per-layer timeout. The download batch must use `wait(timeout=120)` (not `as_completed` which blocks forever) so a hung batch is abandoned and stragglers cancelled. `socket.setdefaulttimeout(60)` at `main()` start is a global backstop. A 6-PDFs-in-3h run means workers are hanging — investigate ghost/scraping layers. NOTE: the search phase has the SAME hang class via `search_all`'s `ThreadPoolExecutor`. The old `with ThreadPoolExecutor(...) as ex:` block's `__exit__` ALWAYS calls `shutdown(wait=True)`, so even after the deadline path did `ex.shutdown(wait=False, cancel_futures=True)`, exiting the `with` block re-blocked for 20-30 min on ~200 hung browser/scrape threads. That re-block outlasted the 3h GHA job cap, so `results.json` was NEVER written — every chained run lost ~6500 found papers and the next chunk started fresh (infinite loop). FIX: `search_all` now manages the executor manually (`ex = ThreadPoolExecutor(...)` + `try/finally: ex.shutdown(wait=False, cancel_futures=True)`) so BOTH the normal and deadline paths escape immediately and the post-search `results.json` checkpoint is reached. Do NOT reintroduce a `with` block around this executor.
 
-5. **Chunk counter stuck at 1 (cross-run artifact download)** — `actions/download-artifact@v4` can ONLY download artifacts from the CURRENT run unless `run-id` is provided. Without `run-id`, every chained run starts fresh — `chunk_state.json` from the previous run is never restored → the chunk counter resets to 1 every time. FIX: a "Find previous run" step queries the GitHub API for the most recent completed run ID, then passes it as `run-id` to `download-artifact@v4`. The download+restore steps MUST run BEFORE the "Calculate chunk plan" step so `chunk_state.json` is available to increment. Also, `upload-artifact@v4` needs `overwrite: true` (otherwise it fails when an artifact with the same name from a previous run exists).
+5. **Chunk counter stuck at 1 (cross-run artifact download)** — `actions/download-artifact@v4` can ONLY download artifacts from the CURRENT run unless `run-id` is provided. Without `run-id`, every chained run starts fresh — `chunk_state.json` from the previous run is never restored → the chunk counter resets to 1 every time. FIX: a "Find previous run" step queries the GitHub API for the most recent completed run ID, then passes it as `run-id` to `download-artifact@v4`. The download+restore steps MUST run BEFORE the "Calculate chunk plan" step so `chunk_state.json` is available to increment. Also, `upload-artifact@v4` needs `overwrite: true` (otherwise it fails when an artifact with the same name from a previous run exists). CRITICAL COROLLARY: the "Find previous run" step must accept `conclusion == 'cancelled'` runs, NOT just `'success'`. Chained research runs are almost always `cancelled` (the 3h job cap kills the long search/download step). Filtering for `'success'` only → finds nothing → `prev_run_id` empty → download skipped → always "starting fresh" → chunk counter resets → infinite loop of re-searching the same ~6500 papers and losing them. The step now accepts `('success', 'cancelled')` AND verifies the run actually has the matching `research-data-<folder>` artifact (non-zero bytes) before resuming, since cancelled runs still upload artifacts via `if: always()`.
 
 6. **Chain dispatches on stale branch** — the auto-trigger must dispatch on `main` (default branch), not whatever branch the initial run was started from. Otherwise chained runs execute stale code. FIX: `TRIGGER_BRANCH: main` env var is passed and used as the `ref` in the dispatch payload.
 
 7. **Bare-list `.get()` crashes across ALL search platforms** — many APIs (DOAB, EuropePMC, Dataverse, etc.) return a bare JSON list instead of a dict at the top level. The old pattern `(data or {}).get("key", [])` crashes with `AttributeError: 'list' object has no attribute 'get'`. FIX: the `_safe_get(data, *keys, default=...)` helper in `research_hunter_v2-4.py` safely traverses nested dicts, returning `default` when `data` is a list/None. ALL 40+ search functions now use `_safe_get` instead of `(data or {}).get(...)`.
+
+8. **Post-hunt interpreter-shutdown hang (the "cancelled" instead of "success" bug)** — `search_all()` runs up to ~1614 platform jobs in a `ThreadPoolExecutor`. The CI deadline path calls `shutdown(wait=False, cancel_futures=True)` (good � `results.json` gets saved), but the still-RUNNING worker threads (the ~277 hung browser/scraping jobs that didn't finish before the deadline) are NON-DAEMON, so Python's atexit handler joins every one of them at interpreter shutdown. That join blocked ~26 min after the "Hunt Complete!" banner until the 3h GHA job cap killed the process � turning a successful hunt into a `cancelled` run and breaking the matrix chain. FIX: `main()` ends with a hard `os._exit(0)` (after flushing stdout/stderr) � all persistent state (`results.json`, `search_cache.json`, DOCX/XLSX/MD reports) is written to disk BEFORE the banner, so the hard exit is safe. The per-batch download executor was also switched from a `with ThreadPoolExecutor` block (whose `__exit__` calls `shutdown(wait=True)` and re-blocks on hung ghost/scraping workers) to manual `ex = ThreadPoolExecutor(...)` + `try/finally: ex.shutdown(wait=False, cancel_futures=True)`. Regression test: `tests/test_search_deadline.py`. Do NOT remove `os._exit(0)` from `main()` and do NOT reintroduce `with ThreadPoolExecutor` in the search/download hot path.
+
+9. **workflow_dispatch CHOICE inputs reject arbitrary values (HTTP 422)** — the multi-chunk continuation signal `continue:LABEL|||SUBHUNT_TITLE` was carried inside the `fanout_mode` input, which was declared `type: choice`. GitHub's `workflow_dispatch` API validates choice inputs against the declared `options` and rejects out-of-list values with HTTP 422 � silently breaking the chain (the next chunk never runs) while the old script falsely printed "Next run triggered!". FIX: `fanout_mode` is now `type: string` (accepts `off - ...`, `on - ...`, AND `continue:...`); the auto-trigger step checks the dispatch HTTP code and `exit 1`s on anything other than `204` so a broken chain is loud, not silent. Do NOT make `fanout_mode` a `choice` again, and do NOT carry continuation signals in any `choice` input. If you need a new free-form input, the repo is at the 25-input GitHub cap � reuse an existing `string` input or consolidate inputs first.
 

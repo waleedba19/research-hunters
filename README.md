@@ -8,6 +8,48 @@ The core hunt engine and reference-verification pipeline run with **zero
 secrets**. Google Drive/Sheets and Telegram push are optional transports layered
 on top when configured.
 
+## Quick start — run the full system on your own PC (VS Code terminal)
+
+No GitHub Actions, no 3h job cap, no chain re-triggers. One command runs the
+entire 93-platform engine end-to-end and writes DOCX + XLSX + MD reports to
+`./pdf_files/`.
+
+```bash
+# 1. Get the code
+git clone https://github.com/waleedba19/research-hunters.git
+cd research-hunters
+
+# 2. Install all dependencies (Python 3.10+ required)
+python -m pip install -r requirements.txt
+
+# 3. (Optional) ollama — only needed for AI scoring / future-studies. Skip if
+#    you don't need it; the search still works without it.
+#    Linux/macOS:  curl -fsSL https://ollama.com/install.sh | sh
+#    then:         ollama serve & ollama pull llama3.1
+
+# 4. Verify the install is healthy
+python run.py
+
+# 5. Run a full research hunt — interactive dashboard prompts you for everything
+python run_local.py
+#    ...or a one-shot with smart defaults:
+python run_local.py --auto "Your research title here"
+```
+
+`run_local.py` asks the same questions the GitHub Actions form does (title,
+research questions, field, study type, filters, language, years, search depth,
+paper limit, downloads, output format, geographic area, fan-out) then runs the
+**same `research_hunter_v2-4.py` core** that GHA runs. Output lands in
+`./pdf_files/<topic-slug>/`. Re-running the same command **resumes
+automatically** — already-found papers are skipped (state in
+`search_cache.json` + `results.json`).
+
+> **Why local is more reliable than GitHub Actions here:** the freezes/422s you
+> saw on GHA were all caused by the 3-hour job cap forcing multi-run "chaining".
+> On your own machine there is no cap, so there is no chain and those failure
+> modes cannot occur. Every external-platform failure is caught and skipped
+> gracefully (logged, never crashes the run).
+
 ## Status
 
 - **v0.1 (MVP, current)**: 93-platform search + chapter verify + verify_refs

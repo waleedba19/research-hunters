@@ -6370,8 +6370,16 @@ def search_all(queries: list, platforms: list, year_from=None,
     cache_hits = 0
     cache_misses = 0
 
-    # 16 workers (was 8) for 2x throughput on API + browser + Libyan in one pool
-    with ThreadPoolExecutor(max_workers=16) as ex:
+    # 16 workers for API + browser + Libyan in one pool.
+    # NOTE: do NOT use a `with ThreadPoolExecutor(...)` block here. Python's
+    # context-manager __exit__ ALWAYS calls shutdown(wait=True), which re-blocks
+    # for 20-30 min on hung browser/scraping threads even after we explicitly
+    # shutdown(wait=False) on the deadline path. That hang outlasts the 3h GHA
+    # job cap and means results.json is never saved — every run loses ~6500
+    # papers. Managing the executor manually lets the deadline path escape
+    # immediately so the post-search checkpoint (results.json) can be written.
+    ex = ThreadPoolExecutor(max_workers=16)
+    try:
         # ── Phase 1: API platforms (parallel) ──────────────────────────────
         api_jobs = {}
         for plat in api_plats:
@@ -6446,9 +6454,13 @@ def search_all(queries: list, platforms: list, year_from=None,
             for fut in all_jobs:
                 if not fut.done():
                     fut.cancel()
-            # Don't let the `with` block's __exit__ block for 20+ minutes
-            # waiting for 193 hung threads to drain. Force non-blocking shutdown.
-            ex.shutdown(wait=False, cancel_futures=True)
+    finally:
+        # Non-blocking shutdown in BOTH paths. The deadline path must NOT wait
+        # for hung threads (that's the 3h-timeout kill bug: the `with` block's
+        # __exit__ re-blocks on shutdown(wait=True) and outlasts the job cap, so
+        # results.json is never written). The normal path also benefits: cancelled
+        # /straggler threads are abandoned immediately instead of draining.
+        ex.shutdown(wait=False, cancel_futures=True)
 
     if cache_hits or cache_misses:
         info(f"  Search cache: {cache_hits} hits, {cache_misses} fresh searches")
@@ -8841,8 +8853,10 @@ def main():
                 warn("No new papers found. Try Deep search mode, more RQs, or broader topic.")
                 (out_folder / ".search_complete").write_text("no_papers", encoding="utf-8")
 
-            for p in new_papers:
-                cache.mark_found(p)
+            # Mark all found papers in ONE atomic cache write (mark_found saves
+            # per paper → thousands of full-JSON rewrites that risk the disk cache
+            # lagging the in-memory set if the job is killed mid-loop).
+            cache.mark_found_batch(new_papers)
 
     # ═══════ QUARTILE CHECK — always runs (even when downloads OFF) ═══════
     dl_count = 0
@@ -8945,8 +8959,18 @@ def main():
                 with s._lock: s._c.mark_found(*a, **kw)
             def save(s):
                 with s._lock: s._c.save()
+            def flush(s):
+                with s._lock: s._c.flush()
+            def set_defer(s, val: bool):
+                with s._lock: s._c._defer_saves = val
         ts_red_list = _TSRedList(red_list)
         ts_cache = _TSCache(cache)
+        # Defer per-paper cache rewrites: each smart_file_paper() calls
+        # mark_downloaded() which used to rewrite the whole cache JSON per paper
+        # (thousands of full-JSON disk writes = disk-I/O thrash). With deferral
+        # on, mark_downloaded only updates the in-memory set; we flush once per
+        # batch below. Disabled again after the loop so the final save() writes.
+        ts_cache.set_defer(True)
         for batch_idx in range(total_batches):
             start = batch_idx * BATCH_SIZE
             end   = min(start + BATCH_SIZE, len(download_queue))
@@ -8957,7 +8981,14 @@ def main():
             # hang (ghost/scraping) are abandoned so the batch can't stall the
             # whole run past the 3h GitHub timeout.
             from concurrent.futures import wait as _fwait, FIRST_COMPLETED as _FC
-            with ThreadPoolExecutor(max_workers=10) as ex:
+            # Manual executor management (NOT a `with` block). The `with` block's
+            # __exit__ calls shutdown(wait=True), which re-blocks on hung download
+            # workers (ghost/scraping) even after we abandon a batch at the 120s
+            # cap — burning the remaining 3h job budget. shutdown(wait=False) in
+            # finally abandons stragglers immediately. (The hard os._exit(0) at
+            # the end of main() is the backstop; this keeps mid-run batches fast.)
+            ex = ThreadPoolExecutor(max_workers=10)
+            try:
                 futs = {ex.submit(smart_file_paper, p, out_folder, use_scihub, ts_red_list, ts_cache, single_folder): p for p in batch}
                 dl_this_batch = 0
                 done_in_batch = 0
@@ -8991,8 +9022,10 @@ def main():
                 # Periodic checkpoint after each batch — if the 3h timeout
                 # kills the job mid-run, downloaded_count is preserved so the
                 # next chunk resumes downloading instead of re-downloading.
+                # Use flush() (not save()): _defer_saves is on so save() is a
+                # no-op; flush() forces the per-batch disk write.
                 try:
-                    ts_cache.save()
+                    ts_cache.flush()
                     ckpt_papers = cache.deduplicate(download_queue + ckpt_existing)
                     results_path.write_text(json.dumps({
                         "papers": ckpt_papers,
@@ -9003,6 +9036,11 @@ def main():
                     }, ensure_ascii=False, indent=2), encoding="utf-8")
                 except Exception:
                     pass
+            finally:
+                ex.shutdown(wait=False, cancel_futures=True)
+        # Re-enable immediate saves and force a final flush so the last batch's
+        # in-memory download set hits disk (deferred saves were on during the loop).
+        ts_cache.set_defer(False)
         cache.save()
         ok(f"Downloaded {dl_count} / {len(download_queue)} PDFs")
         if red_list.entries:
@@ -9234,6 +9272,26 @@ def main():
         print(f"   Red List pending: {rl_cnt}")
         print(f"   Folder: {out_folder}")
         print(f"{'='*65}")
+
+    # ── Hard exit: abandon hung background threads ────────────────────────────
+    # search_all() runs up to 1614 platform jobs in a ThreadPoolExecutor. On the
+    # CI deadline path it calls shutdown(wait=False, cancel_futures=True), which
+    # prevents the *with-block* re-block — but the still-RUNNING worker threads
+    # (the ~277 hung browser/scraping jobs that didn't finish before the search
+    # deadline) are NON-DAEMON, so Python's atexit handler joins every one of
+    # them at interpreter shutdown. That join blocked for ~26 minutes after the
+    # "Hunt Complete!" banner (until the 3h GitHub job cap killed the process),
+    # turning a successful hunt into a "cancelled" run and breaking the chain.
+    #
+    # Everything that must persist (results.json, search_cache.json, the DOCX /
+    # XLSX / MD reports) is written to disk BEFORE the banner above, so a hard
+    # exit here is safe. Flush stdout/stderr first so the banner is not lost.
+    try:
+        sys.stdout.flush()
+        sys.stderr.flush()
+    except Exception:
+        pass
+    os._exit(0)
 
 
 if __name__ == "__main__":

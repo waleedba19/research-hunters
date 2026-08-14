@@ -511,7 +511,7 @@ class DeepReader:
                 for p in batch:
                     if not p["text"].strip():
                         continue
-                    analysis = self.analyze_page(p["page_num"], p["text"], total_pages, book_mode=False)
+                    analysis = self.analyze_page(p["page_num"], p["text"], total_pages, is_book_mode=False)
                     page_analyses.append(analysis)
                     if (p["page_num"] - 1) % max(1, total_pages // 5) == 0 or p["page_num"] == total_pages:
                         print(f"    Page {p['page_num']}/{total_pages}: {analysis.get('section', '?')}")

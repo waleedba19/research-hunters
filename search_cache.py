@@ -33,6 +33,12 @@ class SearchCache:
         self._run_count: int = 0
         self._queries_exhausted: bool = False
 
+        # When True, mark_downloaded/mark_found update the in-memory sets but
+        # skip the disk rewrite. The download loop turns this on so thousands of
+        # per-paper downloads don't each rewrite the whole cache JSON (disk-I/O
+        # thrash). The loop flushes to disk explicitly via save() per batch.
+        self._defer_saves: bool = False
+
         self._load()
 
     def _load(self):
@@ -52,6 +58,15 @@ class SearchCache:
                 log.warning("cache load failed: %s", e)
 
     def save(self):
+        if self._defer_saves:
+            return  # caller will flush explicitly per batch, not per paper
+        return self._flush_to_disk()
+
+    def flush(self):
+        """Force a disk write even when _defer_saves is on (per-batch flush)."""
+        return self._flush_to_disk()
+
+    def _flush_to_disk(self):
         try:
             data = {
                 "seen_keys": list(self._seen_keys),
@@ -88,6 +103,9 @@ class SearchCache:
         return None
 
     def mark_downloaded(self, paper: dict, filename: str = ""):
+        """Mark a single paper downloaded. NOTE: triggers a full JSON rewrite.
+        Prefer mark_downloaded_batch() in hot loops (downloads) to avoid
+        thousands of per-paper disk rewrites (the disk-I/O thrash bug)."""
         k = self._key(paper)
         if k:
             self._seen_keys.add(k)
@@ -95,6 +113,26 @@ class SearchCache:
                 self._downloaded_keys.add(k)
                 self._downloaded_count += 1
             self.save()
+
+    def mark_downloaded_batch(self, papers: List[dict]) -> int:
+        """Mark many papers downloaded with a SINGLE save() call.
+
+        Like mark_found_batch, this avoids a full JSON rewrite per paper
+        (the per-paper disk-I/O thrash: thousands of downloaded PDFs used to
+        each rewrite the whole cache file). The download loop accumulates
+        successful downloads into a list and flushes them here once per batch.
+        """
+        added = 0
+        for p in papers:
+            k = self._key(p)
+            if k and k not in self._downloaded_keys:
+                self._seen_keys.add(k)
+                self._downloaded_keys.add(k)
+                added += 1
+        self._downloaded_count += added
+        if added:
+            self.save()
+        return added
 
     def is_downloaded(self, paper: dict) -> bool:
         """True if this paper was already successfully downloaded."""
@@ -120,6 +158,25 @@ class SearchCache:
             self._seen_keys.add(k)
             self._found_count += 1
             self.save()
+
+    def mark_found_batch(self, papers: List[dict]):
+        """Mark many papers found with a SINGLE save() call.
+
+        Calling mark_found() per paper triggered save() (a full JSON rewrite)
+        on every one of thousands of papers, which is slow and — critically —
+        if the job is killed mid-loop, the cache on disk lags far behind the
+        in-memory set. Batching makes one atomic write after the loop.
+        """
+        added = 0
+        for p in papers:
+            k = self._key(p)
+            if k and k not in self._seen_keys:
+                self._seen_keys.add(k)
+                added += 1
+        self._found_count += added
+        if added:
+            self.save()
+        return added
 
     def stats(self) -> dict:
         return {

@@ -259,6 +259,25 @@ def test_doi_normalization():
     print("[test] DOI normalization + paper key priority: DOI→title→URL ✓")
 
 
+def test_build_matrix():
+    """build_matrix should produce a string-only matrix, one entry per sub-hunt."""
+    from fanout_merge import build_matrix
+    # 2 RQs → 2 matrix legs
+    params = {"title": "AI in Education", "field": "Education",
+              "research_questions": ["RQ one?", "RQ two?"]}
+    m = build_matrix(params)
+    assert len(m) == 2, f"Expected 2 legs, got {len(m)}"
+    assert all(isinstance(v, str) for leg in m for v in leg.values()), "matrix values must be strings"
+    assert m[0]["label"] == "RQ1" and m[1]["label"] == "RQ2"
+    assert m[0]["index"] == "0" and m[1]["index"] == "1"
+    assert "AI in Education" in m[0]["subhunt_title"]
+    # No sub-topics → single leg
+    m1 = build_matrix({"title": "Generic", "field": "general"})
+    assert len(m1) == 1
+    assert m1[0]["label"] in ("single", "Sub1")
+    print("[test] build_matrix: 2 RQs → 2 legs, no RQ → 1 leg, all string values ✓")
+
+
 def main():
     tests = [
         test_dedup_by_doi,
@@ -273,6 +292,7 @@ def main():
         test_single_report_passthrough,
         test_empty_merge,
         test_doi_normalization,
+        test_build_matrix,
     ]
     passed = 0
     failed = 0
