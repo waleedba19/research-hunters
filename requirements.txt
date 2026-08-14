@@ -1,17 +1,39 @@
 # Literature Review Verifier — Python dependencies
-# Core (also in runner-base:latest)
-pdfplumber>=0.11.0
-PyMuPDF>=1.24.0
-python-docx>=1.1.0
-odfpy>=1.4.1
-# Excel reports (verify_refs)
-openpyxl>=3.1.0
-# Telegram bot
-requests>=2.31.0
-# Google integration
+# Install everything with:  pip install -r requirements.txt
+# Optional deps are imported lazily (try/except) so the core loads even if some
+# are missing, but listing them here means every feature works out of the box.
+
+# ── Core PDF / document parsing ───────────────────────────────────────────
+pdfplumber>=0.11.0          # PDF text extraction (primary)
+PyMuPDF>=1.24.0             # PDF text extraction (fallback) + "fitz"
+python-docx>=1.1.0          # DOCX report generation (import name: docx)
+odfpy>=1.4.1                # ODT parsing (import name: odf)
+python-pptx>=0.6.23         # PPTX parsing (import name: pptx) — lazy
+
+# ── HTTP / networking ────────────────────────────────────────────────────
+requests>=2.31.0            # All platform API calls
+urllib3>=2.0.0              # Retry config (transitive via requests, explicit here)
+
+# ── Reports ──────────────────────────────────────────────────────────────
+openpyxl>=3.1.0             # Excel 48-sheet reports (verify_refs + hunts)
+docx2pdf>=0.1.4             # DOCX→PDF (Windows/macOS w/ Word) — lazy, optional
+
+# ── Console UI ───────────────────────────────────────────────────────────
+rich>=13.7.0                # Pretty console panels/banners (graceful fallback if absent)
+
+# ── Google integration (Drive/Sheets/Docs — optional transport) ──────────
 google-api-python-client>=2.100.0
 google-auth>=2.27.0
 google-auth-oauthlib>=1.2.0
 gspread>=6.0.0
-# Utility
-python-dotenv>=1.0.0
+
+# ── Utility ──────────────────────────────────────────────────────────────
+python-dotenv>=1.0.0        # .env loading
+psutil>=5.9.0               # Process management (stuck_detector) — lazy
+
+# ── Browser scraping (shadow-library PDF access — fully optional) ────────
+# These enable the "Walter Ghost" / Anna's Archive / LibGen download layers.
+# The system works without them (API downloads still function); install only
+# if you want maximum PDF coverage. They need a Chromium/Chrome browser.
+DrissionPage>=4.0.0         # Headless Chromium automation — lazy, optional
+# scrapling>=0.2             # Stealth fetching — lazy, optional (uncomment if needed)
