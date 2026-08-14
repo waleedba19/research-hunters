@@ -1429,6 +1429,7 @@ jobs:
           echo "Ollama READY"
       - name: Install dependencies
         run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq tesseract-ocr poppler-utils zip
           pip install -q requests rich openpyxl python-docx python-pptx pdfplumber pymupdf playwright pillow pytesseract reportlab ollama
           python -m playwright install chromium 2>&1 | tail -5
           npm install docx 2>&1 | tail -5
@@ -1630,6 +1631,52 @@ jobs:
           else
             echo "status=no_results" >> $GITHUB_OUTPUT
           fi
+
+      - name: Generate 40-sheet Excel from results
+        if: always() && steps.check_results.outputs.status == 'success'
+        shell: bash
+        run: |
+          OUT_DIR="pdf_files/${{ steps.folder.outputs.folder_name }}"
+          RESULTS="$OUT_DIR/results.json"
+          echo "=== Building 40-sheet Excel workbook from real results ==="
+          if [ ! -f "$RESULTS" ]; then
+            echo "No results.json found — skipping 40-sheet Excel (master_database.xlsx still produced)"
+            exit 0
+          fi
+          python3 generate_ultimate_excel_v10.py "$RESULTS" "$OUT_DIR/ULTIMATE_RESEARCH_SYNTHESIS_V10.xlsx" || {
+            echo "⚠️ 40-sheet Excel generation failed — continuing (master xlsx still available)"
+            exit 0
+          }
+          if [ -f "$OUT_DIR/ULTIMATE_RESEARCH_SYNTHESIS_V10.xlsx" ]; then
+            SZ=$(stat -c%s "$OUT_DIR/ULTIMATE_RESEARCH_SYNTHESIS_V10.xlsx" 2>/dev/null || stat -f%z "$OUT_DIR/ULTIMATE_RESEARCH_SYNTHESIS_V10.xlsx")
+            echo "✅ 40-sheet Excel: ULTIMATE_RESEARCH_SYNTHESIS_V10.xlsx ($SZ bytes)"
+          fi
+
+      - name: Convert DOCX report to PDF
+        if: always() && steps.check_results.outputs.status == 'success'
+        shell: bash
+        run: |
+          OUT_DIR="pdf_files/${{ steps.folder.outputs.folder_name }}"
+          DOCX="$OUT_DIR/research_report.docx"
+          echo "=== Converting research_report.docx → PDF ==="
+          if [ ! -f "$DOCX" ]; then
+            echo "No research_report.docx found — skipping PDF conversion"
+            exit 0
+          fi
+          if ! command -v soffice >/dev/null 2>&1 && ! command -v libreoffice >/dev/null 2>&1; then
+            echo "Installing LibreOffice for PDF conversion..."
+            sudo apt-get update -qq && sudo apt-get install -y -qq libreoffice-writer libreoffice-core || true
+          fi
+          python3 -c "
+          import sys
+          sys.path.insert(0, '.')
+          from report_pdf import docx_to_pdf
+          p = docx_to_pdf('$DOCX', timeout=300)
+          if p:
+              print(f'✅ PDF report: {p.name} ({p.stat().st_size:,} bytes)')
+          else:
+              print('⚠️ PDF conversion unavailable — DOCX still available')
+          " || echo "PDF step errored — continuing (DOCX still available)"
 
       - name: Zip cumulative results
         id: zip_results

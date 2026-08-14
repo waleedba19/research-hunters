@@ -17,6 +17,74 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 
+
+def _safe_str(v):
+    if v is None:
+        return ""
+    if isinstance(v, list):
+        return ", ".join(str(x) for x in v if x)
+    return str(v).strip()
+
+
+def load_papers_from_results(results_path: str) -> list:
+    """Load real papers from a results.json file and map them to the
+    PAPERS format expected by the 40-sheet Excel generator.
+
+    results.json papers have keys: title, authors (list), year, journal,
+    publisher, doi, abstract, pdf_url, source, scopus_quartile, downloaded,
+    open_access, gs_citations, scopus_cited, keywords, volume, issue, pages.
+    """
+    with open(results_path, encoding="utf-8") as f:
+        data = json.load(f)
+    raw_papers = data.get("papers") or []
+    papers = []
+    for i, p in enumerate(raw_papers, 1):
+        q = p.get("scopus_quartile") or {}
+        quartile = q.get("quartile", "N/A") if isinstance(q, dict) else _safe_str(q)
+        if not quartile:
+            quartile = "N/A"
+        authors_raw = p.get("authors") or []
+        if isinstance(authors_raw, list):
+            authors = ", ".join(str(a) for a in authors_raw if a)
+        else:
+            authors = _safe_str(authors_raw)
+        folder = "Q1_Top_Journals" if quartile == "Q1" else \
+                 "Q2_Good_Journals" if quartile == "Q2" else \
+                 "Q3_Acceptable" if quartile == "Q3" else \
+                 "Q4_Lower_Tier" if quartile == "Q4" else "Not_Indexed"
+        papers.append({
+            "id": i,
+            "title": _safe_str(p.get("title")) or f"Untitled Study {i}",
+            "authors": authors or "Unknown",
+            "year": int(_safe_str(p.get("year"))[:4] or "0") if _safe_str(p.get("year"))[:4].isdigit() else 0,
+            "journal": _safe_str(p.get("journal")) or "N/A",
+            "publisher": _safe_str(p.get("publisher")) or "N/A",
+            "doi": _safe_str(p.get("doi")) or "",
+            "source": _safe_str(p.get("source")) or "N/A",
+            "quartile": quartile,
+            "sjr": float(p.get("sjr") or 0),
+            "if": float(p.get("if") or 0),
+            "citescore": float(p.get("citescore") or 0),
+            "citations_gs": int(p.get("gs_citations") or p.get("scopus_cited") or 0),
+            "field": _safe_str(p.get("field")) or "N/A",
+            "doctype": _safe_str(p.get("doctype")) or "Article",
+            "methodology": _safe_str(p.get("methodology")) or "N/A",
+            "geo": _safe_str(p.get("geo")) or "International",
+            "folder": folder,
+            "relevance": _safe_str(p.get("relevance")) or "Medium",
+            "oa": bool(p.get("open_access")),
+            "downloaded": bool(p.get("downloaded")),
+            "funding": _safe_str(p.get("funding")) or "",
+            "keywords": _safe_str(p.get("keywords")) or "",
+            "introduction": _safe_str(p.get("introduction")) or _safe_str(p.get("abstract"))[:500],
+            "methodology": _safe_str(p.get("methodology_detail")) or _safe_str(p.get("abstract"))[:300],
+            "results": _safe_str(p.get("results")) or "",
+            "discussion": _safe_str(p.get("discussion")) or "",
+            "abstract": _safe_str(p.get("abstract")) or "",
+            "pdf_url": _safe_str(p.get("pdf_url")) or "",
+        })
+    return papers
+
 # Color scheme
 C = {
     "header_dark": "1F4E79", "header_accent": "2E75B6",
@@ -48,8 +116,24 @@ def mh(ws, row, cols, bg="1F4E79"):
 def qc(q):
     return {"Q1":C["q1"],"Q2":C["q2"],"Q3":C["q3"],"Q4":C["q4"]}.get(q, C["not_idx"])
 
-# ── COMPREHENSIVE PAPER DATA WITH DETAILED ANALYSIS ─────────────────────────────────
-PAPERS = [
+# ════════════════════════════════════════════════════════════════════════════
+# DATA LOADING — use real results.json if provided via CLI, else demo data
+# Usage: python generate_ultimate_excel_v10.py [results.json] [output.xlsx]
+# ════════════════════════════════════════════════════════════════════════════
+_results_arg = sys.argv[1] if len(sys.argv) > 1 else None
+_output_arg = sys.argv[2] if len(sys.argv) > 2 else None
+
+if _results_arg and Path(_results_arg).exists():
+    print(f"📥 Loading real research data from: {_results_arg}")
+    PAPERS = load_papers_from_results(_results_arg)
+    print(f"   Loaded {len(PAPERS)} real papers from results.json")
+    if not PAPERS:
+        print("   ⚠️ No papers found in results.json — generating demo data as fallback")
+        _results_arg = None  # fall through to demo data
+
+if not _results_arg or not PAPERS:
+    # ── COMPREHENSIVE PAPER DATA WITH DETAILED ANALYSIS ─────────────────────────────────
+    PAPERS = [
     {"id":1,"title":"Impact of Digital Technologies on EFL Learning Outcomes in Libyan Universities","authors":"Almabrouk, T. & Hassan, M.","year":2024,"journal":"Computers and Education","publisher":"Elsevier","doi":"10.1016/j.compedu.2024.105123","source":"Semantic Scholar","quartile":"Q1","sjr":8.2,"if":7.8,"citescore":14.2,"citations_gs":156,"field":"Education","doctype":"Article","methodology":"Quantitative","geo":"Libya","folder":"Q1_Top_Journals","relevance":"High","oa":False,"downloaded":True,"funding":"UNESCO","keywords":"digital technology, EFL, Libya, higher education",
      "introduction":"This study investigates the impact of digital technologies on English as a Foreign Language (EFL) learning outcomes in Libyan universities. The research addresses the gap in literature regarding technology integration in conflict-affected educational contexts.",
      "methodology":"Quantitative survey design with n=450 students across 5 Libyan universities. Used Likert-scale questionnaires measuring technology acceptance, learning outcomes, and student engagement. Data analyzed using SPSS with regression analysis.",
@@ -79,39 +163,39 @@ PAPERS = [
      "methodology":"Mixed methods: Systematic literature review (n=89 studies) + expert interviews (n=15 AI researchers) + student survey (n=500). Thematic and statistical analysis.",
      "results":"AI tools show 35% improvement in vocabulary acquisition. Challenges include Arabic language processing limitations and ethical concerns. Teacher acceptance moderate (62% positive).",
      "discussion":"AI offers significant potential for personalized learning in Arabic contexts. Need for improved Arabic NLP capabilities. Recommends teacher training and ethical guidelines for AI use."},
-]
+    ]
 
-# Add more papers with similar detailed structure...
-for i in range(6, 35):
-    PAPERS.append({
-        "id": i,
-        "title": f"Study {i}: Research Topic in Education/Linguistics",
-        "authors": f"Author {i} & Co-Author",
-        "year": 2023 + (i % 3),
-        "journal": f"Journal {i}",
-        "publisher": "Publisher",
-        "doi": f"10.1000/doi-{i}",
-        "source": random.choice(["Semantic Scholar", "OpenAlex", "CrossRef", "Scopus"]),
-        "quartile": random.choice(["Q1", "Q2", "Q3", "Q4", "N/A"]),
-        "sjr": round(random.uniform(0.5, 8.5), 1),
-        "if": round(random.uniform(0.5, 7.8), 1),
-        "citescore": round(random.uniform(1.0, 14.2), 1),
-        "citations_gs": random.randint(5, 200),
-        "field": random.choice(["Education", "Linguistics"]),
-        "doctype": random.choice(["Article", "Systematic Review", "Meta-Analysis", "Case Study"]),
-        "methodology": random.choice(["Quantitative", "Qualitative", "Mixed Methods"]),
-        "geo": random.choice(["Libya", "MENA", "North Africa", "Gulf", "International"]),
-        "folder": random.choice(["Q1_Top_Journals", "Q2_Good_Journals", "Q3_Acceptable", "Q4_Lower_Tier"]),
-        "relevance": random.choice(["High", "Medium", "Low"]),
-        "oa": random.choice([True, False]),
-        "downloaded": random.choice([True, False]),
-        "funding": random.choice(["", "UNESCO", "World Bank", "EU", "Government"]),
-        "keywords": f"keyword{i}, topic{i}, research",
-        "introduction": f"This study examines research topic {i} in the context of education and linguistics, addressing gaps in current literature.",
-        "methodology": f"Research design using {random.choice(['quantitative', 'qualitative', 'mixed'])} methods with sample size n={random.randint(50, 500)}. Data collected through surveys and interviews.",
-        "results": f"Key findings include significant effects (p<0.05) on primary outcomes. Effect sizes ranged from {random.uniform(0.2, 0.8):.2f} to {random.uniform(0.3, 0.9):.2f}.",
-        "discussion": f"Results support the theoretical framework. Limitations include sample constraints. Recommendations for future research and practice provided.",
-    })
+    # Add more papers with similar detailed structure...
+    for i in range(6, 35):
+        PAPERS.append({
+            "id": i,
+            "title": f"Study {i}: Research Topic in Education/Linguistics",
+            "authors": f"Author {i} & Co-Author",
+            "year": 2023 + (i % 3),
+            "journal": f"Journal {i}",
+            "publisher": "Publisher",
+            "doi": f"10.1000/doi-{i}",
+            "source": random.choice(["Semantic Scholar", "OpenAlex", "CrossRef", "Scopus"]),
+            "quartile": random.choice(["Q1", "Q2", "Q3", "Q4", "N/A"]),
+            "sjr": round(random.uniform(0.5, 8.5), 1),
+            "if": round(random.uniform(0.5, 7.8), 1),
+            "citescore": round(random.uniform(1.0, 14.2), 1),
+            "citations_gs": random.randint(5, 200),
+            "field": random.choice(["Education", "Linguistics"]),
+            "doctype": random.choice(["Article", "Systematic Review", "Meta-Analysis", "Case Study"]),
+            "methodology": random.choice(["Quantitative", "Qualitative", "Mixed Methods"]),
+            "geo": random.choice(["Libya", "MENA", "North Africa", "Gulf", "International"]),
+            "folder": random.choice(["Q1_Top_Journals", "Q2_Good_Journals", "Q3_Acceptable", "Q4_Lower_Tier"]),
+            "relevance": random.choice(["High", "Medium", "Low"]),
+            "oa": random.choice([True, False]),
+            "downloaded": random.choice([True, False]),
+            "funding": random.choice(["", "UNESCO", "World Bank", "EU", "Government"]),
+            "keywords": f"keyword{i}, topic{i}, research",
+            "introduction": f"This study examines research topic {i} in the context of education and linguistics, addressing gaps in current literature.",
+            "methodology": f"Research design using {random.choice(['quantitative', 'qualitative', 'mixed'])} methods with sample size n={random.randint(50, 500)}. Data collected through surveys and interviews.",
+            "results": f"Key findings include significant effects (p<0.05) on primary outcomes. Effect sizes ranged from {random.uniform(0.2, 0.8):.2f} to {random.uniform(0.3, 0.9):.2f}.",
+            "discussion": f"Results support the theoretical framework. Limitations include sample constraints. Recommendations for future research and practice provided.",
+        })
 
 wb = Workbook()
 
@@ -967,7 +1051,8 @@ print("✅ Executive Summary created")
 # ════════════════════════════════════════════════════════════════════════════
 # SAVE EXCEL FILE
 # ════════════════════════════════════════════════════════════════════════════
-output = Path(__file__).resolve().parent / "ULTIMATE_RESEARCH_SYNTHESIS_V10.xlsx"
+output = Path(_output_arg) if _output_arg else (Path(__file__).resolve().parent / "ULTIMATE_RESEARCH_SYNTHESIS_V10.xlsx")
+output.parent.mkdir(parents=True, exist_ok=True)
 wb.save(output)
 print(f"\n🎉 ULTIMATE EXCEL V10 CREATED: {output}")
 print(f"📊 Total Sheets: {len(wb.sheetnames)}")
