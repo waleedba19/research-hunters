@@ -1430,36 +1430,54 @@ jobs:
           if-no-files-found: ignore
           retention-days: 90
 
-      - name: Generate system status & health report
-        # This is the "report to us what we might miss" step. Runs the system
-        # health entrypoint (run.py) + collects any errors from the learning
-        # steps above, so even when the workflow is off we get a snapshot of
-        # module health, platform count, transport status, and which learning
-        # steps errored. Always runs, even if every learning step failed.
+      - name: Download all research legs' logs (for diagnostics)
+        # Pull every leg's cache-data-* artifact so we can scan the research
+        # run's actual logs (data/logs/*.log) for errors/warnings/exceptions
+        # we might otherwise miss. This is the "report what we don't see when
+        # the workflow is off" step — it makes the research run's bugs visible.
+        if: always()
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          pattern: cache-data-*
+          path: legs_logs
+          merge-multiple: true
+
+      - name: Generate diagnostics & status report (bugs/errors we might miss)
+        # Scans every leg's logs for ERROR/WARNING/Exception/Traceback lines,
+        # dedupes + counts them, and appends the offline system-health snapshot
+        # (run.py). Works even when the research workflow is OFF — the offline
+        # health section reflects module/platform/transport status from the
+        # codebase. Never fails the job: a crash inside the scanner is captured
+        # into the report itself.
         if: always()
         run: |
+          mkdir -p all_logs
+          if [ -d "legs_logs" ]; then
+            find legs_logs -name "*.log" -exec cp --parents {} all_logs/ \; 2>/dev/null || true
+          fi
+          # Also include this job's own ollama/learner logs if present.
+          python scripts/collect_diagnostics.py \
+            --log-dirs all_logs data/logs \
+            --repo-root . \
+            --out diagnostics_report.md || echo "scanner errored (non-fatal)"
+          # Prepend a run-summary header with the learning-step outcomes.
           {
-            echo "# Daily Learn — System Status Report"
+            echo "# Daily Learn — Run Summary"
             echo ""
             echo "**Run:** ${{ github.run_id }}  "
             echo "**Date:** $(date -u)  "
             echo "**Learning step:** ${{ steps.learn.outcome }}  "
             echo "**Deep read step:** ${{ steps.deep_read.outcome }}  "
             echo ""
-            echo "## System Health (run.py)"
-            echo '```'
-            python run.py 2>&1 || echo "run.py exited $?"
-            echo '```'
-            echo ""
             echo "## Brain Stats"
             echo '```'
             python scripts/daily_learner.py --model qwen2.5vl:3b --stats 2>&1 || echo "no brain data"
             echo '```'
             echo ""
-            echo "## Deep Reading Stats"
-            echo '```'
-            python scripts/deep_reader.py --model qwen2.5vl:3b --stats 2>&1 || echo "no deep reading data"
-            echo '```'
+            echo "---"
+            echo ""
+            cat diagnostics_report.md 2>/dev/null || echo "(no diagnostics produced)"
           } > status_report.md
           cat status_report.md
       - name: Upload status report
@@ -1467,7 +1485,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: daily-learn-status-report
-          path: status_report.md
+          path: |
+            status_report.md
+            diagnostics_report.md
+          if-no-files-found: ignore
           retention-days: 90
 
 
@@ -1676,8 +1697,11 @@ jobs:
             *)        MULT=2 ;;
           esac
           ESTIMATED=$(( BASE * MULT ))
-          # Hard ceiling so the chain can never loop forever (~8 days max).
-          MAX_CHUNKS=64
+          # Hard ceiling so the chain can never loop forever (~12 days max).
+          # 96 chunks × 3h = 288h = 12 days — comfortably above the "10+ days"
+          # multi-day target. Each matrix leg chains independently, so a run
+          # with N legs effectively runs N independent 12-day chains in parallel.
+          MAX_CHUNKS=96
           if [ "$ESTIMATED" -gt "$MAX_CHUNKS" ]; then
             ESTIMATED=$MAX_CHUNKS
           fi
@@ -2014,7 +2038,7 @@ jobs:
           compression-level: 9
           overwrite: true
 
-      - name: Upload cache/logs for this leg (for resume capability)
+      - name: Upload cache/logs for this leg (for resume + diagnostics)
         if: always()
         continue-on-error: true
         uses: actions/upload-artifact@v4
@@ -2027,6 +2051,7 @@ jobs:
             search_cache.json
             ghost_credentials.json
             g4f_locked_config.json
+            data/logs/
           retention-days: 30
           overwrite: true
 

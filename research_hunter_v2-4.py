@@ -8959,8 +8959,18 @@ def main():
                 with s._lock: s._c.mark_found(*a, **kw)
             def save(s):
                 with s._lock: s._c.save()
+            def flush(s):
+                with s._lock: s._c.flush()
+            def set_defer(s, val: bool):
+                with s._lock: s._c._defer_saves = val
         ts_red_list = _TSRedList(red_list)
         ts_cache = _TSCache(cache)
+        # Defer per-paper cache rewrites: each smart_file_paper() calls
+        # mark_downloaded() which used to rewrite the whole cache JSON per paper
+        # (thousands of full-JSON disk writes = disk-I/O thrash). With deferral
+        # on, mark_downloaded only updates the in-memory set; we flush once per
+        # batch below. Disabled again after the loop so the final save() writes.
+        ts_cache.set_defer(True)
         for batch_idx in range(total_batches):
             start = batch_idx * BATCH_SIZE
             end   = min(start + BATCH_SIZE, len(download_queue))
@@ -9005,8 +9015,10 @@ def main():
                 # Periodic checkpoint after each batch — if the 3h timeout
                 # kills the job mid-run, downloaded_count is preserved so the
                 # next chunk resumes downloading instead of re-downloading.
+                # Use flush() (not save()): _defer_saves is on so save() is a
+                # no-op; flush() forces the per-batch disk write.
                 try:
-                    ts_cache.save()
+                    ts_cache.flush()
                     ckpt_papers = cache.deduplicate(download_queue + ckpt_existing)
                     results_path.write_text(json.dumps({
                         "papers": ckpt_papers,
@@ -9017,6 +9029,9 @@ def main():
                     }, ensure_ascii=False, indent=2), encoding="utf-8")
                 except Exception:
                     pass
+        # Re-enable immediate saves and force a final flush so the last batch's
+        # in-memory download set hits disk (deferred saves were on during the loop).
+        ts_cache.set_defer(False)
         cache.save()
         ok(f"Downloaded {dl_count} / {len(download_queue)} PDFs")
         if red_list.entries:

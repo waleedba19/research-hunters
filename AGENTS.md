@@ -143,9 +143,27 @@ python -m verify_refs.cli --input tests/sample_refs.txt --output-folder my_repor
 - `hunt-run.yml` — `workflow_dispatch`. Runs gha_run_hunt.py (Telegram push optional).
 - `backup.yml` — weekly tar.gz of state + logs, uploaded as artifact.
 - `write-chapter.yml` — v0.2. Multi-job chapter writer via repository_dispatch.
-- `research.yml` — large workflow_dispatch research runner. Has a `fanout_mode`
-  input (off/on). When "on", the `merge` job runs after `research` to generate
-  the unified DOCX + Excel + PDF from the merged report_data.
+- `research.yml` — large workflow_dispatch research runner. **Multi-research-box
+  design (Aug 2026):** `verify → plan → research (matrix of N parallel legs) →
+  merge`. The `plan` job calls `fanout_merge.build_matrix()` to split the topic
+  into one sub-hunt per research question / aspect. `research` runs as a GitHub
+  matrix job (`max-parallel: 5`, `fail-fast: false`); each leg searches its own
+  focused sub-topic into its own folder `pdf_files/<base>/<label>` and uploads
+  its own `research-data-<base>-<label>` artifact. `merge` downloads ALL legs
+  (current run + cross-run for legs that chained past the 6h cap), dedupes via
+  `fanout_merge.merge_reports` (DOI→title→URL), and produces `<title>_FINAL_UNIFIED.zip`.
+  Chain continuation across the 6h cap dispatches a SINGLE-leg run carrying the
+  signal `continue:LABEL|||SUBHUNT_TITLE` inside the `fanout_mode` input
+  (GitHub caps workflow_dispatch at 25 inputs, so the signal reuses an existing
+  input). `MAX_CHUNKS=96` → 96×3h = 12 days per leg (each leg chains independently).
+- `daily_learn` job — runs after research. Now doubles as a full monitoring/
+  diagnostics system: downloads every leg's `cache-data-*` artifact (which
+  include `data/logs/*.log`), runs `scripts/collect_diagnostics.py` to surface
+  errors/warnings/exceptions we might miss when the workflow is off, and emits
+  `status_report.md` + `diagnostics_report.md`. Never fails the job.
+- `scripts/collect_diagnostics.py` — the "report what we don't see" engine.
+  Scans `*.log` files for ERROR/WARNING/Exception/Traceback, dedupes + counts,
+  appends offline `run.py` health. Pure-Python, no network, never raises.
 
 ## Common pitfalls
 
