@@ -1201,12 +1201,6 @@ on:
           - y - Auto-detect
           - p - Custom URL
 
-      continue_label:
-        description: '🔁 INTERNAL — continuation label (auto-set by the chain, leave empty)'
-        required: false
-        default: ''
-        type: string
-
 
 jobs:
   verify:
@@ -1289,20 +1283,22 @@ jobs:
         run: |
           python3 - <<'PY'
           import json, os, subprocess, sys
-          CONTINUE = "${{ github.event.inputs.continue_label }}".strip()
+          # The chain continuation signal is carried in the fanout_mode input as
+          # "continue:LABEL|||SUBHUNT_TITLE" (GitHub caps workflow_dispatch at 25
+          # inputs, so we reuse an existing one instead of a dedicated input).
+          FANOUT = "${{ github.event.inputs.fanout_mode }}"
           TITLE = "${{ github.event.inputs.title }}" or "Research"
           RQ1 = "${{ github.event.inputs.rq1 }}"
           RQ2 = "${{ github.event.inputs.rq2 }}"
           FIELD = "${{ github.event.inputs.field }}"
           # Field choice is "N - Name"; strip the leading index for the planner.
           field_val = FIELD.split(" - ", 1)[-1] if " - " in FIELD else FIELD
-          if CONTINUE:
-              # Continuation: resume exactly ONE sub-topic. The label and focused
-              # title were carried by continue_label as "LABEL|||SUBHUNT_TITLE".
-              if "|||" in CONTINUE:
-                  label, sub_title = CONTINUE.split("|||", 1)
+          if FANOUT.startswith("continue:"):
+              payload = FANOUT[len("continue:"):]
+              if "|||" in payload:
+                  label, sub_title = payload.split("|||", 1)
               else:
-                  label, sub_title = CONTINUE, TITLE
+                  label, sub_title = payload, TITLE
               matrix = [{"label": label, "index": "0", "subhunt_title": sub_title}]
               cont_out = label
           else:
@@ -1896,7 +1892,12 @@ jobs:
           TRIGGER_YEAR_FROM: ${{ github.event.inputs.year_from }}
           TRIGGER_YEAR_TO: ${{ github.event.inputs.year_to }}
           TRIGGER_MODE: ${{ github.event.inputs.mode }}
-          TRIGGER_FANOUT_MODE: ${{ github.event.inputs.fanout_mode }}
+          # Single-leg continuation: dispatch the next run with fanout_mode set
+          # to "continue:LABEL|||SUBHUNT_TITLE". The next run's plan job sees
+          # this sentinel and emits a one-leg matrix for JUST this sub-topic,
+          # so completed legs are never re-run. (GitHub caps workflow_dispatch
+          # inputs at 25, so we reuse the fanout_mode field to carry the signal.)
+          TRIGGER_FANOUT_MODE: continue:${{ steps.folder.outputs.leg_label }}|||${{ steps.folder.outputs.subhunt_title }}
           TRIGGER_PAPER_LIMIT: ${{ github.event.inputs.paper_limit }}
           TRIGGER_FOLDER_MODE: ${{ github.event.inputs.folder_mode }}
           TRIGGER_DOWNLOAD_PDFS: ${{ github.event.inputs.download_pdfs }}
@@ -1908,10 +1909,6 @@ jobs:
           TRIGGER_GEOGRAPHIC_AREA: ${{ github.event.inputs.geographic_area }}
           TRIGGER_RESEARCH_DEPTH: ${{ github.event.inputs.research_depth }}
           TRIGGER_OPERATION_MODE: ${{ github.event.inputs.operation_mode }}
-          # Single-leg continuation: the next run's plan job sees continue_label
-          # and emits a one-leg matrix for JUST this sub-topic, so completed legs
-          # are never re-run. Encoded as "LABEL|||SUBHUNT_TITLE".
-          TRIGGER_CONTINUE_LABEL: ${{ steps.folder.outputs.leg_label }}|||${{ steps.folder.outputs.subhunt_title }}
         shell: bash
         run: |
           echo "Checking if more work remains for this leg..."
@@ -2046,7 +2043,7 @@ jobs:
   # ═══════════════════════════════════════════════════════════════════════════
   merge:
     needs: [plan, research]
-    if: always() && needs.plan.result == 'success' && github.event_name == 'workflow_dispatch' && (startsWith(github.event.inputs.fanout_mode, 'on') || needs.plan.outputs.leg_count != '1')
+    if: always() && needs.plan.result == 'success' && github.event_name == 'workflow_dispatch' && (startsWith(github.event.inputs.fanout_mode, 'on') || startsWith(github.event.inputs.fanout_mode, 'continue:') || needs.plan.outputs.leg_count != '1')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
