@@ -1,6 +1,6 @@
 """
 verify_refs/orchestrator.py — Main pipeline:
-  for each reference: search 81 platforms → ollama score → classify
+  for each reference: search 93 platforms → ollama score → classify
   → download PDFs for verified refs → save outputs.
 """
 import os

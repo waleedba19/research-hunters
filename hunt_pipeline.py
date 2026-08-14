@@ -162,14 +162,35 @@ PLATFORM_ALIASES = {
 
 
 def _resolve_platforms(platforms: list) -> list:
-    """Resolve human-readable platform names to v2-4 keys."""
+    """Resolve human-readable platform names to v2-4 keys.
+
+    Special values:
+        "all"     → every platform in PLATFORM_FNS
+        "tier1"   → tier-1 platforms only (highest authority)
+        "tier12"  → tier 1 + tier 2 platforms (balanced)
+    """
     PLATFORM_FNS = getattr(v2_4, "PLATFORM_FNS", {})
     resolved = []
     for p in platforms:
         key = PLATFORM_ALIASES.get(p.lower().strip(), p)
-        if key in PLATFORM_FNS or key == "all":
+        if key in PLATFORM_FNS:
             resolved.append(key)
-    if not resolved or "all" in resolved:
+        elif key == "all":
+            return list(PLATFORM_FNS.keys())
+        elif key in ("tier1", "tier12"):
+            # Resolve via platform_registry tier system
+            try:
+                from platform_registry import get_platforms_by_tier
+                tiers = [1] if key == "tier1" else [1, 2]
+                tier_names = []
+                for t in tiers:
+                    for name in get_platforms_by_tier(t):
+                        if name in PLATFORM_FNS and name not in tier_names:
+                            tier_names.append(name)
+                resolved.extend(tier_names)
+            except Exception:
+                pass
+    if not resolved:
         return list(PLATFORM_FNS.keys())
     return resolved
 

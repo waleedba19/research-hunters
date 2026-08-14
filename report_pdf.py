@@ -21,6 +21,27 @@ from logger import get_logger
 log = get_logger(__name__)
 
 
+def _libreoffice_env() -> dict:
+    """Build an environment for LibreOffice subprocesses.
+
+    On Linux, LibreOffice's bundled shared libraries live in its program dir
+    (e.g. /usr/lib/libreoffice/program). That dir must be on LD_LIBRARY_PATH
+    for soffice to find libreglo.so and friends. We add it without clobbering
+    the existing path so the rest of the system still works.
+    """
+    env = os.environ.copy()
+    lo_dirs = [
+        "/usr/lib/libreoffice/program",
+        "/usr/lib64/libreoffice/program",
+        "/opt/libreoffice/program",
+    ]
+    existing = env.get("LD_LIBRARY_PATH", "")
+    parts = [d for d in lo_dirs if Path(d).is_dir()]
+    if parts:
+        env["LD_LIBRARY_PATH"] = ":".join(parts + ([existing] if existing else []))
+    return env
+
+
 def _find_libreoffice() -> Optional[list]:
     """Find a working LibreOffice executable. Returns the cmd as a list, or None."""
     candidates = [
@@ -32,10 +53,12 @@ def _find_libreoffice() -> Optional[list]:
         ["C:\\Program Files (x86)\\LibreOffice\\program\\soffice.exe"],
         ["/Applications/LibreOffice.app/Contents/MacOS/soffice"],
     ]
+    env = _libreoffice_env()
     for cmd in candidates:
         try:
             r = subprocess.run(cmd + ["--version"],
-                               capture_output=True, text=True, timeout=10)
+                               capture_output=True, text=True, timeout=10,
+                               env=env)
             if r.returncode == 0:
                 return cmd
         except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
@@ -84,6 +107,7 @@ def docx_to_pdf(docx_path: str | Path,
                         str(docx_path),
                     ],
                     capture_output=True, text=True, timeout=timeout,
+                    env=_libreoffice_env(),
                 )
                 if r.returncode == 0 and pdf_path.exists() and pdf_path.stat().st_size > 1000:
                     log.info(f"OK PDF via LibreOffice: {pdf_path.name} "
@@ -138,4 +162,3 @@ def is_pdf_generation_available() -> bool:
         return True
     except ImportError:
         return False
-    return False

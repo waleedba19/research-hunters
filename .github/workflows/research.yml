@@ -1017,6 +1017,14 @@ on:
           - 'deep - DEEP — Full-depth search across all 128+ platforms [RECOMMENDED]'
           - 'ultra - ULTRA — Ultra-deep search with multiple query rounds'
           - 'maximum - MAXIMUM — Exhaustive search, every possible query'
+      fanout_mode:
+        description: '🔀 FAN-OUT → MERGE — Split research into parallel sub-hunts (one per research question), then merge into one unified report with deduplication. Best with 2+ research questions.'
+        required: true
+        default: 'off - Single unified hunt (no fan-out)'
+        type: choice
+        options:
+          - 'off - Single unified hunt (no fan-out)'
+          - 'on - Fan-out: parallel sub-hunts → merged report [NEW]'
       research_depth:
         description: '🎯 RESEARCH DEPTH — Auto-splits work into 3h chunks. Each chunk resumes where the last stopped.'
         required: true
@@ -1541,6 +1549,7 @@ jobs:
           CI_QUARTILE: "${{ github.event.inputs.quartile }}"
           CI_MODE_VAL: "${{ github.event.inputs.mode }}"
           CI_RESEARCH_DEPTH: "${{ github.event.inputs.research_depth }}"
+          CI_FANOUT_MODE: "${{ github.event.inputs.fanout_mode }}"
           CI_PAPER_LIMIT: "${{ github.event.inputs.paper_limit }}"
           CI_LANGUAGE: "${{ github.event.inputs.language }}"
           CI_DOWNLOAD_PDFS: "${{ github.event.inputs.download_pdfs }}"
@@ -1652,6 +1661,7 @@ jobs:
           TRIGGER_YEAR_FROM: ${{ github.event.inputs.year_from }}
           TRIGGER_YEAR_TO: ${{ github.event.inputs.year_to }}
           TRIGGER_MODE: ${{ github.event.inputs.mode }}
+          TRIGGER_FANOUT_MODE: ${{ github.event.inputs.fanout_mode }}
           TRIGGER_PAPER_LIMIT: ${{ github.event.inputs.paper_limit }}
           TRIGGER_FOLDER_MODE: ${{ github.event.inputs.folder_mode }}
           TRIGGER_DOWNLOAD_PDFS: ${{ github.event.inputs.download_pdfs }}
@@ -1764,3 +1774,87 @@ jobs:
             ghost_credentials.json
             g4f_locked_config.json
           retention-days: 30
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # MERGE JOB — Fan-out → Merge unified report
+  # Runs after the research job completes (when fanout_mode is "on").
+  # Downloads the research artifact, merges all sub-hunt results into one
+  # unified report with deduplication, and generates DOCX + Excel + PDF.
+  # ═══════════════════════════════════════════════════════════════════════════
+  merge:
+    needs: [research]
+    if: always() && github.event_name == 'workflow_dispatch' && startsWith(github.event.inputs.fanout_mode, 'on')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Python dependencies
+        run: |
+          pip install -q requests rich openpyxl python-docx pdfplumber pymupdf pillow reportlab
+
+      - name: Determine output folder (deterministic name from title)
+        id: folder
+        shell: bash
+        run: |
+          TITLE="${{ github.event.inputs.title }}"
+          SAFE=$(python3 -c "import re; t=re.sub(r'[^\w\s\-\.]', '_', '''$TITLE'''); t=re.sub(r'\s+', '_', t).strip('_'); print(t[:80] if t else 'untitled')")
+          echo "folder_name=$SAFE" >> $GITHUB_OUTPUT
+          echo "Folder: $SAFE"
+
+      - name: Download research data
+        if: always()
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: research-data-${{ steps.folder.outputs.folder_name }}
+          path: pdf_files
+
+      - name: Merge sub-hunt results into unified report
+        env:
+          PYTHONIOENCODING: utf-8
+        shell: bash
+        run: |
+          echo "========================================================"
+          echo "  FAN-OUT → MERGE: Generating unified report"
+          echo "  Title: ${{ github.event.inputs.title }}"
+          echo "========================================================"
+          python3 -c "
+          import json, os, sys
+          from pathlib import Path
+          # Load the research results (results.json written by v2-4)
+          folder = Path('pdf_files/${{ steps.folder.outputs.folder_name }}')
+          results_file = folder / 'results.json'
+          if not results_file.exists():
+              print('No results.json found — nothing to merge')
+              sys.exit(0)
+          with open(results_file) as f:
+              report_data = json.load(f)
+          # The research job already produces a unified report_data.
+          # When fanout_mode is on, the v2-4 pipeline splits into sub-hunts
+          # and merges internally via fanout_merge.merge_reports.
+          # This job re-generates the DOCX + Excel + PDF from the merged data.
+          import research_hunter_v2_4 as v
+          from report_pdf import docx_to_pdf
+          docx_path = v.generate_docx_report(report_data, folder)
+          print(f'DOCX: {docx_path}')
+          if docx_path:
+              xlsx = v._write_master_xlsx(report_data.get('papers', []), folder, queries_used=report_data.get('ai_queries', []))
+              print(f'Excel: {xlsx}')
+              pdf = docx_to_pdf(docx_path, timeout=300)
+              print(f'PDF: {pdf}')
+          print('✅ Unified report generated')
+          "
+
+      - name: Upload merged report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: merged-report-${{ steps.folder.outputs.folder_name }}
+          path: |
+            pdf_files/${{ steps.folder.outputs.folder_name }}/research_report.docx
+            pdf_files/${{ steps.folder.outputs.folder_name }}/research_report.pdf
+            pdf_files/${{ steps.folder.outputs.folder_name }}/master_papers.xlsx
+          retention-days: 90
+

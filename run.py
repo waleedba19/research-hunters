@@ -23,7 +23,7 @@ def main():
     # 1. Core import check
     print("\n1. Core modules:")
     core = [
-        ("research_hunter_v4", "Main v4 wrapper (81-platform surface)"),
+        ("research_hunter_v4", "Main v4 wrapper (multi-platform surface)"),
         ("hunt_pipeline", "Hunt pipeline"),
         ("precision_engine", "Precision engine (ollama scoring)"),
         ("verify_refs.orchestrator", "verify_refs orchestrator"),

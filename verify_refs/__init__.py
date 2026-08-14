@@ -4,7 +4,7 @@ verify_refs — Reference-list-driven verification mode.
 Workflow:
   1. Accept input: folder of PDFs/DOCX, single PDF/DOCX/TXT/MD, or pasted list
   2. Extract individual reference strings
-  3. For each reference: search 81 platforms → ollama scoring → classify
+  3. For each reference: search 93 platforms → ollama scoring → classify
   4. For verified refs: try 14-layer PDF download chain
   5. Generate:
        - master_database_verifyrefs.xlsx  (color-coded)

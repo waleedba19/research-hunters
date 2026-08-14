@@ -10,7 +10,7 @@ optional transports layered on top when configured.
 Entry point (CLI / hunt_pipeline / gha_run_hunt.py)
    ↓
 [Layer 1: research_hunter_v4.py]  (orchestrator)
-   - Re-exports full v2-4 surface (81 platforms)
+   - Re-exports full v2-4 surface (93 platforms)
    - 11 glue functions + verify_one_reference / verify_chapter_upload
    - Lazy google_integration import (degrades if Drive unconfigured)
    ↓
@@ -44,7 +44,7 @@ Entry point (CLI / hunt_pipeline / gha_run_hunt.py)
 |---|----------|--------|---------|
 | 1 | `wizard_collect_inputs` | wizard.py + state_manager.py | Input collection (11 research types, every step skippable except type + chapter) |
 | 2 | `parse_chapter_references` | pdf_parser.py | Extract in-text + reference list from PDF/DOCX/ODT |
-| 3 | `precision_search` | precision_engine.py | 81 platforms → ollama score → 0.85+ |
+| 3 | `precision_search` | precision_engine.py | 93 platforms → ollama score → 0.85+ |
 | 4 | `score_paper_match` | precision_engine.py | ollama strict 0-1 score |
 | 5 | `cross_source_validate` | precision_engine.py | 2+ source check to eliminate hallucinations |
 | 6 | `create_drive_folder_w` | google_integration.py (lazy) | Per-chapter folder structure |
@@ -85,7 +85,7 @@ Input (folder / PDF / DOCX / TXT / pasted list)
    ↓ verify_refs.input_parser → list of refs
    ↓
 For each ref:
-   ├── search 81 platforms
+   ├── search 93 platforms
    ├── ollama scores the match (0-1)
    └── classify: VERIFIED (≥0.85) / LIKELY (0.60-0.85) / UNVERIFIED / FAKE
    ↓ verify_refs.reports
@@ -117,4 +117,4 @@ Excel (openpyxl, color-coded) + DOCX (python-docx, professional styling)
 - All system deps (ollama, tesseract, playwright) are installed fresh each run via
   `requirements.txt` + workflow shell steps on `ubuntu-latest` runners.
 - `requests` is a hard core dependency (v2-4 imports it at top level); it must be
-  installed or the 81-platform surface fails to load.
+  installed or the 93-platform surface fails to load.

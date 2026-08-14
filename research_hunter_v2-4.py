@@ -3534,7 +3534,10 @@ def search_ssoar(query: str, year_from=None, limit: int = 20) -> list:
 
 
 def search_bioline(query: str, year_from=None, limit: int = 20) -> list:
-    """Bioline International — bioscience publications from developing countries."""
+    """Bioline International — bioscience publications from developing countries.
+
+    Tries the search endpoint first, then HTML scrape via Scrapling as fallback.
+    """
     params = {"q": query, "rows": limit}
     data = _get("http://www.bioline.org.br/cgi-bin/wais/search", params)
     out = []
@@ -3553,11 +3556,19 @@ def search_bioline(query: str, year_from=None, limit: int = 20) -> list:
                 })
                 if len(out) >= limit:
                     break
-    return _norm(out, "Bioline")
+    api_results = _norm(out, "Bioline")
+    if api_results:
+        return api_results
+    # Fallback: HTML scrape
+    return _search_bioline_scrape(query, year_from, limit)
 
 
 def search_redalyc(query: str, year_from=None, limit: int = 20) -> list:
-    """Redalyc — scientific journals from Latin America, Caribbean, Portugal, Spain."""
+    """Redalyc — scientific journals from Latin America, Caribbean, Portugal, Spain.
+
+    Uses the JSON API first (returns real metadata: DOI, authors, pdf_url).
+    Falls back to HTML scrape when the API is unavailable or returns nothing.
+    """
     params = {"q": query, "size": limit}
     data = _get("https://api.redalyc.org/api/articulos/search", params)
     out = []
@@ -3575,7 +3586,11 @@ def search_redalyc(query: str, year_from=None, limit: int = 20) -> list:
                 "abstract": item.get("abstract", ""),
                 "pdf_url": item.get("pdf", ""),
             })
-    return _norm(out, "Redalyc")
+    api_results = _norm(out, "Redalyc")
+    if api_results:
+        return api_results
+    # Fallback: HTML scrape
+    return _search_redalyc_scrape(query, year_from, limit)
 
 
 # ── Relevance Filtering ───────────────────────────────────────────────────────
@@ -4116,8 +4131,8 @@ def search_sciencedirect(query: str, year_from=None, limit: int = 20) -> list:
     return _norm(out, "ScienceDirect") if out else []
 
 
-def search_bialitic(query: str, year_from=None, limit: int = 15) -> list:
-    """Bioline International — developing country research."""
+def _search_bioline_scrape(query: str, year_from=None, limit: int = 15) -> list:
+    """Bioline International HTML scrape fallback."""
     if not HAS_SCRAPLING:
         return []
     url = f"http://www.bioline.org.br/simple-search?search={requests.utils.quote(query)}"
@@ -4211,8 +4226,8 @@ def search_ajol(query: str, year_from=None, limit: int = 15) -> list:
     return _norm(out, "AJOL") if out else []
 
 
-def search_redalyc(query: str, year_from=None, limit: int = 20) -> list:
-    """REDALYC — Latin American scientific journal repository."""
+def _search_redalyc_scrape(query: str, year_from=None, limit: int = 20) -> list:
+    """REDALYC HTML scrape fallback (used only when the API returns nothing)."""
     if not HAS_SCRAPLING:
         return []
     url = f"https://www.redalyc.org/journals.oa?q={requests.utils.quote(query)}"
@@ -6164,7 +6179,6 @@ PLATFORM_FNS = {
     "AJOL":             search_ajol,
     "SciELO Brazil":    search_scieelo_bra,
     "Dialnet":          search_dialnet,
-    "BioLine Int'l":    search_bialitic,
     # ── Shadow libraries & alternative sources ─────────────────────────────────
     "Anna's Archive":   search_annas_archive_enhanced,
     "Sci-Hub Multi":    search_scihub_multi,
@@ -8537,6 +8551,7 @@ def main():
         learn_enabled = os.environ.get("CI_LEARN", "").lower() in ("true", "1", "yes")
         research_depth_ci = os.environ.get("CI_RESEARCH_DEPTH", "medium")
         operation_mode_ci = os.environ.get("CI_OPERATION_MODE", "full-research")
+        fanout_mode_ci = os.environ.get("CI_FANOUT_MODE", "off").split(" -", 1)[0].strip().lower()
         suggested_kws = extract_study_keywords(title, rqs, field, count=30)
         country_context = detect_country_context(title, rqs)
         platforms = DEEP_PLATS
@@ -8561,7 +8576,10 @@ def main():
             "learn_enabled": learn_enabled,
             "research_depth": research_depth_ci,
             "operation_mode": operation_mode_ci,
+            "fanout_mode": fanout_mode_ci,
         }
+        if fanout_mode_ci == "on":
+            print(f"[CI] Fan-out → merge ENABLED: will split into sub-hunts per research question")
         print(f"[CI] Mode: {mode} | Title: {title[:60]}... | Field: {field}")
         print(f"[CI] Platforms: {len(platforms)} | Study types: {', '.join(study_types[:3])}...")
         if study_level_filter:
@@ -8657,6 +8675,28 @@ def main():
     folder_name = ci_folder if ci_folder else _safe_name(title, 80)
     out_folder  = Path("pdf_files") / folder_name
     out_folder.mkdir(parents=True, exist_ok=True)
+
+    # ── Fan-out → Merge mode ──────────────────────────────────────────────────
+    # When fanout_mode is "on", split the research into parallel sub-hunts
+    # (one per research question), run each, then merge all results into a
+    # single unified report with deduplication. This short-circuits the normal
+    # single-hunt pipeline below.
+    _fanout_mode = (params.get("fanout_mode", "off") or "off").split(" -", 1)[0].strip().lower()
+    if _fanout_mode == "on" and rqs:
+        info("🔀 FAN-OUT → MERGE mode active — splitting into sub-hunts")
+        try:
+            from fanout_merge import fanout_and_merge
+            merged_report = fanout_and_merge(params, out_folder=out_folder)
+            if merged_report and merged_report.get("papers"):
+                ok(f"✅ Fan-out → merge complete: {len(merged_report['papers'])} papers "
+                   f"from {merged_report.get('run_stats', {}).get('sub_reports_merged', 0)} sub-hunts")
+                return
+            else:
+                warn("Fan-out produced no papers — falling back to single hunt")
+        except Exception as e:
+            log.error(f"Fan-out → merge failed: {e}")
+            warn("Falling back to single-hunt mode")
+        # If we reach here, fan-out failed; continue with normal single-hunt pipeline below
 
     # Persist the user's Run-workflow selections as a readable Markdown file
     # so the system has an auditable record of every choice the user made.

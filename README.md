@@ -10,7 +10,7 @@ on top when configured.
 
 ## Status
 
-- **v0.1 (MVP, current)**: 81-platform search + chapter verify + verify_refs
+- **v0.1 (MVP, current)**: 93-platform search + chapter verify + verify_refs
   pipeline + Excel/DOCX reports + ollama scoring + optional Drive/Sheets.
 - **v0.2 (next)**: Chapter writer (24-48h pipeline) + Node.js professional
   reports + dynamic platform expansion + multi-language.
@@ -27,7 +27,7 @@ on top when configured.
                          ↓ research_hunter_v4.py
 ┌─────────────────────────────────────────────────────────────┐
 │ 2. Orchestrator  (research_hunter_v4.py)                    │
-│    - Re-exports full v2-4 surface (81 platforms)             │
+│    - Re-exports full v2-4 surface (93 platforms)             │
 │    - 11 glue functions + verify pipelines                   │
 │    - Lazy Google integration (degrades if unconfigured)     │
 └─────────────────────────────────────────────────────────────┘
@@ -61,7 +61,7 @@ on top when configured.
 | File | Purpose |
 |------|---------|
 | `research_hunter_v4.py` | Main wrapper: re-exports v2-4 surface + 11 glue functions + verify pipelines |
-| `research_hunter_v2-4.py` | 81-platform v6 SUPER LOADED GOD MODE (loaded via `v2_4` shim) |
+| `research_hunter_v2-4.py` | 93-platform v6 SUPER LOADED GOD MODE (loaded via `v2_4` shim) |
 | `hunt_pipeline.py` | Non-interactive hunt runner (`run_hunt(params, progress_callback)`) |
 | `hunt_intake.py` | 14-step intake state machine (only `title` required; rest skippable) |
 | `gha_run_hunt.py` | GitHub Actions hunt runner (Telegram push optional, env-gated) |
@@ -90,7 +90,7 @@ python -m verify_refs.cli --input references.txt --output-folder my_report
 ```
 
 1. Parse the input (folder / PDF / DOCX / TXT / pasted list) into a list of refs.
-2. For each ref: search 81 platforms → ollama scores the match (0-1) → classify.
+2. For each ref: search 93 platforms → ollama scores the match (0-1) → classify.
 3. Classification: VERIFIED (≥0.85), LIKELY (0.60-0.85), UNVERIFIED, FAKE.
 4. Generate color-coded Excel + professionally-styled DOCX reports.
 
@@ -106,7 +106,7 @@ result = run_hunt({
 }, progress_callback=print)
 ```
 
-1. 81 platforms queried in parallel (CrossRef, OpenAlex, PubMed, arXiv, ERIC, DOAJ, HAL, BASE, ...).
+1. 93 platforms queried in parallel (CrossRef, OpenAlex, PubMed, arXiv, ERIC, DOAJ, HAL, BASE, ...).
 2. Results deduplicated by title.
 3. ollama scores each (0-1) with a strict prompt.
 4. Only papers with score >= 0.85 AND appearing in 2+ sources are kept.

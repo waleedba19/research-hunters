@@ -13,7 +13,7 @@ v6.7: 13 steps, each skippable (uses default if skipped):
   9.  paper_type        - Journal / Conference / Preprint / Thesis / All
   10. quartile_filter   - Q1 only / Q1+Q2 / Any
   11. open_access       - Yes (OA only) / No (any)
-  12. platforms         - "all" / "tier1" / "tier12" (10 / 20 / 81 platforms)
+  12. platforms         - "all" / "tier1" / "tier12" (dynamic counts from platform_registry)
   13. max_papers        - cap on results (default 1000)
   (14.) download_pdfs   - yes / no
 
@@ -24,7 +24,19 @@ caller shows the review screen and dispatches the hunt.
 from typing import Dict, Any, Optional, List
 from logger import get_logger
 
-log = get_logger("hunt_intake")
+log = get_logger(__name__)
+
+
+def _platform_counts() -> tuple:
+    """Return (total, tier12_count, tier1_count) dynamically from PLATFORM_FNS."""
+    try:
+        from platform_registry import get_platforms_by_tier, PLATFORM_FNS
+        total = len(PLATFORM_FNS)
+        t1 = len(get_platforms_by_tier(1))
+        t12 = len(get_platforms_by_tier(1)) + len(get_platforms_by_tier(2))
+        return (total, t12, t1)
+    except Exception:
+        return (93, 20, 10)
 
 HUNT_STEPS: List[Dict[str, Any]] = [
     {
@@ -187,9 +199,9 @@ HUNT_STEPS: List[Dict[str, Any]] = [
         "prompt": ("🌐 *Step 12/14: Platforms*\n\n"
                    "Which platforms should I search?"),
         "options": [
-            ("all", "🌍 All 81 platforms (best coverage, slowest)"),
-            ("tier12", "⚡ Top 20 platforms (balanced speed + coverage)"),
-            ("tier1", "🚀 Tier 1 only (10 platforms, fastest)"),
+            ("all", "🌍 All {total} platforms (best coverage, slowest)"),
+            ("tier12", "⚡ Top {tier12} platforms (balanced speed + coverage)"),
+            ("tier1", "🚀 Tier 1 only ({tier1} platforms, fastest)"),
         ],
         "default": "all",
         "allow_skip": True,
@@ -269,7 +281,15 @@ def get_current_intake_step(chat_id: int) -> Optional[Dict[str, Any]]:
     step_idx = state.get("hunt_intake_step", 0)
     if step_idx < 0 or step_idx >= len(HUNT_STEPS):
         return None
-    return dict(HUNT_STEPS[step_idx], _index=step_idx, _total=len(HUNT_STEPS))
+    step = dict(HUNT_STEPS[step_idx], _index=step_idx, _total=len(HUNT_STEPS))
+    # Resolve dynamic platform-count placeholders in option labels
+    if "{total}" in str(step.get("options", [])):
+        total, t12, t1 = _platform_counts()
+        resolved = []
+        for key, label in step["options"]:
+            resolved.append((key, label.format(total=total, tier12=t12, tier1=t1)))
+        step["options"] = resolved
+    return step
 
 
 def record_intake_answer(chat_id: int, value: Any, via: str = "text") -> Dict[str, Any]:

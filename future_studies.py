@@ -350,4 +350,3 @@ def generate_research_questions(title: str, field: str = "general",
 
     log.info(f"generate_research_questions: returning {len(rqs)} questions for '{title_safe}'")
     return rqs[:max_questions]
-    return md

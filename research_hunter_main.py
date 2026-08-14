@@ -18,7 +18,7 @@ Strategy for handling 10,000+ papers with 4k context:
 import os
 import json
 import sqlite3
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 from datetime import datetime
 
 # Import our modules

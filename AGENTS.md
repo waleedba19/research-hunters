@@ -5,16 +5,16 @@ This file is loaded by AI coding assistants (like opencode) when working on this
 ## Architecture (post-stabilization, Aug 2026)
 
 The Telegram long-polling bot was **removed** (not required). The system is now a
-transport-agnostic research core: the **94-platform** hunt engine + verify_refs pipeline
+transport-agnostic research core: the **93-platform** hunt engine + verify_refs pipeline
 run with **zero secrets**. Google Drive/Sheets and Telegram push are **optional
 transports** layered on top when configured.
 
-- `research_hunter_v4.py` — main entry. Re-exports the full v2-4 surface (94 platforms)
+- `research_hunter_v4.py` — main entry. Re-exports the full v2-4 surface (93 platforms)
   + 11 glue functions + `verify_one_reference` / `verify_chapter_upload` pipelines.
   Imports `google_integration` **lazily** (inside the 3 Drive wrapper functions) so the
   core loads even when Drive isn't configured. Same for `wizard` (already lazy).
 - `research_hunter_v2_4.py` — shim that loads `research_hunter_v2-4.py` (dash name) via
-  importlib. The dash file is the 378 KB v7 SUPER LOADED (94 platforms + 14-layer
+  importlib. The dash file is the 378 KB v7 SUPER LOADED (93 platforms + 14-layer
   download chain + deep Excel with clickable hyperlinks + DOCX synthesis).
 - `hunt_pipeline.py` — non-interactive wrapper around v2-4's pipeline. `run_hunt(params, progress_callback)`.
 - `gha_run_hunt.py` — called by hunt-run.yml on GHA. Telegram push is **env-gated**
@@ -38,11 +38,13 @@ transports** layered on top when configured.
   module health, platform count, transport status, and entry points.
 - `verify_refs/` — Reference-list-driven verification (v1.0).
   - `input_parser.py` — accept folder / PDF / DOCX / TXT / pasted list → list of refs.
-  - `orchestrator.py` — per-ref: search 81 platforms → ollama score → classify → optionally download.
+  - `orchestrator.py` — per-ref: search 93 platforms → ollama score → classify → optionally download.
   - `reports.py` — Excel (openpyxl, color-coded) + DOCX (python-docx, professional styling).
   - `cli.py` — `python -m verify_refs.cli --input <path> --output-folder <name>`.
   - Status: VERIFIED (≥0.85 score), LIKELY (0.60-0.85), UNVERIFIED, FAKE.
-- `report_pdf.py` — v6.4 DOCX→PDF via LibreOffice (6 paths) or docx2pdf.
+- `report_pdf.py` — v6.4 DOCX→PDF via LibreOffice (6 paths) or docx2pdf. On Linux,
+  injects `LD_LIBRARY_PATH` for LibreOffice's bundled libs (libreglo.so) via
+  `_libreoffice_env()` — scoped to the soffice subprocess only, never global.
 - `deep_reader.py` — v7 PDF deep-reading engine. Reads downloaded PDFs page
   by page (pdfplumber→PyMuPDF fallback, capped at 60 pages / 200k chars),
   splits text into academic sections (Introduction / Literature Review /
@@ -62,6 +64,14 @@ transports** layered on top when configured.
   extracted text, color-tinted) + Author Quotes + Source URL List + APA refs.
 - `future_studies.py` — v6.5 AI-powered research gap suggestions. Falls back to
   deterministic templates if ollama fails.
+- `fanout_merge.py` — Fan-out → Merge unified workflow. Splits a research topic
+  into parallel sub-hunts (one per research question / aspect), runs each via
+  `hunt_pipeline.run_hunt`, then merges all `report_data` dicts into one unified
+  report with deduplication (DOI → title-hash → URL priority), stat aggregation
+  (q/type/geo distributions summed), and query/platform union. `merge_reports()`
+  is the core merge; `split_into_subhunts()` splits; `fanout_and_merge()` runs
+  the full pipeline and generates unified DOCX + Excel + PDF. Activated in v2-4's
+  `main()` when `params["fanout_mode"] == "on"` (set via `CI_FANOUT_MODE` env).
 - `synthesis_engine.py` — v7 **deep research synthesis engine**. Six deterministic
   analytical passes over the corpus, driven by deep_reader output (pdf_sections +
   pdf_quotes), not just metadata:
@@ -108,6 +118,7 @@ python tests/test_verify_refs.py --no-e2e
 python tests/test_deep_reader.py
 python tests/test_synthesis_engine.py
 python tests/test_hunt_intake.py
+python tests/test_fanout_merge.py
 python tests/test_hunt_intake_e2e.py
 python tests/test_report_pdf.py
 python tests/test_future_studies.py
@@ -132,7 +143,9 @@ python -m verify_refs.cli --input tests/sample_refs.txt --output-folder my_repor
 - `hunt-run.yml` — `workflow_dispatch`. Runs gha_run_hunt.py (Telegram push optional).
 - `backup.yml` — weekly tar.gz of state + logs, uploaded as artifact.
 - `write-chapter.yml` — v0.2. Multi-job chapter writer via repository_dispatch.
-- `research.yml` — large workflow_dispatch research runner.
+- `research.yml` — large workflow_dispatch research runner. Has a `fanout_mode`
+  input (off/on). When "on", the `merge` job runs after `research` to generate
+  the unified DOCX + Excel + PDF from the merged report_data.
 
 ## Common pitfalls
 

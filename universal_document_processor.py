@@ -723,6 +723,7 @@ class UniversalDocumentProcessor:
         if not HAS_PLAYWRIGHT:
             # Fallback to requests
             try:
+                import requests
                 r = requests.get(url, timeout=30)
                 return {
                     "text": r.text,
