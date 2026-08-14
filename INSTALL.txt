@@ -1,0 +1,110 @@
+═══════════════════════════════════════════════════════════════════════════
+   RESEARCH HUNTERS — FULL PACKAGE — INSTALL & RUN GUIDE
+═══════════════════════════════════════════════════════════════════════════
+
+This archive is the COMPLETE research-hunters system: the 93-platform academic
+search engine, reference verifier, DOCX/Excel/MD/PDF report generators, and a
+local runner you use from your terminal. No GitHub Actions required.
+
+───────────────────────────────────────────────────────────────────────────
+  REQUIREMENTS
+───────────────────────────────────────────────────────────────────────────
+  • Python 3.10 or newer  (check:  python --version)
+  • Internet connection   (to query the 93 academic platforms)
+  • ~50 MB free disk      (code + dependencies + reports)
+
+  OPTIONAL (only if you want AI scoring / future-studies suggestions):
+  • ollama  — see step 3 below. The search works WITHOUT it.
+
+───────────────────────────────────────────────────────────────────────────
+  STEP 1 — UNPACK
+───────────────────────────────────────────────────────────────────────────
+  Windows:  right-click the .zip → "Extract All…"
+  Mac/Linux:  unzip research-hunters.zip    (or:  tar -xzf research-hunters.tar.gz)
+
+───────────────────────────────────────────────────────────────────────────
+  STEP 2 — INSTALL DEPENDENCIES
+───────────────────────────────────────────────────────────────────────────
+  Open a terminal IN the unpacked folder (VS Code: File → Open Folder, then
+  Terminal → New Terminal), then run:
+
+      python -m pip install -r requirements.txt
+
+  This installs everything (pdfplumber, openpyxl, python-docx, rich, requests,
+  DrissionPage, etc.). Takes 1-3 minutes. Should finish with no errors.
+
+  TIP — use a virtual environment to keep things clean:
+      python -m venv venv
+      venv\Scripts\activate        (Windows)
+      source venv/bin/activate     (Mac/Linux)
+      python -m pip install -r requirements.txt
+
+───────────────────────────────────────────────────────────────────────────
+  STEP 3 — (OPTIONAL) INSTALL OLLAMA  — skip if you don't need AI scoring
+───────────────────────────────────────────────────────────────────────────
+  Ollama powers the AI relevance scoring + future-research-gap suggestions.
+  The search and reports work fine WITHOUT it (scoring falls back to
+  deterministic heuristics). Install only if you want the AI features:
+
+  Mac/Linux:
+      curl -fsSL https://ollama.com/install.sh | sh
+      ollama serve &            (starts the background service)
+      ollama pull llama3.1      (downloads the model, ~4 GB, one-time)
+  Windows:  download the installer from https://ollama.com/download, then
+            in a terminal:  ollama pull llama3.1
+
+───────────────────────────────────────────────────────────────────────────
+  STEP 4 — VERIFY THE INSTALL
+───────────────────────────────────────────────────────────────────────────
+      python run.py
+
+  You should see:
+      ✅ Core system healthy.
+      ✅ 93 platforms registered
+
+  If you see that, everything is installed correctly.
+
+───────────────────────────────────────────────────────────────────────────
+  STEP 5 — RUN A FULL RESEARCH HUNT
+───────────────────────────────────────────────────────────────────────────
+  Interactive (answers all the same questions as the GitHub dashboard):
+
+      python run_local.py
+
+  One-shot with smart defaults (no prompts):
+
+      python run_local.py --auto "Your research title here"
+
+  Reports are written to:   ./pdf_files/<your-topic>/
+      • research_report.md      (Markdown)
+      • research_report.docx    (Word)
+      • master_papers.xlsx      (48-sheet Excel with clickable links)
+
+  RE-RUN to add more: just run the same command again — it resumes and skips
+  papers already found (state saved in search_cache.json + results.json).
+
+───────────────────────────────────────────────────────────────────────────
+  OTHER ENTRY POINTS
+───────────────────────────────────────────────────────────────────────────
+  Verify a reference list (e.g. a bibliography):
+      python -m verify_refs.cli --input my_refs.txt --output-folder my_report
+
+  Run the test suite (offline, no network needed):
+      python tests/test_verify_refs.py --no-e2e
+      python tests/test_health.py
+
+───────────────────────────────────────────────────────────────────────────
+  TROUBLESHOOTING
+───────────────────────────────────────────────────────────────────────────
+  "pip: command not found"        → Python isn't installed or not on PATH.
+                                    Install Python 3.10+ from python.org.
+  "No module named 'requests'"    → re-run:  pip install -r requirements.txt
+  Search seems slow / 0 results   → some academic sites rate-limit; the run
+                                    continues and skips them. Re-run to resume.
+  DOCX shows "node.js needed"     → DOCX still generates; only some advanced
+                                    formatting needs Node.js. Not required.
+  Want PDFs downloaded too?       → in run_local.py, answer "Download PDFs? Y".
+
+───────────────────────────────────────────────────────────────────────────
+  That's it. Happy hunting.
+═══════════════════════════════════════════════════════════════════════════
